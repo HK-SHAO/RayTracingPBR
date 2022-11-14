@@ -1,0 +1,45 @@
+[gd_scene load_steps=4 format=3 uid="uid://chfj472a02ses"]
+
+[ext_resource type="Script" path="res://shared/script/FreeCamera3D.gd" id="1_alaqi"]
+[ext_resource type="Shader" path="res://raytracing/raytracing_pbr.gdshader" id="1_ics8y"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
+shader = ExtResource("1_ics8y")
+
+[node name="Control" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
+disable_3d = true
+handle_input_locally = false
+size = Vector2i(1200, 600)
+render_target_update_mode = 4
+
+[node name="ColorRect" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_w5e1j")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Node3D" type="Node3D" parent="."]
+
+[node name="FreeCamera3D" type="Camera3D" parent="Node3D"]
+transform = Transform3D(1, 0, 0, 0, 0.947031, 0.321142, 0, -0.321142, 0.947031, 0, 2.25205, 2.99805)
+script = ExtResource("1_alaqi")
