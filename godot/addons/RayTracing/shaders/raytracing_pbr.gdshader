@@ -1,46 +1,47 @@
 shader_type canvas_item;
 
 uniform vec3 camera_position = vec3(0.0, 0.0, 4.0); // 传入摄像机的位置
-uniform mat3 camera_rotation = mat3(1); // 摄像机的旋转
-uniform float aspect = 2.0; // 画布长宽比
+uniform mat3 camera_rotation = mat3(1);             // 摄像机的旋转
+uniform float camera_aspect = 2.0;                  // 画布长宽比
+uniform float camera_vfov = 30.0;                   // 摄像机的纵向视野
 
 //// 配置常量
-const float TMIN = 0.001;
-const float TMAX = 20.0;
-const float PRECISION = 0.0001; // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
-const float MAP_SIZE = 100000.0;
+const float TMIN        = 0.001;                    // 光开始传播的起始偏移，避免光线自相交
+const float TMAX        = 2000.0;                   // 最大单次光线传播距离
+const float PRECISION   = 0.0001;                   // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+const float MAP_SIZE    = float(0x7fffffff);        // 地图大小
 
-const uint MAX_RAYMARCH = 512U;
-const uint MAX_RAYTRACE = 512U;
+const uint MAX_RAYMARCH = 512U;                     // 最大光线步进次数
+const uint MAX_RAYTRACE = 512U;                     // 最大光线追踪次数
 
-const float PHI = 1.61803398874989484820459;
+const float PHI = 1.61803398874989484820459;        // 黄金比例
 
-//// 光线（射线）
+//// 光线
 struct ray {
-    vec3 origin;
-    vec3 direction;
-    vec4 color;
+    vec3 origin;     // 光的起点
+    vec3 direction;  // 光的方向
+    vec4 color;      // 光的颜色
 };
 
 //// 物体材质
 struct material {
-    vec3 albedo;
-    float roughness;
-    float metallic;
+    vec3 albedo;     // 反照率
+    float roughness; // 粗糙度
+    float metallic;  // 金属度
 };
 
 //// 光子击中的记录
 struct record {
-    float t; // 沿射线前进的距离，为负代表没有击中
-    vec3 position;
-    vec3 normal;
-    material mtl;
+    float t;         // 沿射线前进的距离，为负代表没有击中
+    vec3 position;   // 击中的位置
+    vec3 normal;     // 击中位置的法线
+    material mtl;    // 击中的材质
 };
 
 //// SDF 物体
 struct object {
-    float sd;
-    material mtl;
+    float sd;        // 到物体表面的距离
+    material mtl;    // 物体的材质
 };
 
 //// 摄像机
@@ -56,8 +57,8 @@ struct camera {
 
 //// 随机发生器
 struct random {
-    vec3 seed;
-    float value;
+    vec3 seed;       // 随机数种子
+    float value;     // 上次的随机值
 };
 
 //// 生成归一化随机数
@@ -76,6 +77,7 @@ vec3 at(ray r, float t) {
     return r.origin + t * r.direction;
 }
 
+// 单位圆内随机取一点
 vec2 random_in_unit_disk(inout random seed) {
     float r = mix(0.0, 1.0, noise(seed));
     float a = mix(0.0, TAU, noise(seed));
@@ -124,7 +126,7 @@ float sphere(vec3 p, float s) {
 //// SDF 地图
 object map(vec3 p) {
     const object objs[] = {
-        object(sphere(p - vec3(0, -100.5, 0), 100), material(vec3(1.0), 0.5, 0.5)),
+        object(sphere(p - vec3(0, -100.5, 0),100), material(vec3(1.0), 0.5, 0.5)),
         object(sphere(p - vec3(0, 0, 0), 0.5), material(vec3(1.0, 1.9, 1.0), 1.0, 0.0)),
         object(sphere(p - vec3(-1.0, -0.2, 0), 0.3), material(vec3(1.0, 0.3, 0.4), 0.9, 0.1)),
         object(sphere(p - vec3(1.0, -0.2, 0), 0.3), material(vec3(0.4, 0.3, 1.0), 0.1, 0.9))
@@ -194,7 +196,7 @@ ray pbr(ray r, record rec, inout random rand) {
     // 测试法线
     // rec.mtl.albedo = (rec.normal + 1.0) / 2.0;
     
-    const float attenuation = 0.5;
+    const float attenuation = 0.6;
     r.color *= vec4(rec.mtl.albedo, attenuation);
     return r;
 }
@@ -228,13 +230,13 @@ void fragment() {
     
     //// 初始化摄像机
     camera cam;
-    cam.aspect = aspect;
     cam.lookfrom = lookfrom;
     cam.lookat = lookat;
+    cam.aspect = camera_aspect;
+    cam.vfov = camera_vfov;
     cam.vup = vec3(0.0, 1.0, 0.0);
-    cam.focus = length(cam.lookat - cam.lookfrom);
-    cam.vfov = 30.0;
-    cam.aperture = 0.0;
+    cam.focus = 10.0;
+    cam.aperture = 0.01;
     
     //// 初始化随机数发生器种子
     random rand;

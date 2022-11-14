@@ -13,7 +13,10 @@ extends Camera3D
 @export_range(0, 100, 0.01) var smooth:float = 10
 @export var restric: bool = true
 
+@onready var control: Control = %RayTracing
+
 var captured: bool = false
+var captured_position: Vector2
 var moving: bool = false
 
 var _velocity: float = 0.0;
@@ -22,62 +25,64 @@ var _rotation: Vector3 = Vector3()
 var _tmp_rotation: Vector3 = Vector3()
 
 func _ready() -> void:
-	_rotation = rotation
-	_tmp_rotation = rotation
+    _rotation = rotation
+    _tmp_rotation = rotation
 
-	@warning_ignore(return_value_discarded)
-	%RayTracing.connect("gui_input", gui_input)
+    @warning_ignore(return_value_discarded)
+    control.connect("gui_input", gui_input)
 
 
 func gui_input(event: InputEvent):
-	if not current:
-		return
+    if not current:
+        return
 
-	if captured:
-		if event is InputEventMouseMotion:
-			_rotation.y -= event.relative.x / 1000 * sensitivity
-			_rotation.x -= event.relative.y / 1000 * sensitivity
-			if restric:
-				_rotation.x = clamp(_rotation.x, PI/-2, PI/2)
+    if captured:
+        if event is InputEventMouseMotion:
+            _rotation.y -= event.relative.x / 1000 * sensitivity
+            _rotation.x -= event.relative.y / 1000 * sensitivity
+            if restric:
+                _rotation.x = clamp(_rotation.x, PI/-2, PI/2)
 
-	if event is InputEventMouseButton:
-		match event.button_index:
-			MOUSE_BUTTON_LEFT:
-				if event.pressed:
-					Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-					captured = true
-				else:
-					Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-					captured = false
+    if event is InputEventMouseButton:
+        match event.button_index:
+            MOUSE_BUTTON_LEFT:
+                if event.pressed:
+                    Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+                    captured = true
+                    captured_position = event.position
+                else:
+                    Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+                    captured = false
+                    control.warp_mouse(captured_position)
 
-			MOUSE_BUTTON_WHEEL_UP: # increase fly velocity
-				max_speed *= speed_scale
-			MOUSE_BUTTON_WHEEL_DOWN: # decrease fly velocity
-				max_speed /= speed_scale
+            MOUSE_BUTTON_WHEEL_UP: # increase fly velocity
+                max_speed *= speed_scale
+            MOUSE_BUTTON_WHEEL_DOWN: # decrease fly velocity
+                max_speed /= speed_scale
 
 func set_rotation(rot: Vector3):
-	rotation = rot
+    rotation = rot
 
 func _process(delta: float) -> void:
-	var direction = Vector3(
-			float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)),
-			float(Input.is_key_pressed(KEY_E)) - float(Input.is_key_pressed(KEY_Q)), 
-			float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W))
-		).normalized()
+    var direction = Vector3(
+            float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)),
+            float(Input.is_key_pressed(KEY_E)) - float(Input.is_key_pressed(KEY_Q)), 
+            float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W))
+        ).normalized()
 
 
-	if captured and direction.length() != 0:
-		_velocity += (max_speed - _velocity) * delta * acceleration * sensitivity
-		_translate = direction * _velocity * delta
-	else:
-		_velocity = min_speed;
-		_translate -= _translate * clamp(delta * smooth, 0, 1);
+    if captured and direction.length() != 0:
+        _velocity += (max_speed - _velocity) * delta * acceleration * sensitivity
+        _translate = direction * _velocity * delta
+    else:
+        _velocity = min_speed;
+        _translate -= _translate * clamp(delta * smooth, 0, 1);
 
-	translate(_translate)
+    translate(_translate)
 
-	var _rotate := (_rotation - _tmp_rotation) * (clamp(delta * smooth * 1.5, 0.01, 1.0) as float)
-	_tmp_rotation += _rotate
-	set_rotation(_tmp_rotation)
+    var _rotate := (_rotation - _tmp_rotation) * (clamp(delta * smooth * 1.5, 0.01, 1.0) as float)
+    _tmp_rotation += _rotate
+    set_rotation(_tmp_rotation)
 
-	var dd := 0.00000001
-	moving = _rotate.length_squared() > dd || _translate.length_squared() > dd
+    var dd := 0.00000001
+    moving = _rotate.length_squared() > dd || _translate.length_squared() > dd

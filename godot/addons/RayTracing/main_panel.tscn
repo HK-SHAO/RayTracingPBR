@@ -1,16 +1,52 @@
-[gd_scene load_steps=7 format=3 uid="uid://sp4htfld3jwc"]
+[gd_scene load_steps=10 format=3 uid="uid://ubje1c34mpqe"]
 
-[ext_resource type="Shader" path="res://addons/RayTracing/raytracing/raytracing_pbr.gdshader" id="1_q47s2"]
-[ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_shader_camera_pos.gd" id="2_f3wcf"]
-[ext_resource type="Script" path="res://addons/RayTracing/shared/script/tool/tool_control_shader_aspect.gd" id="3_22h4v"]
+[ext_resource type="Shader" path="res://addons/RayTracing/shaders/raytracing_pbr.gdshader" id="1_0w4fs"]
+[ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_uniform_camera.gd" id="2_xxsdv"]
+[ext_resource type="Shader" path="res://addons/RayTracing/shaders/post_processing.gdshader" id="4_0kxc5"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/alwasy_fill_viewport.gd" id="4_cek0v"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
-shader = ExtResource("1_q47s2")
-shader_parameter/aspect = 2.0
-shader_parameter/camera_position = Vector3(0, 0, 4)
-shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader = ExtResource("1_0w4fs")
+shader_parameter/camera_aspect = 2.04374
+shader_parameter/camera_position = Vector3(0.140302, 0.461293, 1.52221)
+shader_parameter/camera_rotation = Basis(0.995654, -0.0373571, 0.085019, 0, 0.915503, 0.402266, -0.0928641, -0.400529, 0.911543)
+shader_parameter/camera_vfov = 75.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
+shader = ExtResource("4_0kxc5")
+shader_parameter/frame = 772.0
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
+viewport_path = NodePath("RayTracing/SubViewportContainer/SubViewport")
+
+[sub_resource type="GDScript" id="GDScript_x1fgw"]
+script/source = "@tool
+
+extends TextureRect
+
+@onready var camera: FreeCamera3D = %FreeCamera3D
+
+
+var frame: float = 0
+
+func _ready():
+    resized.connect(func():
+        frame = 0
+    )
+
+
+func _process(_delta: float) -> void:
+    if is_instance_valid(camera):
+        if camera.moving:
+            frame = 0
+    if Input.is_action_pressed(\"ui_accept\"):
+        frame = 0
+
+    frame += 1
+
+    material.set_shader_parameter(\"frame\", frame)
+"
 
 [node name="MainPanel" type="Control"]
 layout_mode = 3
@@ -62,23 +98,43 @@ focus_mode = 2
 mouse_filter = 2
 metadata/_edit_use_anchors_ = true
 
-[node name="always_shader_camera_pos" type="Node" parent="RayTracing/SubViewportContainer/SubViewport/ShaderRect"]
-script = ExtResource("2_f3wcf")
-
-[node name="tool_control_shader_aspect" type="Node" parent="RayTracing/SubViewportContainer/SubViewport/ShaderRect"]
-script = ExtResource("3_22h4v")
+[node name="always_uniform_camera" type="Node" parent="RayTracing/SubViewportContainer/SubViewport/ShaderRect"]
+script = ExtResource("2_xxsdv")
 
 [node name="alwasy_fill_viewport" type="Node" parent="RayTracing/SubViewportContainer/SubViewport/ShaderRect"]
 script = ExtResource("4_cek0v")
 
-[node name="Button" type="Button" parent="."]
-visible = false
-layout_mode = 0
-offset_left = 225.0
-offset_top = 139.0
-offset_right = 626.0
-offset_bottom = 417.0
-text = "121212121"
+[node name="UseBackBuffer" type="SubViewportContainer" parent="RayTracing"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = true
+stretch_shrink = 2
+
+[node name="SubViewport" type="SubViewport" parent="RayTracing/UseBackBuffer"]
+disable_3d = true
+handle_input_locally = false
+size = Vector2i(600, 300)
+render_target_clear_mode = 1
+render_target_update_mode = 4
+
+[node name="ShaderRect" type="TextureRect" parent="RayTracing/UseBackBuffer/SubViewport"]
+material = SubResource("ShaderMaterial_h8h8v")
+offset_right = 600.0
+offset_bottom = 300.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+focus_mode = 2
+mouse_filter = 2
+texture = SubResource("ViewportTexture_5c6e4")
+script = SubResource("GDScript_x1fgw")
+metadata/_edit_use_anchors_ = true
+
+[node name="alwasy_fill_viewport" type="Node" parent="RayTracing/UseBackBuffer/SubViewport/ShaderRect"]
+script = ExtResource("4_cek0v")
 
 [node name="FreeCamera3D" type="Camera3D" parent="."]
 unique_name_in_owner = true

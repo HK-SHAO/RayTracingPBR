@@ -7,4 +7,4 @@ extends Node
 
 
 func _process(_delta):
-	control.size = viewport.size
+    control.size = viewport.size
