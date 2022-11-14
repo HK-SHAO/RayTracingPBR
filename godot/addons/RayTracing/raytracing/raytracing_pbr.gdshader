@@ -1,8 +1,8 @@
 shader_type canvas_item;
 
-uniform vec3 camera_position = vec3(0.0, 0.0, 4.0);
-uniform mat3 camera_rotation = mat3(1);
-uniform float aspect = 2.0;
+uniform vec3 camera_position = vec3(0.0, 0.0, 4.0); // 传入摄像机的位置
+uniform mat3 camera_rotation = mat3(1); // 摄像机的旋转
+uniform float aspect = 2.0; // 画布长宽比
 
 //// 配置常量
 const float TMIN = 0.001;
@@ -126,8 +126,8 @@ object map(vec3 p) {
     const object objs[] = {
         object(sphere(p - vec3(0, -100.5, 0), 100), material(vec3(1.0), 0.5, 0.5)),
         object(sphere(p - vec3(0, 0, 0), 0.5), material(vec3(1.0, 1.9, 1.0), 1.0, 0.0)),
-        object(sphere(p - vec3(-1.0, 0, 0), 0.3), material(vec3(1.0, 0.3, 0.4), 0.9, 0.1)),
-        object(sphere(p - vec3(1.0, 0, 0), 0.3), material(vec3(0.4, 0.3, 1.0), 0.1, 0.9))
+        object(sphere(p - vec3(-1.0, -0.2, 0), 0.3), material(vec3(1.0, 0.3, 0.4), 0.9, 0.1)),
+        object(sphere(p - vec3(1.0, -0.2, 0), 0.3), material(vec3(0.4, 0.3, 1.0), 0.1, 0.9))
     };
     
     object o; o.sd = MAP_SIZE;

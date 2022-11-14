@@ -1,11 +1,11 @@
-[gd_scene load_steps=12 format=3 uid="uid://bcujf0tef3jv7"]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Shader" path="res://test/shader/camera_raytracing.gdshader" id="2_vj3lo"]
-[ext_resource type="Script" path="res://shared/script/always/always_shader_camera_pos.gd" id="4_mg5wx"]
+[ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_shader_camera_pos.gd" id="4_mg5wx"]
 [ext_resource type="Shader" path="res://test/shader/test_gamma.gdshader" id="5_8ao1x"]
 [ext_resource type="Shader" path="res://test/shader/test_backbuffer.gdshader" id="5_q4lqq"]
-[ext_resource type="Script" path="res://shared/script/FreeCamera3D.gd" id="6_nof40"]
-[ext_resource type="Script" path="res://shared/script/always/always_shader_backbuffer.gd" id="6_pdm25"]
+[ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="6_nof40"]
+[ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_shader_backbuffer.gd" id="6_pdm25"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_y0fov"]
 shader = ExtResource("2_vj3lo")
