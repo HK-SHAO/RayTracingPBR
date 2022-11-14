@@ -51,16 +51,18 @@ struct camera {
 
 //// 随机发生器
 struct random {
-    vec2 uv;
-    float seed;
+    vec3 seed;
     float value;
 };
 
 //// 生成归一化随机数（uv 和 seed 均必须归一化）
 float noise(inout random r) {
-    const vec2 xy = (r.uv + 1.0) * 3333.3;
-    r.seed = fract(r.value + r.seed);
-    r.value = fract(tan(distance(xy*PHI, xy)*r.seed)*xy.x);
+    r.seed = fract(r.seed * vec3(.1031, .1030, .0973));
+    r.seed += dot(r.seed, r.seed.yzx + 33.33);
+    r.seed.xy = fract((r.seed.xx+r.seed.yz)*r.seed.zy);
+    
+    const vec2 xy = r.seed.xy * 3333.3 + 3.33;
+    r.value = fract(tan(distance(xy*PHI, xy+3.3)*r.seed.z)*xy.x);
     return r.value;
 }
 
@@ -120,10 +122,9 @@ record raycast(ray r) {
     for(uint i = 0U; i < MAX_RAYMARCH && rec.t < TMAX; i++) {
         rec.position = at(r, rec.t);
         object obj = map(rec.position);
-        float dis = obj.sd;
         rec.mtl = obj.mtl;
-        if(dis < PRECISION) return rec;
-        rec.t += dis;
+        if(obj.sd < PRECISION) return rec;
+        rec.t += obj.sd;
     }
     //// 没有击中物体
     rec.t = -1.0; // 设置为负值标记
@@ -146,8 +147,8 @@ vec3 random_unit_vector(inout random rand) {
     return vec3(r*cos(a), r*sin(a), z);
 }
 
-//// 光线散射
-ray pbr(ray r, record rec, random rand) {
+//// PBR 材质
+ray pbr(ray r, record rec, inout random rand) {
     rec.normal = normal(rec.position);
     
     r.origin = rec.position;
@@ -197,8 +198,7 @@ void fragment() {
     
     //// 初始化随机数发生器
     random rand;
-    rand.seed = fract(TIME);
-    rand.uv = uv;
+    rand.seed = vec3(uv, fract(TIME));
     
     //// 获取光线并逆向追踪光线
     ray r = get_ray(cam, uv, vec4(1.0));
