@@ -91,9 +91,9 @@ ray get_ray(camera c, vec2 uv, vec4 color, inout random rand) {
     float half_height = tan(theta / 2.0);
     float half_width = c.aspect * half_height;
     
-    //// 以摄像机位置到目标位置为 Z 轴方向
-    vec3 z = normalize(c.lookat - c.lookfrom);
-    //// 计算出摄像机传感器的 XY 轴方向
+    //// 以目标位置到摄像机位置为 Z 轴正方向
+    vec3 z = normalize(c.lookfrom - c.lookat);
+    //// 计算出摄像机传感器的 XY 轴正方向
     vec3 x = normalize(cross(c.vup, z));
     vec3 y = cross(z, x);
     
@@ -126,7 +126,7 @@ float sphere(vec3 p, float s) {
 //// SDF 地图
 object map(vec3 p) {
     const object objs[] = {
-        object(sphere(p - vec3(0, -100.5, 0),100), material(vec3(1.0), 0.5, 0.5)),
+        object(sphere(p - vec3(0, -100.5, 0),100), material(vec3(1.0, 1.0, 1.0), 1.0, 0.5)),
         object(sphere(p - vec3(0, 0, 0), 0.5), material(vec3(1.0, 1.9, 1.0), 1.0, 0.0)),
         object(sphere(p - vec3(-1.0, -0.2, 0), 0.3), material(vec3(1.0, 0.3, 0.4), 0.9, 0.1)),
         object(sphere(p - vec3(1.0, -0.2, 0), 0.3), material(vec3(0.4, 0.3, 1.0), 0.1, 0.9))
@@ -223,9 +223,9 @@ void fragment() {
     //// 计算并修正 UV 坐标系
     vec2 uv = vec2(UV.x, 1.0 - UV.y);
     
-
+    //// 右手系
     const vec3 lookfrom = camera_position;
-    const vec3 direction = camera_rotation * vec3(0.0, 0.0, 1.0);
+    const vec3 direction = camera_rotation * vec3(0.0, 0.0, -1.0);
     const vec3 lookat = lookfrom + direction;
     
     //// 初始化摄像机
@@ -235,8 +235,8 @@ void fragment() {
     cam.aspect = camera_aspect;
     cam.vfov = camera_vfov;
     cam.vup = vec3(0.0, 1.0, 0.0);
-    cam.focus = 10.0;
-    cam.aperture = 0.01;
+    cam.focus = 1.0;
+    cam.aperture = 0.005;
     
     //// 初始化随机数发生器种子
     random rand;

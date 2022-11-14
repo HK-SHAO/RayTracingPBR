@@ -13,7 +13,7 @@ extends Camera3D
 @export_range(0, 100, 0.01) var smooth:float = 10
 @export var restric: bool = true
 
-@onready var control: Control = %RayTracing
+@onready var control: Control = %Control
 
 var captured: bool = false
 var captured_position: Vector2

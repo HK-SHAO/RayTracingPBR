@@ -8,17 +8,17 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aspect = 2.04374
-shader_parameter/camera_position = Vector3(0.140302, 0.461293, 1.52221)
-shader_parameter/camera_rotation = Basis(0.995654, -0.0373571, 0.085019, 0, 0.915503, 0.402266, -0.0928641, -0.400529, 0.911543)
+shader_parameter/camera_aspect = 2.01887
+shader_parameter/camera_position = Vector3(0, 0, 4)
+shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/camera_vfov = 75.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 772.0
+shader_parameter/frame = 518.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
-viewport_path = NodePath("RayTracing/SubViewportContainer/SubViewport")
+viewport_path = NodePath("Control/RayTracing/SubViewport")
 
 [sub_resource type="GDScript" id="GDScript_x1fgw"]
 script/source = "@tool
@@ -26,22 +26,25 @@ script/source = "@tool
 extends TextureRect
 
 @onready var camera: FreeCamera3D = %FreeCamera3D
-
+@onready var viewport: SubViewport = $\"..\"
 
 var frame: float = 0
 
-func _ready():
-    resized.connect(func():
+func _ready() -> void:
+    viewport.size_changed.connect(on_resize)
+    resized.connect(on_resize)
+    
+func on_resize():
         frame = 0
-    )
 
+func _input(event: InputEvent) -> void:
+    if event is InputEventKey:
+        frame =  0
 
 func _process(_delta: float) -> void:
     if is_instance_valid(camera):
         if camera.moving:
             frame = 0
-    if Input.is_action_pressed(\"ui_accept\"):
-        frame = 0
 
     frame += 1
 
@@ -59,7 +62,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 
-[node name="RayTracing" type="Control" parent="."]
+[node name="Control" type="Control" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -68,9 +71,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 focus_mode = 2
+mouse_filter = 1
 mouse_default_cursor_shape = 13
 
-[node name="SubViewportContainer" type="SubViewportContainer" parent="RayTracing"]
+[node name="RayTracing" type="SubViewportContainer" parent="Control"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -78,33 +82,32 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
-stretch_shrink = 2
 
-[node name="SubViewport" type="SubViewport" parent="RayTracing/SubViewportContainer"]
+[node name="SubViewport" type="SubViewport" parent="Control/RayTracing"]
 disable_3d = true
 handle_input_locally = false
-size = Vector2i(600, 300)
+size = Vector2i(1200, 600)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
-[node name="ShaderRect" type="ColorRect" parent="RayTracing/SubViewportContainer/SubViewport"]
+[node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
 material = SubResource("ShaderMaterial_w5e1j")
-offset_right = 600.0
-offset_bottom = 300.0
+offset_right = 1200.0
+offset_bottom = 600.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 mouse_filter = 2
 metadata/_edit_use_anchors_ = true
 
-[node name="always_uniform_camera" type="Node" parent="RayTracing/SubViewportContainer/SubViewport/ShaderRect"]
+[node name="always_uniform_camera" type="Node" parent="Control/RayTracing/SubViewport/ShaderRect"]
 script = ExtResource("2_xxsdv")
 
-[node name="alwasy_fill_viewport" type="Node" parent="RayTracing/SubViewportContainer/SubViewport/ShaderRect"]
+[node name="alwasy_fill_viewport" type="Node" parent="Control/RayTracing/SubViewport/ShaderRect"]
 script = ExtResource("4_cek0v")
 
-[node name="UseBackBuffer" type="SubViewportContainer" parent="RayTracing"]
+[node name="UseBackBuffer" type="SubViewportContainer" parent="Control"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -112,19 +115,18 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
-stretch_shrink = 2
 
-[node name="SubViewport" type="SubViewport" parent="RayTracing/UseBackBuffer"]
+[node name="SubViewport" type="SubViewport" parent="Control/UseBackBuffer"]
 disable_3d = true
 handle_input_locally = false
-size = Vector2i(600, 300)
+size = Vector2i(1200, 600)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
-[node name="ShaderRect" type="TextureRect" parent="RayTracing/UseBackBuffer/SubViewport"]
+[node name="ShaderRect" type="TextureRect" parent="Control/UseBackBuffer/SubViewport"]
 material = SubResource("ShaderMaterial_h8h8v")
-offset_right = 600.0
-offset_bottom = 300.0
+offset_right = 1200.0
+offset_bottom = 600.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
@@ -133,7 +135,7 @@ texture = SubResource("ViewportTexture_5c6e4")
 script = SubResource("GDScript_x1fgw")
 metadata/_edit_use_anchors_ = true
 
-[node name="alwasy_fill_viewport" type="Node" parent="RayTracing/UseBackBuffer/SubViewport/ShaderRect"]
+[node name="alwasy_fill_viewport" type="Node" parent="Control/UseBackBuffer/SubViewport/ShaderRect"]
 script = ExtResource("4_cek0v")
 
 [node name="FreeCamera3D" type="Camera3D" parent="."]
