@@ -20,7 +20,7 @@ _global_script_class_icons={
 
 [application]
 
-config/name="Ray Tracing PBR Demo"
+config/name="Ray Tracing Shader Demo"
 config/description="Ray Tracing Shader Demo by HK-SHAO."
 run/main_scene="res://test/scene/test_raytracing_scene.tscn"
 config/features=PackedStringArray("4.0", "Forward Plus")

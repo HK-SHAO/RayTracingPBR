@@ -1,5 +1,9 @@
 shader_type canvas_item;
 
+uniform vec3 camera_position = vec3(0.0, 0.0, 4.0);
+uniform mat3 camera_rotation = mat3(1);
+uniform float aspect = 2.0;
+
 //// 配置常量
 const float TMIN = 0.001;
 const float TMAX = 20.0;
@@ -41,12 +45,13 @@ struct object {
 
 //// 摄像机
 struct camera {
-    ////  图像平面位置
-    vec3 lower_left_corner;
-    vec3 horizontal;
-    vec3 vertical;
-    //// 视点位置
-    vec3 origin;
+    vec3 lookfrom;   // 视点位置
+    vec3 lookat;     // 目标位置
+    vec3 vup;        // 向上的方向
+    float vfov;      // 视野
+    float aspect;    // 传感器长宽比
+    float aperture;  // 光圈大小
+    float focus;     // 对焦距离
 };
 
 //// 随机发生器
@@ -55,7 +60,7 @@ struct random {
     float value;
 };
 
-//// 生成归一化随机数（uv 和 seed 均必须归一化）
+//// 生成归一化随机数
 float noise(inout random r) {
     r.seed = fract(r.seed * vec3(.1031, .1030, .0973));
     r.seed += dot(r.seed, r.seed.yzx + 33.33);
@@ -71,16 +76,43 @@ vec3 at(ray r, float t) {
     return r.origin + t * r.direction;
 }
 
+vec2 random_in_unit_disk(inout random seed) {
+    float r = mix(0.0, 1.0, noise(seed));
+    float a = mix(0.0, TAU, noise(seed));
+	return sqrt(r) * vec2(sin(a), cos(a));
+}
+
 //// 从摄像机获取光线
-ray get_ray(camera c, vec2 uv, vec4 color) {
-    //// 视点位置
-    vec3 ro = c.origin;
-    //// 像素位置
-    vec3 po = c.lower_left_corner
-            + c.horizontal * uv.x
-            + c.vertical   * uv.y;
-    //// 光线方向
+ray get_ray(camera c, vec2 uv, vec4 color, inout random rand) {
+    //// 根据 VFOV 和显示画布长宽比计算传感器长宽
+    float theta = c.vfov * PI / 180.0;
+    float half_height = tan(theta / 2.0);
+    float half_width = c.aspect * half_height;
+    
+    //// 以摄像机位置到目标位置为 Z 轴方向
+    vec3 z = normalize(c.lookat - c.lookfrom);
+    //// 计算出摄像机传感器的 XY 轴方向
+    vec3 x = normalize(cross(c.vup, z));
+    vec3 y = cross(z, x);
+    
+    vec3 lower_left_corner = c.lookfrom - half_width  * c.focus*x
+                                        - half_height * c.focus*y
+                                        -               c.focus*z;
+    
+    vec3 horizontal = 2.0 * half_width  * c.focus * x;
+    vec3 vertical   = 2.0 * half_height * c.focus * y;
+    
+    //// 模拟光进入镜头光圈
+    float lens_radius = c.aperture / 2.0;
+    vec2 rud = lens_radius * random_in_unit_disk(rand);
+    vec3 offset = x * rud.x + y * rud.y;
+    
+    //// 计算光线起点和方向
+    vec3 ro = c.lookfrom + offset;
+    vec3 po = lower_left_corner + uv.x*horizontal 
+                                + uv.y*vertical;
     vec3 rd = normalize(po - ro);
+    
     return ray(ro, rd, color);
 }
 
@@ -189,19 +221,27 @@ void fragment() {
     //// 计算并修正 UV 坐标系
     vec2 uv = vec2(UV.x, 1.0 - UV.y);
     
+
+    const vec3 lookfrom = camera_position;
+    const vec3 direction = camera_rotation * vec3(0.0, 0.0, 1.0);
+    const vec3 lookat = lookfrom + direction;
+    
     //// 初始化摄像机
     camera cam;
-    cam.lower_left_corner = vec3(-2.0, -1.0, 0.0);
-    cam.horizontal = vec3(4.0, 0.0, 0.0);
-    cam.vertical = vec3(0.0, 2.0, 0.0);
-    cam.origin = vec3(0.0, 0.0, -1.0);
+    cam.aspect = aspect;
+    cam.lookfrom = lookfrom;
+    cam.lookat = lookat;
+    cam.vup = vec3(0.0, 1.0, 0.0);
+    cam.focus = length(cam.lookat - cam.lookfrom);
+    cam.vfov = 30.0;
+    cam.aperture = 0.0;
     
-    //// 初始化随机数发生器
+    //// 初始化随机数发生器种子
     random rand;
     rand.seed = vec3(uv, fract(TIME));
     
     //// 获取光线并逆向追踪光线
-    ray r = get_ray(cam, uv, vec4(1.0));
+    ray r = get_ray(cam, uv, vec4(1.0), rand);
         r = raytrace(r, rand);
     
     //// 对光的颜色进行后处理得到像素颜色

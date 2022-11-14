@@ -64,11 +64,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
+stretch_shrink = 2
 
 [node name="SubViewport" type="SubViewport" parent="RayTracing"]
 disable_3d = true
 handle_input_locally = false
-size = Vector2i(1200, 600)
+size = Vector2i(600, 300)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
@@ -94,11 +95,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
+stretch_shrink = 2
 
 [node name="SubViewport" type="SubViewport" parent="BackBuffer"]
 disable_3d = true
 handle_input_locally = false
-size = Vector2i(1200, 600)
+size = Vector2i(600, 300)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
@@ -123,11 +125,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
+stretch_shrink = 2
 
 [node name="SubViewport" type="SubViewport" parent="Gamma"]
 disable_3d = true
 handle_input_locally = false
-size = Vector2i(1200, 600)
+size = Vector2i(600, 300)
 render_target_update_mode = 4
 
 [node name="TextureRect" type="TextureRect" parent="Gamma/SubViewport"]

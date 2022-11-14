@@ -1,10 +1,15 @@
-[gd_scene load_steps=4 format=3 uid="uid://chfj472a02ses"]
+[gd_scene load_steps=6 format=3 uid="uid://chfj472a02ses"]
 
 [ext_resource type="Script" path="res://shared/script/FreeCamera3D.gd" id="1_alaqi"]
 [ext_resource type="Shader" path="res://raytracing/raytracing_pbr.gdshader" id="1_ics8y"]
+[ext_resource type="Script" path="res://shared/script/always/always_shader_camera_pos.gd" id="2_istms"]
+[ext_resource type="Script" path="res://shared/script/tool/tool_control_shader_aspect.gd" id="3_wgqf0"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_ics8y")
+shader_parameter/aspect = null
+shader_parameter/camera_position = null
+shader_parameter/camera_rotation = null
 
 [node name="Control" type="Control"]
 layout_mode = 3
@@ -15,6 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -27,7 +33,7 @@ stretch = true
 disable_3d = true
 handle_input_locally = false
 size = Vector2i(1200, 600)
-render_target_update_mode = 4
+render_target_update_mode = 0
 
 [node name="ColorRect" type="ColorRect" parent="."]
 material = SubResource("ShaderMaterial_w5e1j")
@@ -38,8 +44,15 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[node name="always_shader_camera_pos" type="Node" parent="ColorRect" node_paths=PackedStringArray("camera")]
+script = ExtResource("2_istms")
+camera = NodePath("../../Node3D/FreeCamera3D")
+
+[node name="tool_control_shader_aspect" type="Node" parent="ColorRect"]
+script = ExtResource("3_wgqf0")
+
 [node name="Node3D" type="Node3D" parent="."]
 
 [node name="FreeCamera3D" type="Camera3D" parent="Node3D"]
-transform = Transform3D(1, 0, 0, 0, 0.947031, 0.321142, 0, -0.321142, 0.947031, 0, 2.25205, 2.99805)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 script = ExtResource("1_alaqi")
