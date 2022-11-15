@@ -5,10 +5,10 @@ uniform mat3 camera_rotation = mat3(1);             // 摄像机的旋转
 uniform float camera_aspect = 2.0;                  // 画布长宽比
 uniform float camera_vfov = 30.0;                   // 摄像机的纵向视野
 
-//// 配置常量
+// 配置常量
 const float TMIN        = 0.001;                    // 光开始传播的起始偏移，避免光线自相交
 const float TMAX        = 2000.0;                   // 最大单次光线传播距离
-const float PRECISION   = 0.0001;                   // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+const float PRECISION   = 0.00001;                   // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
 const float MAP_SIZE    = float(0x7fffffff);        // 地图大小
 
 const uint MAX_RAYMARCH = 512U;                     // 最大光线步进次数
@@ -16,35 +16,41 @@ const uint MAX_RAYTRACE = 512U;                     // 最大光线追踪次数
 
 const float PHI = 1.61803398874989484820459;        // 黄金比例
 
-//// 光线
+const vec3 BLACK = vec3(0.0);
+
+// 光线
 struct ray {
     vec3 origin;     // 光的起点
     vec3 direction;  // 光的方向
     vec4 color;      // 光的颜色
 };
 
-//// 物体材质
+// 物体材质
 struct material {
-    vec3 albedo;     // 反照率
+    vec4 albedo;     // 反照率
     float roughness; // 粗糙度
     float metallic;  // 金属度
+    vec4 emitting;   // 自发光
+    vec3 normal;     // 切线空间法线
 };
 
-//// 光子击中的记录
+// 光子击中的记录
 struct record {
     float t;         // 沿射线前进的距离，为负代表没有击中
     vec3 position;   // 击中的位置
     vec3 normal;     // 击中位置的法线
+    vec3 tangent;
+    vec3 binormal;
     material mtl;    // 击中的材质
 };
 
-//// SDF 物体
+// SDF 物体
 struct object {
     float sd;        // 到物体表面的距离
     material mtl;    // 物体的材质
 };
 
-//// 摄像机
+// 摄像机
 struct camera {
     vec3 lookfrom;   // 视点位置
     vec3 lookat;     // 目标位置
@@ -55,13 +61,13 @@ struct camera {
     float focus;     // 对焦距离
 };
 
-//// 随机发生器
+// 随机发生器
 struct random {
     vec3 seed;       // 随机数种子
     float value;     // 上次的随机值
 };
 
-//// 生成归一化随机数
+// 生成归一化随机数
 float noise(inout random r) {
     r.seed = fract(r.seed * vec3(.1031, .1030, .0973));
     r.seed += dot(r.seed, r.seed.yzx + 33.33);
@@ -72,28 +78,28 @@ float noise(inout random r) {
     return r.value;
 }
 
-//// 光子在射线所在的位置
+// 光子在射线所在的位置
 vec3 at(ray r, float t) {
     return r.origin + t * r.direction;
 }
 
-//// 单位圆内随机取一点
+// 单位圆内随机取一点
 vec2 random_in_unit_disk(inout random seed) {
     float r = mix(0.0, 1.0, noise(seed));
     float a = mix(0.0, TAU, noise(seed));
 	return sqrt(r) * vec2(sin(a), cos(a));
 }
 
-//// 从摄像机获取光线
+// 从摄像机获取光线
 ray get_ray(camera c, vec2 uv, vec4 color, inout random rand) {
-    //// 根据 VFOV 和显示画布长宽比计算传感器长宽
+    // 根据 VFOV 和显示画布长宽比计算传感器长宽
     float theta = c.vfov * PI / 180.0;
     float half_height = tan(theta / 2.0);
     float half_width = c.aspect * half_height;
     
-    //// 以目标位置到摄像机位置为 Z 轴正方向
+    // 以目标位置到摄像机位置为 Z 轴正方向
     vec3 z = normalize(c.lookfrom - c.lookat);
-    //// 计算出摄像机传感器的 XY 轴正方向
+    // 计算出摄像机传感器的 XY 轴正方向
     vec3 x = normalize(cross(c.vup, z));
     vec3 y = cross(z, x);
     
@@ -104,12 +110,12 @@ ray get_ray(camera c, vec2 uv, vec4 color, inout random rand) {
     vec3 horizontal = 2.0 * half_width  * c.focus * x;
     vec3 vertical   = 2.0 * half_height * c.focus * y;
     
-    //// 模拟光进入镜头光圈
+    // 模拟光进入镜头光圈
     float lens_radius = c.aperture / 2.0;
     vec2 rud = lens_radius * random_in_unit_disk(rand);
     vec3 offset = x * rud.x + y * rud.y;
     
-    //// 计算光线起点和方向
+    // 计算光线起点和方向
     vec3 ro = c.lookfrom + offset;
     vec3 po = lower_left_corner + uv.x*horizontal 
                                 + uv.y*vertical;
@@ -118,18 +124,46 @@ ray get_ray(camera c, vec2 uv, vec4 color, inout random rand) {
     return ray(ro, rd, color);
 }
 
-//// SDF 球体
+// SDF 球体
 float sphere(vec3 p, float s) {
     return length(p) - s;
 }
 
-//// SDF 地图
+// SDF 地图
 object map(vec3 p) {
     const object objs[] = {
-        object(sphere(p - vec3(0, -100.5, 0),100), material(vec3(1.0, 1.0, 1.0), 1.0, 0.5)),
-        object(sphere(p - vec3(0, 0, 0), 0.5), material(vec3(1.0, 1.9, 1.0), 1.0, 0.0)),
-        object(sphere(p - vec3(-1.0, -0.2, 0), 0.3), material(vec3(1.0, 0.3, 0.4), 0.9, 0.1)),
-        object(sphere(p - vec3(1.0, -0.2, 0), 0.3), material(vec3(0.4, 0.3, 1.0), 0.1, 0.9))
+        object(sphere(p - vec3(0, -100.5, 0), 100),
+                        material(vec4(1.0, 1.0, 1.0, 1.0),
+                                    1.0,
+                                    0.5,
+                                    vec4(0.0),
+                                    vec3(0.0, 0.0, 1.0)
+                        )
+        ),
+        object(sphere(p - vec3(0, 0, 0), 0.5),
+                        material(vec4(1.0, 1.0, 1.0, 1.0),
+                                    1.0,
+                                    0.0,
+                                    vec4(0.0, 1.0, 0.0, 10.0),
+                                    vec3(0.0, 0.0, 1.0)
+                        )
+        ),
+        object(sphere(p - vec3(-1.0, -0.2, 0), 0.3),
+                        material(vec4(1.0, 0.3, 0.4, 1.0),
+                                    0.9,
+                                    0.1,
+                                    vec4(0.0),
+                                    vec3(0.0, 0.0, 1.0)
+                        )
+        ),
+        object(sphere(p - vec3(1.0, -0.2, 0), 0.3),
+                        material(vec4(0.4, 0.3, 1.0, 1.0),
+                                0.1,
+                                0.9,
+                                vec4(0.0),
+                                vec3(0.0, 1.0, 1.0)
+                        )
+        )
     };
     
     object o; o.sd = MAP_SIZE;
@@ -141,7 +175,7 @@ object map(vec3 p) {
     return o;
 }
 
-//// 计算地图法线
+// 计算地图法线
 vec3 normal(vec3 p) {
     vec2 e = vec2(1.0, -1.0) * 0.5773 * 0.0005;
     return normalize( e.xyy*map( p + e.xyy ).sd + 
@@ -150,22 +184,29 @@ vec3 normal(vec3 p) {
                       e.xxx*map( p + e.xxx ).sd );
 }
 
-//// 光线步进
+// 用世界坐标下的法线计算 TBN 矩阵
+mat3 TBN(vec3 N) {
+    vec3 T = vec3(N.z, 0.0, -N.x);
+    vec3 B = normalize(cross(N, T));
+    return mat3(T, B, N);
+}
+
+// 光线步进
 record raycast(ray r) {
     record rec; rec.t = TMIN;
     for(uint i = 0U; i < MAX_RAYMARCH && rec.t < TMAX; i++) {
         rec.position = at(r, rec.t);
         object obj = map(rec.position);
         rec.mtl = obj.mtl;
-        if(obj.sd < PRECISION) return rec;
+        if (abs(obj.sd) < PRECISION) return rec;
         rec.t += obj.sd;
     }
-    //// 没有击中物体
+    // 没有击中物体
     rec.t = -1.0; // 设置为负值标记
     return rec;
 }
 
-//// 天空
+// 天空
 vec4 sky(ray r) {
     float t = (r.direction.y + 1.0) / 2.0;
     vec4 bottom = vec4(1.0, 1.0, 1.0, 1.0);
@@ -173,7 +214,7 @@ vec4 sky(ray r) {
     return mix(top, bottom, t);
 }
 
-//// 产生随机单位向量
+// 产生随机单位向量
 vec3 random_unit_vector(inout random rand) {
     float a = mix(0.0, TAU, noise(rand));
     float z = mix(-1.0, 1.0, noise(rand));
@@ -181,30 +222,47 @@ vec3 random_unit_vector(inout random rand) {
     return vec3(r*cos(a), r*sin(a), z);
 }
 
-//// PBR 材质
+// PBR 材质
 ray pbr(ray r, record rec, inout random rand) {
+    // 计算 SDF 表面法线
     rec.normal = normal(rec.position);
+    // 用 TBN 矩阵将材质切线空间的法线转换到世界坐标
+    rec.normal = normalize(TBN(rec.normal) * rec.mtl.normal);
     
-    r.origin = rec.position;
+    // BRDF
     
-    float alpha = rec.mtl.roughness*rec.mtl.roughness;
+    if (noise(rand) < rec.mtl.metallic) {
+        // 漫反射 consine 采样
+    } else {
+        // 高光反射 GGX 采样
+    }
+    
+    // float alpha = rec.mtl.roughness*rec.mtl.roughness;
     
     
     vec3 reflex = reflect(r.direction, rec.normal);
     vec3 diffuse = normalize(rec.normal + random_unit_vector(rand));
     vec3 direction = mix(reflex, diffuse, rec.mtl.roughness);
     
+    // 更新光线
+    r.origin = rec.position;
     r.direction = direction;
     
-    // 测试法线
-    // rec.mtl.albedo = (rec.normal + 1.0) / 2.0;
+    r.color.rgb *= mix(BLACK, rec.mtl.albedo.rgb, rec.mtl.albedo.a);
+    r.color.rgb += mix(BLACK, rec.mtl.emitting.rgb, rec.mtl.emitting.a);
     
+    // 让光线衰减一点
     const float attenuation = 0.6;
-    r.color *= vec4(rec.mtl.albedo, attenuation);
+    r.color.a *= attenuation;
+    
+    // 测试法线
+    // r.color.rgb = (rec.normal + 1.0) / 2.0;
+    // r.color.a = 1.0;
+    
     return r;
 }
 
-//// 光线追踪
+// 光线追踪
 ray raytrace(ray r, inout random rand) {
     record rec;
     
@@ -221,17 +279,17 @@ ray raytrace(ray r, inout random rand) {
     return r;
 }
 
-//// 片段着色器程序入口
+// 片段着色器程序入口
 void fragment() {
-    //// 计算并修正 UV 坐标系
+    // 计算并修正 UV 坐标系
     vec2 uv = vec2(UV.x, 1.0 - UV.y);
     
-    //// 右手系
+    // 右手系
     const vec3 lookfrom = camera_position;
     const vec3 direction = camera_rotation * vec3(0.0, 0.0, -1.0);
     const vec3 lookat = lookfrom + direction;
     
-    //// 初始化摄像机
+    // 初始化摄像机
     camera cam;
     cam.lookfrom = lookfrom;
     cam.lookat = lookat;
@@ -241,23 +299,22 @@ void fragment() {
     cam.focus = 1.0;
     cam.aperture = 0.005;
     
-    //// 初始化随机数发生器种子
+    // 初始化随机数发生器种子
     random rand;
     rand.seed = vec3(uv, fract(TIME));
     
-    //// 获取光线并逆向追踪光线
+    // 获取光线并逆向追踪光线
     ray r = get_ray(cam, uv, vec4(1.0), rand);
         r = raytrace(r, rand);
     
-    //// 对光的颜色进行后处理得到像素颜色
+    // 对光的颜色进行后处理得到像素颜色
     vec3 color = r.color.rgb;
-    vec3 back = vec3(0.0);
-    color = mix(back, color, r.color.a);
+    color = mix(BLACK, color, r.color.a);
     
-    //// 伽马矫正
+    // 伽马矫正
     color = pow(color, vec3(0.5));
     
-    //// 测试随机数
+    // 测试随机数
     // color = vec3(noise(rand), noise(rand), noise(rand));
     COLOR = vec4(color, 1.0);
 }

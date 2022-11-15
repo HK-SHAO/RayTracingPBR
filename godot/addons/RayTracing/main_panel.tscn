@@ -8,14 +8,14 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aspect = 2.0
-shader_parameter/camera_position = Vector3(0, 0, 4)
-shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/camera_aspect = 4.42379
+shader_parameter/camera_position = Vector3(0.99769, -0.0597808, 1.56318)
+shader_parameter/camera_rotation = Basis(0.996213, -0.00729273, 0.084792, 0, 0.996168, 0.085679, -0.0851041, -0.0853674, 0.992561)
 shader_parameter/camera_vfov = 30.5
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 6858.0
+shader_parameter/frame = 84.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
