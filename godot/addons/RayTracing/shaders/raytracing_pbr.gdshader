@@ -77,7 +77,7 @@ vec3 at(ray r, float t) {
     return r.origin + t * r.direction;
 }
 
-// 单位圆内随机取一点
+//// 单位圆内随机取一点
 vec2 random_in_unit_disk(inout random seed) {
     float r = mix(0.0, 1.0, noise(seed));
     float a = mix(0.0, TAU, noise(seed));
@@ -186,6 +186,9 @@ ray pbr(ray r, record rec, inout random rand) {
     rec.normal = normal(rec.position);
     
     r.origin = rec.position;
+    
+    float alpha = rec.mtl.roughness*rec.mtl.roughness;
+    
     
     vec3 reflex = reflect(r.direction, rec.normal);
     vec3 diffuse = normalize(rec.normal + random_unit_vector(rand));
