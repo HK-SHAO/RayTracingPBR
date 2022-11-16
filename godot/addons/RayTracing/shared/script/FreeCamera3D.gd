@@ -7,7 +7,7 @@ extends Camera3D
 @export_range(0, 10, 0.01) var sensitivity:float = 3
 @export_range(0, 1000, 0.1) var velocity:float = 5
 @export_range(0, 1, 0.0001) var acceleration:float = 0.01
-@export_range(0, 10, 0.01) var speed_scale:float = 1.17
+@export_range(0, 10, 0.01) var speed_scale:float = 1.01
 @export var max_speed:float = 1000
 @export var min_speed:float = 0.0
 @export_range(0, 100, 0.01) var smooth:float = 10
@@ -24,9 +24,13 @@ var _translate: Vector3 = Vector3()
 var _rotation: Vector3 = Vector3()
 var _tmp_rotation: Vector3 = Vector3()
 
+func reset_rotation(rot: Vector3) -> void:
+    rotation = rot
+    _rotation = rot
+    _tmp_rotation = rot
+
 func _ready() -> void:
-    _rotation = rotation
-    _tmp_rotation = rotation
+    reset_rotation(rotation)
 
     @warning_ignore(return_value_discarded)
     control.connect("gui_input", gui_input)

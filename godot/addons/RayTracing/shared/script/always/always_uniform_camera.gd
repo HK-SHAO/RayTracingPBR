@@ -7,6 +7,9 @@ extends Node
 var material: ShaderMaterial
 var control: Control
 
+var gamma: float = 0.2
+var focus: float = 2.0
+var aperture: float = 0.005
 
 func _ready() -> void:
     control = get_parent() as Control
@@ -24,3 +27,6 @@ func _process(_delta: float) -> void:
     material.set_shader_parameter("camera_rotation", camera_rotation)
     material.set_shader_parameter("camera_aspect", aspect)
     material.set_shader_parameter("camera_vfov", vfov)
+    material.set_shader_parameter("camera_gamma", gamma)
+    material.set_shader_parameter("camera_focus", focus)
+    material.set_shader_parameter("camera_aperture", aperture)
