@@ -1,3 +1,5 @@
+@tool
+
 extends Control
 
 
