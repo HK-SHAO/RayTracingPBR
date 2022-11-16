@@ -8,7 +8,7 @@ uniform float camera_vfov = 30.0;                   // 摄像机的纵向视野
 // 配置常量
 const float TMIN        = 0.001;                    // 光开始传播的起始偏移，避免光线自相交
 const float TMAX        = 2000.0;                   // 最大单次光线传播距离
-const float PRECISION   = 0.00001;                   // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+const float PRECISION   = 0.00001;                  // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
 const float MAP_SIZE    = float(0x7fffffff);        // 地图大小
 
 const uint MAX_RAYMARCH = 512U;                     // 最大光线步进次数
@@ -29,14 +29,15 @@ struct ray {
 struct material {
     vec4 albedo;     // 反照率
     float roughness; // 粗糙度
-    float metallic;  // 金属度
+    float metalness; // 金属度
     vec4 emitting;   // 自发光
     vec3 normal;     // 切线空间法线
 };
 
 // 光子击中的记录
 struct record {
-    float t;         // 沿射线前进的距离，为负代表没有击中
+    bool hit;        // 是否击中
+    float t;         // 沿射线前进的距离
     vec3 position;   // 击中的位置
     vec3 normal;     // 击中位置的法线
     vec3 tangent;
@@ -129,43 +130,71 @@ float sphere(vec3 p, float s) {
     return length(p) - s;
 }
 
+// SDF 盒子
+float box(vec3 p, vec3 b) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
+}
+// SDF 圆柱
+float cylinder(vec3 p, float h, float r) {
+  vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(r, h);
+  return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
+}
+
 // SDF 地图
 object map(vec3 p) {
     const object objs[] = {
         object(sphere(p - vec3(0, -100.5, 0), 100),
                         material(vec4(1.0, 1.0, 1.0, 1.0),
                                     1.0,
-                                    0.5,
-                                    vec4(0.0),
-                                    vec3(0.0, 0.0, 1.0)
+                                    0.2,
+                                    vec4(0),
+                                    vec3(0, 0, 1)
                         )
         ),
         object(sphere(p - vec3(0, 0, 0), 0.5),
                         material(vec4(1.0, 1.0, 1.0, 1.0),
                                     1.0,
                                     0.0,
-                                    vec4(0.0, 1.0, 0.0, 10.0),
-                                    vec3(0.0, 0.0, 1.0)
+                                    vec4(0, 1, 0, 10.0),
+                                    vec3(0, 0, 1)
                         )
         ),
         object(sphere(p - vec3(-1.0, -0.2, 0), 0.3),
-                        material(vec4(1.0, 0.3, 0.4, 1.0),
+                        material(vec4(1.0, 0.0, 0.0, 1.0),
                                     0.9,
                                     0.1,
-                                    vec4(0.0),
-                                    vec3(0.0, 0.0, 1.0)
+                                    vec4(0),
+                                    vec3(0, 0, 1)
                         )
         ),
         object(sphere(p - vec3(1.0, -0.2, 0), 0.3),
                         material(vec4(0.4, 0.3, 1.0, 1.0),
-                                0.1,
+                                0.0,
                                 0.9,
-                                vec4(0.0),
-                                vec3(0.0, 1.0, 1.0)
+                                vec4(0),
+                                vec3(0, 0, 1)
+                        )
+        ),
+        object(box(p - vec3(0, 0, -1), vec3(2, 1, 0.2)),
+                        material(vec4(0.0, 1.0, 1.0, 1.0),
+                                0.0,
+                                0.9,
+                                vec4(0),
+                                vec3(0, 0, 1)
+                        )
+        ),
+        object(cylinder(p - vec3(0, 0.1, 1), 0.5, 0.2),
+                        material(vec4(1.0, 1.0, 0.0, 1.0),
+                                0.0,
+                                0.9,
+                                vec4(0),
+                                vec3(0, 0, 1)
                         )
         )
     };
     
+    // 返回距离最近的那个物体
     object o; o.sd = MAP_SIZE;
     for (int i = 0; i < objs.length(); i++) {
         const object oi = objs[i];
@@ -186,7 +215,7 @@ vec3 normal(vec3 p) {
 
 // 用世界坐标下的法线计算 TBN 矩阵
 mat3 TBN(vec3 N) {
-    vec3 T = vec3(N.z, 0.0, -N.x);
+    vec3 T = vec3(N.z, 0, -N.x);
     vec3 B = normalize(cross(N, T));
     return mat3(T, B, N);
 }
@@ -197,12 +226,15 @@ record raycast(ray r) {
     for(uint i = 0U; i < MAX_RAYMARCH && rec.t < TMAX; i++) {
         rec.position = at(r, rec.t);
         object obj = map(rec.position);
-        rec.mtl = obj.mtl;
-        if (abs(obj.sd) < PRECISION) return rec;
+        if (abs(obj.sd) < PRECISION) {
+            rec.mtl = obj.mtl;
+            rec.hit = true;
+            return rec;
+        }
         rec.t += obj.sd;
     }
     // 没有击中物体
-    rec.t = -1.0; // 设置为负值标记
+    rec.hit = false;
     return rec;
 }
 
@@ -211,7 +243,7 @@ vec4 sky(ray r) {
     float t = (r.direction.y + 1.0) / 2.0;
     vec4 bottom = vec4(1.0, 1.0, 1.0, 1.0);
     vec4 top = vec4(0.5, 0.7, 1.0, 1.0);
-    return mix(top, bottom, t);
+    return mix(bottom, top, t);
 }
 
 // 产生随机单位向量
@@ -222,42 +254,90 @@ vec3 random_unit_vector(inout random rand) {
     return vec3(r*cos(a), r*sin(a), z);
 }
 
+float D_GGX(float a2, float NoH) {
+    float d = (NoH * a2 - NoH) * NoH + 1.0;
+    return a2 / (PI*d*d);
+}
+
+float GGX(float a2, float k) {
+    return 2.0*k/(k+sqrt(a2+(1.0-a2)*k*k));
+}
+
+vec3 F_Schlick(vec3 specularColor, float VoH) {
+    float Fc = pow(1.0 - VoH, 5.0);
+    return Fc + (1.0 - Fc) * specularColor;
+}
+
 // PBR 材质
 ray pbr(ray r, record rec, inout random rand) {
     // 计算 SDF 表面法线
     rec.normal = normal(rec.position);
     // 用 TBN 矩阵将材质切线空间的法线转换到世界坐标
-    rec.normal = normalize(TBN(rec.normal) * rec.mtl.normal);
+//    rec.normal = normalize(TBN(rec.normal) * rec.mtl.normal);
+    
+    
+    // 暂存一下击中记录的位置和上次光线的方向
+    vec3 out_pos = rec.position;
+    vec3 out_dir = r.direction;
+    vec3 out_color = r.color.rgb;
     
     // BRDF
-    
-    if (noise(rand) < rec.mtl.metallic) {
-        // 漫反射 consine 采样
-    } else {
-        // 高光反射 GGX 采样
-    }
-    
-    // float alpha = rec.mtl.roughness*rec.mtl.roughness;
-    
-    
     vec3 reflex = reflect(r.direction, rec.normal);
     vec3 diffuse = normalize(rec.normal + random_unit_vector(rand));
-    vec3 direction = mix(reflex, diffuse, rec.mtl.roughness);
+//    out_dir = mix(reflex, diffuse, rec.mtl.roughness);
+    
+    if (noise(rand) < rec.mtl.metalness){
+        out_dir = reflex;
+    } else {
+        out_dir = diffuse;
+    }
+    
+    vec3 uSpecular = vec3(1.0);
+    vec3 diffuseColor    = rec.mtl.albedo.rgb * (1.0 - rec.mtl.metalness);
+    vec3 specularColor   = mix( vec3(0.08 * uSpecular ), rec.mtl.albedo.rgb, rec.mtl.metalness);
+    
+    vec3 N = rec.normal;
+    vec3 L = out_dir;
+    vec3 V = r.direction;
+    vec3 H = (r.direction + out_dir) / 2.0;
+
+
+    float VoH = dot(V, H);
+    float NoL = dot(N, L);
+    float NoV = dot(N, V);///////
+    float NoH = dot(N, H);
+    
+    float roughness = rec.mtl.roughness;
+    float alpha = roughness*roughness;
+    float a2 = alpha*alpha;
+    vec3 F = F_Schlick(specularColor, VoH);
+    float D = D_GGX(a2, NoH);
+    float G = GGX(a2, NoL)*GGX(a2, NoV);
+    
+    vec3 FD = diffuseColor / PI;
+    vec3 FR = F*D*G/(4.0*NoL*NoV);
+//    FR = F;
+    
+    vec3 brdf = FD + FR;
+    
+    // 计算颜色
+    out_color = brdf * r.color.rgb * r.color.a;
+    out_color += mix(BLACK, rec.mtl.emitting.rgb, rec.mtl.emitting.a);
     
     // 更新光线
-    r.origin = rec.position;
-    r.direction = direction;
-    
-    r.color.rgb *= mix(BLACK, rec.mtl.albedo.rgb, rec.mtl.albedo.a);
-    r.color.rgb += mix(BLACK, rec.mtl.emitting.rgb, rec.mtl.emitting.a);
-    
-    // 让光线衰减一点
+    r.origin = out_pos;
+    r.direction = out_dir;
+    r.color.rgb = out_color;
+    // 让光强衰减一点
     const float attenuation = 0.6;
     r.color.a *= attenuation;
     
     // 测试法线
-    // r.color.rgb = (rec.normal + 1.0) / 2.0;
-    // r.color.a = 1.0;
+//    r.color.rgb = rec.normal*0.5 + 0.5;
+//    r.color.a = 1.0;
+
+    r.color.rgb *= vec3(NoV);
+    r.color.a = 1.0;
     
     return r;
 }
@@ -268,7 +348,7 @@ ray raytrace(ray r, inout random rand) {
     
     for (uint i = 0U; i < MAX_RAYTRACE; i++) {
         record rec = raycast(r);
-        if (rec.t < 0.0) {
+        if (!rec.hit) {
             r.color *= sky(r);
             break;
         }
@@ -284,7 +364,7 @@ void fragment() {
     // 计算并修正 UV 坐标系
     vec2 uv = vec2(UV.x, 1.0 - UV.y);
     
-    // 右手系
+    // 左手系
     const vec3 lookfrom = camera_position;
     const vec3 direction = camera_rotation * vec3(0.0, 0.0, -1.0);
     const vec3 lookat = lookfrom + direction;
@@ -296,7 +376,7 @@ void fragment() {
     cam.aspect = camera_aspect;
     cam.vfov = camera_vfov;
     cam.vup = vec3(0.0, 1.0, 0.0);
-    cam.focus = 1.0;
+    cam.focus = 2.0;
     cam.aperture = 0.005;
     
     // 初始化随机数发生器种子
@@ -308,11 +388,10 @@ void fragment() {
         r = raytrace(r, rand);
     
     // 对光的颜色进行后处理得到像素颜色
-    vec3 color = r.color.rgb;
-    color = mix(BLACK, color, r.color.a);
+    vec3 color = r.color.rgb * r.color.a;
     
     // 伽马矫正
-    color = pow(color, vec3(0.5));
+    color = pow(color, vec3(0.3));
     
     // 测试随机数
     // color = vec3(noise(rand), noise(rand), noise(rand));

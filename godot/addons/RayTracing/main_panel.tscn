@@ -8,14 +8,14 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aspect = 4.42379
-shader_parameter/camera_position = Vector3(0.99769, -0.0597808, 1.56318)
-shader_parameter/camera_rotation = Basis(0.996213, -0.00729273, 0.084792, 0, 0.996168, 0.085679, -0.0851041, -0.0853674, 0.992561)
+shader_parameter/camera_aspect = 2.36716
+shader_parameter/camera_position = Vector3(3.09319, 0.271812, 1.97473)
+shader_parameter/camera_rotation = Basis(0.619601, -0.0484617, 0.783241, 0, 0.997921, 0.0617483, -0.784741, -0.0382635, 0.618417)
 shader_parameter/camera_vfov = 30.5
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 84.0
+shader_parameter/frame = 965.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -85,20 +85,20 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
-stretch_shrink = 2
+stretch_shrink = 3
 
 [node name="SubViewport" type="SubViewport" parent="Control/RayTracing"]
 disable_3d = true
 handle_input_locally = false
-size = Vector2i(600, 300)
+size = Vector2i(400, 200)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
 [node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
 material = SubResource("ShaderMaterial_w5e1j")
-offset_right = 600.0
-offset_bottom = 300.0
+offset_right = 400.0
+offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
@@ -119,19 +119,19 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
-stretch_shrink = 2
+stretch_shrink = 3
 
 [node name="SubViewport" type="SubViewport" parent="Control/UseBackBuffer"]
 disable_3d = true
 handle_input_locally = false
-size = Vector2i(600, 300)
+size = Vector2i(400, 200)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
 [node name="ShaderRect" type="TextureRect" parent="Control/UseBackBuffer/SubViewport"]
 material = SubResource("ShaderMaterial_h8h8v")
-offset_right = 600.0
-offset_bottom = 300.0
+offset_right = 400.0
+offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
