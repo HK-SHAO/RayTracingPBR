@@ -1,6 +1,6 @@
 extends Node
 
-@export var camera: FreeCamera3D
+@onready var camera: OldFreeCamera3D = %FreeCamera3D
 
 var material: ShaderMaterial
 var textureRect: TextureRect

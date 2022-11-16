@@ -298,13 +298,13 @@ ray pbr(ray r, record rec, inout random rand) {
     
     vec3 N = rec.normal;
     vec3 L = out_dir;
-    vec3 V = r.direction;
-    vec3 H = (r.direction + out_dir) / 2.0;
+    vec3 V = -r.direction;
+    vec3 H = (L + V) / 2.0;
 
 
     float VoH = dot(V, H);
     float NoL = dot(N, L);
-    float NoV = dot(N, V);///////
+    float NoV = dot(N, V);
     float NoH = dot(N, H);
     
     float roughness = rec.mtl.roughness;
@@ -329,15 +329,15 @@ ray pbr(ray r, record rec, inout random rand) {
     r.direction = out_dir;
     r.color.rgb = out_color;
     // 让光强衰减一点
-    const float attenuation = 0.6;
+    const float attenuation = 0.9;
     r.color.a *= attenuation;
     
     // 测试法线
 //    r.color.rgb = rec.normal*0.5 + 0.5;
 //    r.color.a = 1.0;
 
-    r.color.rgb *= vec3(NoV);
-    r.color.a = 1.0;
+//    r.color.rgb *= vec3(NoV);
+//    r.color.a = 1.0;
     
     return r;
 }

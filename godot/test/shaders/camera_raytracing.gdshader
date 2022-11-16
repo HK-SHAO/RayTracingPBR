@@ -1,7 +1,7 @@
 shader_type canvas_item;
 
-uniform vec3 camera_position;
-uniform mat3 camera_rotation;
+uniform vec3 camera_position = vec3(0.0, 0.0, 4.0); // 传入摄像机的位置
+uniform mat3 camera_rotation = mat3(1);             // 摄像机的旋转
 
 uniform float camera_fov = 50.;
 uniform float camera_lens_radius = 0.1;

@@ -8,14 +8,14 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aspect = 2.36716
-shader_parameter/camera_position = Vector3(3.09319, 0.271812, 1.97473)
-shader_parameter/camera_rotation = Basis(0.619601, -0.0484617, 0.783241, 0, 0.997921, 0.0617483, -0.784741, -0.0382635, 0.618417)
+shader_parameter/camera_aspect = 1.79268
+shader_parameter/camera_position = Vector3(2.89908, 0.990088, 3.24735)
+shader_parameter/camera_rotation = Basis(0.827024, -0.118837, 0.549459, 0, 0.977396, 0.211393, -0.562163, -0.174826, 0.808335)
 shader_parameter/camera_vfov = 30.5
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 965.0
+shader_parameter/frame = 233.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -67,7 +67,7 @@ focus_mode = 2
 
 [node name="Control" type="Control" parent="."]
 unique_name_in_owner = true
-layout_mode = 1
+layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -78,7 +78,6 @@ mouse_filter = 1
 mouse_default_cursor_shape = 13
 
 [node name="RayTracing" type="SubViewportContainer" parent="Control"]
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -112,7 +111,6 @@ script = ExtResource("2_xxsdv")
 script = ExtResource("4_cek0v")
 
 [node name="UseBackBuffer" type="SubViewportContainer" parent="Control"]
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

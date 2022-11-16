@@ -1,10 +1,10 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=12 format=3 uid="uid://b432qh47qklx8"]
 
+[ext_resource type="Script" path="res://test/scripts/always/always_shader_camera_pos.gd" id="2_318b5"]
 [ext_resource type="Shader" path="res://test/shaders/camera_raytracing.gdshader" id="2_vj3lo"]
-[ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_uniform_camera.gd" id="4_mg5wx"]
 [ext_resource type="Shader" path="res://test/shaders/test_gamma.gdshader" id="5_8ao1x"]
 [ext_resource type="Shader" path="res://test/shaders/test_backbuffer.gdshader" id="5_q4lqq"]
-[ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="6_nof40"]
+[ext_resource type="Script" path="res://test/scripts/OldFreeCamera3D.gd" id="6_6knrr"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_shader_backbuffer.gd" id="6_pdm25"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_y0fov"]
@@ -84,7 +84,7 @@ size_flags_horizontal = 6
 size_flags_vertical = 6
 
 [node name="always_shader_camera_pos" type="Node" parent="RayTracing/SubViewport/ColorRect" node_paths=PackedStringArray("camera")]
-script = ExtResource("4_mg5wx")
+script = ExtResource("2_318b5")
 camera = NodePath("../../../../Node3D/FreeCamera3D")
 
 [node name="BackBuffer" type="SubViewportContainer" parent="."]
@@ -113,9 +113,8 @@ grow_horizontal = 2
 grow_vertical = 2
 texture = SubResource("ViewportTexture_cbl28")
 
-[node name="always_shader_backbuffer" type="Node" parent="BackBuffer/SubViewport/TextureRect" node_paths=PackedStringArray("camera")]
+[node name="always_shader_backbuffer" type="Node" parent="BackBuffer/SubViewport/TextureRect"]
 script = ExtResource("6_pdm25")
-camera = NodePath("../../../../Node3D/FreeCamera3D")
 
 [node name="Gamma" type="SubViewportContainer" parent="."]
 layout_mode = 1
@@ -145,5 +144,6 @@ texture = SubResource("ViewportTexture_7cs1b")
 [node name="Node3D" type="Node3D" parent="."]
 
 [node name="FreeCamera3D" type="Camera3D" parent="Node3D"]
+unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 0.947031, 0.321142, 0, -0.321142, 0.947031, 0, 2.25205, 2.99805)
-script = ExtResource("6_nof40")
+script = ExtResource("6_6knrr")
