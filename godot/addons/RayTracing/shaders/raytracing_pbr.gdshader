@@ -17,10 +17,6 @@ const float MAP_SIZE    = float(0x7fffffff);        // 地图大小
 const uint MAX_RAYMARCH = 512U;                     // 最大光线步进次数
 const uint MAX_RAYTRACE = 512U;                     // 最大光线追踪次数
 
-const float PHI = 1.61803398874989484820459;        // 黄金比例
-
-const vec3 BLACK = vec3(0.0);
-
 // 光线
 struct ray {
     vec3 origin;     // 光的起点
@@ -65,18 +61,13 @@ struct camera {
 
 // 随机发生器
 struct random {
-    vec3 seed;       // 随机数种子
+    float seed;       // 随机数种子
     float value;     // 上次的随机值
 };
 
 // 生成归一化随机数
 float noise(inout random r) {
-    r.seed = fract(r.seed * vec3(.1031, .1030, .0973));
-    r.seed += dot(r.seed, r.seed.yzx + 33.33);
-    r.seed.xy = fract((r.seed.xx+r.seed.yz)*r.seed.zy);
-    
-    const vec2 xy = r.seed.xy * 3333.3 + 3.33;
-    r.value = fract(tan(distance(xy*PHI, xy+3.3)*r.seed.z)*xy.x);
+    r.value = fract(sin(r.seed++)*43758.5453123);
     return r.value;
 }
 
@@ -136,6 +127,7 @@ float box(vec3 p, vec3 b) {
     vec3 q = abs(p) - b;
     return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
 }
+
 // SDF 圆柱
 float cylinder(vec3 p, float h, float r) {
   vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(r, h);
@@ -171,7 +163,7 @@ object map(vec3 p) {
         ),
         object(sphere(p - vec3(1.0, -0.2, 0), 0.3),
                         material(vec3(0.0, 0.0, 1.0),
-                                0.0,
+                                0.5,
                                 0.999,
                                 vec4(0),
                                 vec3(0, 0, 1)
@@ -180,7 +172,7 @@ object map(vec3 p) {
         object(box(p - vec3(0, 0, -1), vec3(2, 1, 0.2)),
                         material(vec3(1.0, 1.0, 1.0),
                                 0.0,
-                                0.9,
+                                1.0,
                                 vec4(0),
                                 vec3(0, 0, 1)
                         )
@@ -188,7 +180,7 @@ object map(vec3 p) {
         object(cylinder(p - vec3(0, 0.1, 1), 0.5, 0.2),
                         material(vec3(1.0, 1.0, 0.0),
                                 0.0,
-                                0.9,
+                                1.0,
                                 vec4(0),
                                 vec3(0, 0, 1)
                         )
@@ -255,116 +247,107 @@ vec3 random_unit_vector(inout random rand) {
     return vec3(r*cos(a), r*sin(a), z);
 }
 
-float DistributionGGX(float a2, float NoH) {
-    float d = (NoH * a2 - NoH) * NoH + 1.0;
-    return a2 / (PI*d*d);
+//vec3 BRDF(record rec, vec3 toView) {
+//
+//    vec3 albedo = rec.mtl.albedo;
+//    float roughness = rec.mtl.roughness;
+//    float metalness = rec.mtl.metalness;
+//
+//    vec3 lighting = vec3(0);
+//
+//
+//
+//    return lighting;
+//}
+
+float fresnelSchlick(float InCosine, float normalReflectance)
+{
+    float oneMinusCos = 1.0 - InCosine;
+    float oneMinusCosSqr = oneMinusCos * oneMinusCos;
+    float fresnel = normalReflectance +
+        (1.0 - normalReflectance) * oneMinusCosSqr * oneMinusCosSqr * oneMinusCos;
+
+    return fresnel;
 }
 
-float GeometrySmith(float a2, float k) {
-    return 2.0*k/(k+sqrt(a2+(1.0-a2)*k*k));
+vec3 randDir(vec3 ref, float glossiness, inout random rand)
+{
+    vec3 w = ref;//normalize(mix(nor,ref,glossiness));
+    vec3 u = normalize(cross(vec3(w.y,w.z,w.x), w));
+    vec3 v = normalize(cross(w, u));
+//
+    float rand1 = noise(rand);
+    float rand2 = noise(rand);
+    
+//    float a = rand1*(1.0-glossiness);
+    float shininess = pow(819222.0, glossiness);
+    float a = acos(pow(1.0 - rand1 * (shininess + 1.0) / (shininess + 2.0), 1.0 / (shininess + 1.0)));
+    a *= PI * 0.5;
+    
+//    float x = glossiness;
+//    float a = PI*0.5*(1.0-x*x*(3.0-2.0*x))*rand1;
+
+    float phi = rand2 * TAU;
+    
+//    vec3 rndv = random_unit_vector(rand);
+    
+    
+    vec3 rlt = (u * cos(phi) + v * sin(phi)) * sin(a) + w * cos(a);
+
+    return rlt;
 }
 
-vec3 FresnelSchlick(vec3 specularColor, float VoH) {
-    float Fc = pow(1.0 - VoH, 5.0);
-    return Fc + (1.0 - Fc) * specularColor;
-}
-
-ray BSDF(ray r, record rec, inout random rand) {
-    vec3 brdf;
-    
-    // 待会儿计算材质对光线位置和方向的改变
-    vec3 out_pos = rec.position;
-    vec3 out_dir = r.direction;
-    vec3 out_color = r.color.rgb;
-    
-    vec3 albedo = rec.mtl.albedo;
-    float roughness = rec.mtl.roughness;
-    float metalness = rec.mtl.metalness;
-    
-    if (noise(rand) > roughness){
-        vec3 reflect_dir = reflect(r.direction, rec.normal);
-        out_dir = reflect_dir;
-    } else {
-        vec3 diffuse_dir = normalize(rec.normal + random_unit_vector(rand));
-        out_dir = diffuse_dir;
-    }
-
-    vec3 N = rec.normal;
-    vec3 L = out_dir;
-    vec3 V = -r.direction;
-    vec3 H = (L + V) / 2.0;
-
-    float VoH = dot(V, H);
-    float NoL = dot(N, L);
-    float NoV = dot(N, V);
-    float NoH = dot(N, H);
-    
-    float alpha = roughness*roughness;
-    float a2 = alpha*alpha;
-    float D = 1.0 - DistributionGGX(a2, NoH);
-    float G = GeometrySmith(a2, NoL)*GeometrySmith(a2, NoV);
-
-    vec3 specular_color = mix(albedo, vec3(0.04 * albedo), metalness);
-    vec3 F = FresnelSchlick(specular_color, VoH);
-    vec3 diffuse_color = F * (1.0 - metalness);
-    vec3 FD = diffuse_color / PI;
-    vec3 FR = F*D*G/(4.0*NoL*NoV);
-    brdf = FD + FR;
-    
-    // 计算颜色
-    out_color = brdf * r.color.rgb * r.color.a;
-    
-    // 更新光线
-    r.origin = out_pos;
-    r.direction = out_dir;
-    r.color.rgb = out_color;
-    return r;
-}
-
-// PBR 材质
-ray pbr(ray r, record rec, inout random rand) {
-    // 计算 SDF 表面法线
-    rec.normal = normal(rec.position);
-    // 用 TBN 矩阵将材质切线空间的法线转换到世界坐标
-    rec.normal = normalize(TBN(rec.normal) * rec.mtl.normal);
-    
-    // 计算 BRDF
-    r = BSDF(r, rec, rand);
-    
-    // 处理自发光
-    r.color.rgb += mix(BLACK, rec.mtl.emitting.rgb, rec.mtl.emitting.a);
-
-    // 让光强衰减一点
-//    const float attenuation = 1.0;
-//    r.color.a *= attenuation;
-    
-    // 测试法线
-//    r.color.rgb = rec.normal*0.5 + 0.5;
-//    r.color.a = 1.0;
-
-//    r.color.rgb *= vec3(NoV);
-//    r.color.a = 1.0;
-    
-    return r;
-}
+const vec3 light = normalize(vec3(0.8, 0.5, 0.2));
 
 // 光线追踪
 ray raytrace(ray r, inout random rand) {
-    record rec;
+
+    vec3 finalLight = vec3(0.0);
+    vec3 frac = vec3(1.0);
     
     for (uint i = 0U; i < MAX_RAYTRACE; i++) {
         record rec = raycast(r);
+        
+        vec3 pos = rec.position;
+        vec3 dir = r.direction;
+        
         if (!rec.hit) {
-            r.color *= sky(r);
+            vec3 bkgColor = sky(r).rgb;
+            finalLight += bkgColor * frac;
+            finalLight += pow(max(dot(dir,light),0.0),50.0);
             break;
         }
         
-        r = pbr(r, rec, rand);
+        vec3 nor = normal(pos);
+        float f = mix(0.15, 1.0, rec.mtl.metalness);
+        f = fresnelSchlick(dot(nor, -dir), f);
+        
+        if (noise(rand) > f) {
+            ray sray = ray(pos, randDir(light, 0.895, rand), vec4(1.0));
+            record srec = raycast(sray);//softshadow
+            float shadow = srec.hit?0.0:1.0;
+//            shadow = 0.0;
+            
+            vec3 diff = rec.mtl.albedo * shadow * max(dot(nor, light), 0.0);                
+            finalLight += diff * frac;
+            frac *= rec.mtl.albedo;
+            dir = randDir(reflect(dir, nor), f, rand);
+        } else {
+            vec3 refColor = mix(vec3(1.0), rec.mtl.albedo, rec.mtl.metalness);
+            frac *= refColor;
+            dir = randDir(reflect(dir,nor), 1.0 - rec.mtl.roughness, rand);
+        }
+        
+        r.origin = pos;
+        r.direction = dir;
     }
+    
+    r.color.rgb = finalLight;
     
     return r;
 }
 
+// 一次采样
 vec3 sample(camera cam, vec2 uv, vec4 color, inout random rand) {
     // 获取光线并逆向追踪光线
     ray r = get_ray(cam, uv, color, rand);
@@ -372,6 +355,11 @@ vec3 sample(camera cam, vec2 uv, vec4 color, inout random rand) {
     
     // 对光的颜色进行后处理得到像素颜色
     return r.color.rgb * r.color.a;
+}
+
+// HDR 映射色彩
+vec3 HDR(in vec3 color) {
+    return vec3(1.0) - exp(-color);   
 }
 
 // 片段着色器程序入口
@@ -396,10 +384,12 @@ void fragment() {
     
     // 初始化随机数发生器种子
     random rand;
-    rand.seed = vec3(uv, fract(TIME));
+    rand.seed  = fract(TIME + rand.value);
+    rand.seed += UV.x/SCREEN_PIXEL_SIZE.y+UV.y;
     
     // 对每个光子经过的表面采样一次
     vec3 color = sample(cam, uv, vec4(1.0), rand);
+    color = HDR(color);
     
 //    vec2 oz = vec2(1.0, 0.0);
 //    vec3 R = sample(cam, uv, oz.xyyx, rand);

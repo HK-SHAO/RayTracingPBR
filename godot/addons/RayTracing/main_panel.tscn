@@ -10,17 +10,17 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 1.30297
-shader_parameter/camera_focus = 2.0
+shader_parameter/camera_aperture = 0.0
+shader_parameter/camera_aspect = 2.02985
+shader_parameter/camera_focus = 10000.0
 shader_parameter/camera_gamma = 0.2
-shader_parameter/camera_position = Vector3(2.79287, 0.0300827, 4.09406)
-shader_parameter/camera_rotation = Basis(0.896495, -0.014618, 0.44281, 0, 0.999452, 0.0329939, -0.443052, -0.0295789, 0.896006)
+shader_parameter/camera_position = Vector3(3.39476, 5.93874, 3.71639)
+shader_parameter/camera_rotation = Basis(0.72131, -0.498654, 0.480438, 0, 0.693738, 0.720034, -0.69247, -0.519421, 0.500447)
 shader_parameter/camera_vfov = 30.5
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 534.0
+shader_parameter/frame = 63.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -49,6 +49,9 @@ func _process(_delta: float) -> void:
     if is_instance_valid(camera):
         if camera.moving:
             frame = 0
+            
+    if Input.is_action_pressed(\"ui_accept\"):
+        frame = 0
 
     frame += 1
 
@@ -150,6 +153,7 @@ script = ExtResource("4_cek0v")
 [node name="FreeCamera3D" type="Camera3D" parent="."]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
+rotation_edit_mode = 2
 current = true
 fov = 30.5
 script = ExtResource("5_nuxi6")
@@ -235,6 +239,7 @@ offset_right = 352.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
+mouse_default_cursor_shape = 2
 min_value = 1.0
 max_value = 102400.0
 value = 1024.0
@@ -275,6 +280,7 @@ offset_right = 352.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
+mouse_default_cursor_shape = 2
 max_value = 1.0
 step = 0.01
 value = 0.2
@@ -314,6 +320,7 @@ offset_right = 352.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
+mouse_default_cursor_shape = 2
 max_value = 180.0
 step = 0.01
 value = 30.5
@@ -353,6 +360,7 @@ offset_right = 352.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
+mouse_default_cursor_shape = 2
 min_value = 0.001
 max_value = 10000.0
 step = 0.001
@@ -394,6 +402,7 @@ offset_right = 352.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
+mouse_default_cursor_shape = 2
 max_value = 1.0
 step = 0.001
 value = 0.005
@@ -433,6 +442,7 @@ offset_right = 352.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
+mouse_default_cursor_shape = 2
 max_value = 10000.0
 step = 0.1
 value = 1000.0
@@ -443,6 +453,7 @@ layout_mode = 2
 offset_top = 300.0
 offset_right = 352.0
 offset_bottom = 331.0
+mouse_default_cursor_shape = 2
 text = "Rest Camera"
 
 [node name="sample_once_b" type="Button" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
@@ -451,6 +462,7 @@ layout_mode = 2
 offset_top = 335.0
 offset_right = 352.0
 offset_bottom = 366.0
+mouse_default_cursor_shape = 2
 text = "Resample"
 
 [node name="MarginContainer2" type="MarginContainer" parent="UI"]
@@ -509,7 +521,7 @@ offset_left = 32.0
 offset_right = 120.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "25"
+text = "46"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -531,7 +543,7 @@ offset_left = 68.0
 offset_right = 120.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "839"
+text = "138"
 horizontal_alignment = 2
 
 [connection signal="value_changed" from="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]
