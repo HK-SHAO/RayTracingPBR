@@ -10,17 +10,17 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aperture = 0.0
+shader_parameter/camera_aperture = 0.005
 shader_parameter/camera_aspect = 2.02985
-shader_parameter/camera_focus = 10000.0
-shader_parameter/camera_gamma = 0.2
-shader_parameter/camera_position = Vector3(3.39476, 5.93874, 3.71639)
-shader_parameter/camera_rotation = Basis(0.72131, -0.498654, 0.480438, 0, 0.693738, 0.720034, -0.69247, -0.519421, 0.500447)
+shader_parameter/camera_focus = 2.0
+shader_parameter/camera_gamma = 0.25
+shader_parameter/camera_position = Vector3(2.3146, 1.48582, 3.38244)
+shader_parameter/camera_rotation = Basis(0.844687, -0.218734, 0.488229, 0, 0.912449, 0.408804, -0.534989, -0.345356, 0.770859)
 shader_parameter/camera_vfov = 30.5
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 63.0
+shader_parameter/frame = 13766.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -214,7 +214,7 @@ offset_bottom = 26.0
 layout_mode = 2
 offset_right = 102.0
 offset_bottom = 26.0
-text = "max samples"
+text = "Max Samples"
 
 [node name="max_sample" type="Label" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer"]
 unique_name_in_owner = true
@@ -253,14 +253,14 @@ offset_bottom = 76.0
 
 [node name="Label" type="Label" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer3"]
 layout_mode = 2
-offset_right = 59.0
+offset_right = 61.0
 offset_bottom = 26.0
-text = "gamma"
+text = "Gamma"
 
 [node name="gamma" type="Label" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer3"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_left = 63.0
+offset_left = 65.0
 offset_right = 352.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
@@ -415,14 +415,14 @@ offset_bottom = 276.0
 
 [node name="Label" type="Label" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer5"]
 layout_mode = 2
-offset_right = 109.0
+offset_right = 112.0
 offset_bottom = 26.0
-text = "camera speed"
+text = "Camera Speed"
 
 [node name="camera_speed" type="Label" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer5"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_left = 113.0
+offset_left = 116.0
 offset_right = 352.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
@@ -454,7 +454,7 @@ offset_top = 300.0
 offset_right = 352.0
 offset_bottom = 331.0
 mouse_default_cursor_shape = 2
-text = "Rest Camera"
+text = "Reset Position"
 
 [node name="sample_once_b" type="Button" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
@@ -521,7 +521,7 @@ offset_left = 32.0
 offset_right = 120.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "46"
+text = "90"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -532,18 +532,18 @@ offset_bottom = 56.0
 
 [node name="Label" type="Label" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2"]
 layout_mode = 2
-offset_right = 64.0
+offset_right = 72.0
 offset_bottom = 26.0
-text = "samples"
+text = "Sampling"
 
 [node name="sample" type="Label" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_left = 68.0
+offset_left = 76.0
 offset_right = 120.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "138"
+text = "187"
 horizontal_alignment = 2
 
 [connection signal="value_changed" from="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]

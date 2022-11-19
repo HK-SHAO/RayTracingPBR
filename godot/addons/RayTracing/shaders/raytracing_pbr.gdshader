@@ -1,12 +1,13 @@
 shader_type canvas_item;
 
-uniform vec3 camera_position = vec3(0.0, 0.0, 4.0); // 传入摄像机的位置
-uniform mat3 camera_rotation = mat3(1);             // 摄像机的旋转
-uniform float camera_aspect = 2.0;                  // 画布长宽比
-uniform float camera_vfov = 30.0;                   // 摄像机的纵向视野
-uniform float camera_focus = 2.0;                   // 摄像机的对焦距离
-uniform float camera_aperture = 0.005;              // 摄像机的光圈大小
-uniform float camera_gamma = 0.2;                   // gamma 矫正值
+// 传入统一值
+uniform vec3 camera_position    = vec3(0.0, 0.0, 4.0); // 传入摄像机的位置
+uniform mat3 camera_rotation    = mat3(1);             // 摄像机的旋转
+uniform float camera_aspect     = 2.0;                 // 画布长宽比
+uniform float camera_vfov       = 30.0;                // 摄像机的纵向视野
+uniform float camera_focus      = 2.0;                 // 摄像机的对焦距离
+uniform float camera_aperture   = 0.005;               // 摄像机的光圈大小
+uniform float camera_gamma      = 0.2;                 // gamma 矫正值
 
 // 配置常量
 const float TMIN        = 0.001;                    // 光开始传播的起始偏移，避免光线自相交
@@ -28,7 +29,7 @@ struct ray {
 struct material {
     vec3 albedo;     // 反照率
     float roughness; // 粗糙度
-    float metalness; // 金属度
+    float metallic;  // 金属度
     vec4 emitting;   // 自发光(RGB,Intensity)
     vec3 normal;     // 切线空间法线
 };
@@ -62,7 +63,7 @@ struct camera {
 // 随机发生器
 struct random {
     float seed;       // 随机数种子
-    float value;     // 上次的随机值
+    float value;      // 上次的随机值
 };
 
 // 生成归一化随机数
@@ -80,7 +81,7 @@ vec3 at(ray r, float t) {
 vec2 random_in_unit_disk(inout random seed) {
     float r = mix(0.0, 1.0, noise(seed));
     float a = mix(0.0, TAU, noise(seed));
-	return sqrt(r) * vec2(sin(a), cos(a));
+    return sqrt(r) * vec2(sin(a), cos(a));
 }
 
 // 从摄像机获取光线
@@ -130,8 +131,8 @@ float box(vec3 p, vec3 b) {
 
 // SDF 圆柱
 float cylinder(vec3 p, float h, float r) {
-  vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(r, h);
-  return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
+    vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(r, h);
+    return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
 }
 
 // SDF 地图
@@ -163,8 +164,8 @@ object map(vec3 p) {
         ),
         object(sphere(p - vec3(1.0, -0.2, 0), 0.3),
                         material(vec3(0.0, 0.0, 1.0),
-                                0.5,
-                                0.999,
+                                0.0,
+                                1.0,
                                 vec4(0),
                                 vec3(0, 0, 1)
                         )
@@ -198,8 +199,8 @@ object map(vec3 p) {
 }
 
 // 计算地图法线
-vec3 normal(vec3 p) {
-    vec2 e = vec2(1.0, -1.0) * 0.5773 * 0.0005;
+vec3 calc_normal(vec3 p) {
+    vec2 e = vec2(1, -1) * 0.5773 * 0.0005;
     return normalize( e.xyy*map( p + e.xyy ).sd + 
                       e.yyx*map( p + e.yyx ).sd + 
                       e.yxy*map( p + e.yxy ).sd + 
@@ -208,8 +209,19 @@ vec3 normal(vec3 p) {
 
 // 用世界坐标下的法线计算 TBN 矩阵
 mat3 TBN(vec3 N) {
-    vec3 T = vec3(N.z, 0, -N.x);
-    vec3 B = normalize(cross(N, T));
+    vec3 T, B;
+    
+    if (N.z < -0.9999999) {
+        T = vec3(0, -1, 0);
+        N = vec3(-1, 0, 0);
+    } else {
+        const float a = 1.0 / (1.0 + N.z);
+        const float b = -N.x*N.y*a;
+        
+        T = vec3(1.0 - N.x*N.x*a, b, -N.x);
+        B = vec3(b, 1.0 - N.y*N.y*a, -N.y);
+    }
+    
     return mat3(T, B, N);
 }
 
@@ -233,117 +245,108 @@ record raycast(ray r) {
 
 // 天空
 vec4 sky(ray r) {
-    float t = (r.direction.y + 1.0) / 2.0;
+    float t = 0.5 + 0.5 * r.direction.y;
     vec4 bottom = vec4(1.0, 1.0, 1.0, 1.0);
     vec4 top = vec4(0.5, 0.7, 1.0, 1.0);
     return mix(bottom, top, t);
 }
 
-// 产生随机单位向量
-vec3 random_unit_vector(inout random rand) {
-    float a = mix(0.0, TAU, noise(rand));
-    float z = mix(-1.0, 1.0, noise(rand));
-    float r = sqrt(1.0 - z*z);
-    return vec3(r*cos(a), r*sin(a), z);
+// 用粗糙度计算菲涅尔近似值
+float fresnel_schlick_roughness(float cosTheta, float F0, float roughness) {
+    return F0 + (max((1. - roughness), F0) - F0) * pow(abs(1. - cosTheta), 5U);
 }
 
-//vec3 BRDF(record rec, vec3 toView) {
-//
-//    vec3 albedo = rec.mtl.albedo;
-//    float roughness = rec.mtl.roughness;
-//    float metalness = rec.mtl.metalness;
-//
-//    vec3 lighting = vec3(0);
-//
-//
-//
-//    return lighting;
-//}
-
-float fresnelSchlick(float InCosine, float normalReflectance)
-{
-    float oneMinusCos = 1.0 - InCosine;
-    float oneMinusCosSqr = oneMinusCos * oneMinusCos;
-    float fresnel = normalReflectance +
-        (1.0 - normalReflectance) * oneMinusCosSqr * oneMinusCosSqr * oneMinusCos;
-
-    return fresnel;
+// 以 n 为法线进行半球采样
+vec3 hemispheric_sampling(vec3 n, inout random rand) {
+    float ra = TAU * noise(rand);
+    float rb = noise(rand);
+    
+    vec2 v = vec2(cos(ra), sin(ra));
+    vec2 rxy = sqrt(rb) * v; 
+    float rz = sqrt(1.0 - rb);
+    
+    return TBN(n) * vec3(rxy, rz);
 }
 
-vec3 randDir(vec3 ref, float glossiness, inout random rand)
-{
-    vec3 w = ref;//normalize(mix(nor,ref,glossiness));
-    vec3 u = normalize(cross(vec3(w.y,w.z,w.x), w));
-    vec3 v = normalize(cross(w, u));
-//
-    float rand1 = noise(rand);
-    float rand2 = noise(rand);
-    
-//    float a = rand1*(1.0-glossiness);
-    float shininess = pow(819222.0, glossiness);
-    float a = acos(pow(1.0 - rand1 * (shininess + 1.0) / (shininess + 2.0), 1.0 / (shininess + 1.0)));
-    a *= PI * 0.5;
-    
-//    float x = glossiness;
-//    float a = PI*0.5*(1.0-x*x*(3.0-2.0*x))*rand1;
+// 用粗糙度采样沿向量 n 采样
+vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout random rand) {
+    float ra = TAU * noise(rand);
+    float rb = noise(rand);
 
-    float phi = rand2 * TAU;
+    float shiny = pow(roughness, 4U);
     
-//    vec3 rndv = random_unit_vector(rand);
+    float rz = sqrt((1.0 - rb) / (1.0 + (shiny - 1.0)*rb));
+    vec2 v = vec2(cos(ra), sin(ra));
+    vec2 rxy = sqrt(abs(1.0 - rz*rz)) * v;
     
-    
-    vec3 rlt = (u * cos(phi) + v * sin(phi)) * sin(a) + w * cos(a);
-
-    return rlt;
+    return TBN(n) * vec3(rxy, rz);
 }
 
-const vec3 light = normalize(vec3(0.8, 0.5, 0.2));
+// 应用 PBR 材质
+ray PBR(ray r, record rec, inout random rand) {
+    // 材质参数
+    vec3 albedo = rec.mtl.albedo;
+    float roughness = rec.mtl.roughness;
+    float metallic = rec.mtl.metallic;
+    vec3 normal = rec.mtl.normal;
+    
+    // 光线和物体表面参数
+    vec3 rd = r.direction;
+    vec3 V  = -rd;
+    vec3 P  = rec.position;
+    vec3 N  = TBN(normal) * calc_normal(P);
+    vec3 C  = r.color.rgb;
+    vec3 L;
+    
+    float F = fresnel_schlick_roughness(max(0., dot(N, V)), 0.04, roughness);
+    
+    if (noise(rand) < F + metallic) {
+//        if (0.5 < metallic) {
+        // 不知道为啥这样，反正金属度效果就是好一些 (lll￢ω￢)
+        if (rand.value < metallic) {
+            C *= albedo; 
+        }
+        
+        vec3 reflex = reflect(r.direction, N);
+        L = hemispheric_sampling_roughness(reflex, roughness, rand);            
+    } else {
+        // 漫反射
+        C *= albedo;
+        L = hemispheric_sampling(N, rand);
+    }
+    
+    // 如果光射到表面下面就直接吸收掉
+    if (dot(L, N) <= 0.0) {
+//        L = hemispheric_sampling(N, rand);
+        r.color.a = 0.0;
+    }
+
+    r.color.rgb = C;
+    r.origin = P;
+    r.direction = L;
+    
+    return r;
+}
 
 // 光线追踪
 ray raytrace(ray r, inout random rand) {
-
-    vec3 finalLight = vec3(0.0);
-    vec3 frac = vec3(1.0);
-    
     for (uint i = 0U; i < MAX_RAYTRACE; i++) {
         record rec = raycast(r);
         
-        vec3 pos = rec.position;
-        vec3 dir = r.direction;
-        
+        // 没击中物体就肯定击中天空
         if (!rec.hit) {
-            vec3 bkgColor = sky(r).rgb;
-            finalLight += bkgColor * frac;
-            finalLight += pow(max(dot(dir,light),0.0),50.0);
+            r.color *= sky(r);
             break;
         }
         
-        vec3 nor = normal(pos);
-        float f = mix(0.15, 1.0, rec.mtl.metalness);
-        f = fresnelSchlick(dot(nor, -dir), f);
+        r = PBR(r, rec, rand);
         
-        if (noise(rand) > f) {
-            ray sray = ray(pos, randDir(light, 0.895, rand), vec4(1.0));
-            record srec = raycast(sray);//softshadow
-            float shadow = srec.hit?0.0:1.0;
-//            shadow = 0.0;
-            
-            vec3 diff = rec.mtl.albedo * shadow * max(dot(nor, light), 0.0);                
-            finalLight += diff * frac;
-            frac *= rec.mtl.albedo;
-            dir = randDir(reflect(dir, nor), f, rand);
-        } else {
-            vec3 refColor = mix(vec3(1.0), rec.mtl.albedo, rec.mtl.metalness);
-            frac *= refColor;
-            dir = randDir(reflect(dir,nor), 1.0 - rec.mtl.roughness, rand);
+        // 光被吸收完了就不用继续了
+        if (r.color.a <= 0.0) {
+            break;
         }
-        
-        r.origin = pos;
-        r.direction = dir;
     }
-    
-    r.color.rgb = finalLight;
-    
+
     return r;
 }
 
