@@ -30,7 +30,7 @@ struct material {
     vec3 albedo;     // 反照率
     float roughness; // 粗糙度
     float metallic;  // 金属度
-    vec4 emitting;   // 自发光(RGB,Intensity)
+    vec4 emitting;   // 自发光 (RGB, Intensity)
     vec3 normal;     // 切线空间法线
 };
 
@@ -155,7 +155,7 @@ object map(vec3 p) {
                         )
         ),
         object(sphere(p - vec3(-1.0, -0.2, 0), 0.3),
-                        material(vec3(1.0, 0.01, 0.01),
+                        material(vec3(1.0, 0.1, 0.1),
                                     0.9,
                                     0.1,
                                     vec4(0),
@@ -163,7 +163,7 @@ object map(vec3 p) {
                         )
         ),
         object(sphere(p - vec3(1.0, -0.2, 0), 0.3),
-                        material(vec3(0.01, 0.01, 1.0),
+                        material(vec3(0.1, 0.1, 1.0),
                                 0.3,
                                 1.0,
                                 vec4(0),
@@ -187,7 +187,7 @@ object map(vec3 p) {
                         )
         ),
         object(cylinder(p - vec3(0, 0.0, -2), 0.5, 0.5),
-                        material(vec3(0.01, 1.0, 0.01),
+                        material(vec3(0.1, 1.0, 0.1),
                                 0.0,
                                 1.0,
                                 vec4(0),
@@ -206,7 +206,7 @@ object map(vec3 p) {
     return o;
 }
 
-// 计算地图法线
+// 计算地图法线 (这里还可以优化，因为计算法线不应该再次寻找最近物体)
 vec3 calc_normal(vec3 p) {
     vec2 e = vec2(1, -1) * 0.5773 * 0.0005;
     return normalize( e.xyy*map( p + e.xyy ).sd + 
@@ -327,6 +327,7 @@ ray PBR(ray r, record rec, inout random rand) {
     if (dot(L, N) <= 0.0) {
 //        L = hemispheric_sampling(N, rand);
         r.color.a = 0.0;
+//        return r;
     }
 
     r.color.rgb = C;
@@ -353,6 +354,12 @@ ray raytrace(ray r, inout random rand) {
         if (r.color.a <= 0.0) {
             break;
         }
+        
+        // 处理自发光
+        r.color.rgb += rec.mtl.emitting.rgb*rec.mtl.emitting.a;
+        if (rec.mtl.emitting.a > 0.0) {
+            break;
+        }
     }
 
     return r;
@@ -369,8 +376,8 @@ vec3 sample(camera cam, vec2 uv, vec4 color, inout random rand) {
 }
 
 // HDR 映射色彩
-vec3 HDR(in vec3 color) {
-    return vec3(1.0) - exp(-color);   
+vec3 HDR(vec3 color) {
+    return vec3(1) - exp(-color);   
 }
 
 // 片段着色器程序入口

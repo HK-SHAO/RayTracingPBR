@@ -7,7 +7,7 @@ extends Node
 var material: ShaderMaterial
 var control: Control
 
-var gamma: float = 0.2
+var gamma: float = 0.5
 var focus: float = 2.0
 var aperture: float = 0.005
 
