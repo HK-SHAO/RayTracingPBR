@@ -1,22 +1,22 @@
 shader_type canvas_item;
 
 // 传入统一值
-uniform vec3 camera_position    = vec3(0.0, 0.0, 4.0); // 传入摄像机的位置
-uniform mat3 camera_rotation    = mat3(1);             // 摄像机的旋转
-uniform float camera_aspect     = 2.0;                 // 画布长宽比
-uniform float camera_vfov       = 30.0;                // 摄像机的纵向视野
-uniform float camera_focus      = 2.0;                 // 摄像机的对焦距离
-uniform float camera_aperture   = 0.005;               // 摄像机的光圈大小
-uniform float camera_gamma      = 0.2;                 // gamma 矫正值
+uniform vec3 camera_position    = vec3(0.0, 0.0, 4.0);  // 传入摄像机的位置
+uniform mat3 camera_rotation    = mat3(1);              // 摄像机的旋转
+uniform float camera_aspect     = 2.0;                  // 画布长宽比
+uniform float camera_vfov       = 30.0;                 // 摄像机的纵向视野
+uniform float camera_focus      = 2.0;                  // 摄像机的对焦距离
+uniform float camera_aperture   = 0.005;                // 摄像机的光圈大小
+uniform float camera_gamma      = 0.2;                  // gamma 矫正值
 
 // 配置常量
-const float TMIN        = 0.001;                    // 光开始传播的起始偏移，避免光线自相交
-const float TMAX        = 2000.0;                   // 最大单次光线传播距离
-const float PRECISION   = 0.00001;                  // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
-const float MAP_SIZE    = float(0x7fffffff);        // 地图大小
+const float TMIN        = 0.001;                        // 光开始传播的起始偏移，避免光线自相交
+const float TMAX        = 2000.0;                       // 最大单次光线传播距离
+const float PRECISION   = 0.00001;                      // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+const float MAP_SIZE    = float(0x7fffffff);            // 地图大小
 
-const uint MAX_RAYMARCH = 512U;                     // 最大光线步进次数
-const uint MAX_RAYTRACE = 512U;                     // 最大光线追踪次数
+const uint MAX_RAYMARCH = 512U;                         // 最大光线步进次数
+const uint MAX_RAYTRACE = 512U;                         // 最大光线追踪次数
 
 // 光线
 struct ray {
@@ -139,7 +139,7 @@ float cylinder(vec3 p, float h, float r) {
 object map(vec3 p) {
     const object objs[] = {
         object(sphere(p - vec3(0, -100.5, 0), 100),
-                        material(vec3(1.0, 1.0, 1.0)*0.1,
+                        material(vec3(1.0, 1.0, 1.0)*0.3,
                                     1.0,
                                     0.0,
                                     vec4(0),
@@ -173,13 +173,13 @@ object map(vec3 p) {
         object(box(p - vec3(0, 0, -1), vec3(2, 1, 0.2)),
                         material(vec3(1.0, 1.0, 1.0),
                                 0.1,
-                                1.0,
+                                0.9,
                                 vec4(0),
                                 vec3(0, 0, 1)
                         )
         ),
         object(cylinder(p - vec3(0, 0.1, 1), 0.5, 0.2),
-                        material(vec3(1.0, 1.0, 0.01),
+                        material(vec3(1.0, 1.0, 0.1),
                                 0.0,
                                 1.0,
                                 vec4(0),
@@ -330,6 +330,7 @@ ray PBR(ray r, record rec, inout random rand) {
 //        return r;
     }
 
+    // 更新光的方向和颜色
     r.color.rgb = C;
     r.origin = P;
     r.direction = L;
@@ -357,7 +358,7 @@ ray raytrace(ray r, inout random rand) {
         
         // 处理自发光
         r.color.rgb += rec.mtl.emitting.rgb*rec.mtl.emitting.a;
-        if (rec.mtl.emitting.a > 0.0) {
+        if (abs(rec.mtl.emitting.a) > 0.0) {
             break;
         }
     }
@@ -382,12 +383,12 @@ vec3 HDR(vec3 color) {
 
 // 片段着色器程序入口
 void fragment() {
-    // 计算并修正 UV 坐标系
-    vec2 uv = vec2(UV.x, 1.0 - UV.y);
+    // 计算并修正 UV 坐标系 (左手系，以左下角为原点)
+    const vec2 uv = vec2(UV.x, 1.0 - UV.y);
     
-    // 左手系
+    // 计算摄像机方位和视线
     const vec3 lookfrom = camera_position;
-    const vec3 direction = camera_rotation * vec3(0.0, 0.0, -1.0);
+    const vec3 direction = camera_rotation * vec3(0, 0, -1);
     const vec3 lookat = lookfrom + direction;
     
     // 初始化摄像机
@@ -396,20 +397,19 @@ void fragment() {
     cam.lookat = lookat;
     cam.aspect = camera_aspect;
     cam.vfov = camera_vfov;
-    cam.vup = vec3(0.0, 1.0, 0.0);
+    cam.vup = vec3(0, 1, 0);
     cam.focus = camera_focus;
     cam.aperture = camera_aperture;
     
     // 初始化随机数发生器种子
     random rand;
     rand.seed  = fract(TIME + rand.value);
-    rand.seed += UV.x/SCREEN_PIXEL_SIZE.y+UV.y;
+    rand.seed += UV.x/SCREEN_PIXEL_SIZE.y + UV.y;
     
     // 对每个光子经过的表面采样一次
-    vec3 color = sample(cam, uv, vec4(1.0), rand);
-    color = HDR(color);
+    vec3 color = sample(cam, uv, vec4(1), rand);
     
-//    vec2 oz = vec2(1.0, 0.0);
+//    vec2 oz = vec2(1, 0);
 //    vec3 R = sample(cam, uv, oz.xyyx, rand);
 //    vec3 G = sample(cam, uv, oz.yxyx, rand);
 //    vec3 B = sample(cam, uv, oz.yyxx, rand);
@@ -419,14 +419,16 @@ void fragment() {
     // 单帧内多重采样
 //    const uint N = 100U;
 //    for (uint i = 0U; i < N; i++) {
-//        color += sample(cam, uv, vec4(1.0), rand);
+//        color += sample(cam, uv, vec4(1), rand);
 //    }
-//    color = color / float(N+1U);
+//    color = color / float(N + 1U);
     
+    // HDR 映射色彩
+    color = HDR(color);
     // 伽马矫正
     color = pow(color, vec3(camera_gamma));
     
     // 测试随机数
-    // color = vec3(noise(rand), noise(rand), noise(rand));
+//    color = vec3(noise(rand), noise(rand), noise(rand));
     COLOR = vec4(color, 1.0);
 }

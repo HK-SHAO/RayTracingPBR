@@ -13,14 +13,14 @@ shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
 shader_parameter/camera_aspect = 2.0
 shader_parameter/camera_focus = 2.0
-shader_parameter/camera_gamma = 0.2
+shader_parameter/camera_gamma = 0.5
 shader_parameter/camera_position = Vector3(0, 0, 4)
 shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/camera_vfov = 30.5
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 215.0
+shader_parameter/frame = 60.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -83,6 +83,7 @@ mouse_filter = 1
 mouse_default_cursor_shape = 13
 
 [node name="RayTracing" type="SubViewportContainer" parent="Control"]
+texture_filter = 1
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -101,6 +102,7 @@ render_target_update_mode = 4
 
 [node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
+texture_filter = 1
 material = SubResource("ShaderMaterial_w5e1j")
 offset_right = 400.0
 offset_bottom = 200.0
@@ -118,6 +120,7 @@ script = ExtResource("2_xxsdv")
 script = ExtResource("4_cek0v")
 
 [node name="UseBackBuffer" type="SubViewportContainer" parent="Control"]
+texture_filter = 1
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -136,6 +139,7 @@ render_target_update_mode = 4
 
 [node name="OutShaderRect" type="TextureRect" parent="Control/UseBackBuffer/SubViewport"]
 unique_name_in_owner = true
+texture_filter = 1
 material = SubResource("ShaderMaterial_h8h8v")
 offset_right = 400.0
 offset_bottom = 200.0
@@ -264,7 +268,7 @@ offset_left = 65.0
 offset_right = 352.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "0.2"
+text = "0.5"
 horizontal_alignment = 2
 
 [node name="HBoxContainer4" type="HBoxContainer" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
@@ -283,7 +287,7 @@ size_flags_vertical = 1
 mouse_default_cursor_shape = 2
 max_value = 1.0
 step = 0.01
-value = 0.2
+value = 0.5
 
 [node name="HBoxContainer7" type="HBoxContainer" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -521,7 +525,7 @@ offset_left = 32.0
 offset_right = 120.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "90"
+text = "89"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -543,7 +547,7 @@ offset_left = 76.0
 offset_right = 120.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "214"
+text = "59"
 horizontal_alignment = 2
 
 [connection signal="value_changed" from="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]
