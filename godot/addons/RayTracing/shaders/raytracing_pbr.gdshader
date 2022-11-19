@@ -155,16 +155,16 @@ object map(vec3 p) {
                         )
         ),
         object(sphere(p - vec3(-1.0, -0.2, 0), 0.3),
-                        material(vec3(1.0, 0.0, 0.0),
+                        material(vec3(1.0, 0.01, 0.01),
                                     0.9,
-                                    0.0,
+                                    0.1,
                                     vec4(0),
                                     vec3(0, 0, 1)
                         )
         ),
         object(sphere(p - vec3(1.0, -0.2, 0), 0.3),
-                        material(vec3(0.0, 0.0, 1.0),
-                                0.5,
+                        material(vec3(0.01, 0.01, 1.0),
+                                0.3,
                                 1.0,
                                 vec4(0),
                                 vec3(0, 0, 1)
@@ -172,14 +172,22 @@ object map(vec3 p) {
         ),
         object(box(p - vec3(0, 0, -1), vec3(2, 1, 0.2)),
                         material(vec3(1.0, 1.0, 1.0),
-                                0.0,
+                                0.1,
                                 1.0,
                                 vec4(0),
                                 vec3(0, 0, 1)
                         )
         ),
         object(cylinder(p - vec3(0, 0.1, 1), 0.5, 0.2),
-                        material(vec3(1.0, 1.0, 0.0),
+                        material(vec3(1.0, 1.0, 0.01),
+                                0.0,
+                                1.0,
+                                vec4(0),
+                                vec3(0, 0, 1)
+                        )
+        ),
+        object(cylinder(p - vec3(0, 0.0, -2), 0.5, 0.5),
+                        material(vec3(0.01, 1.0, 0.01),
                                 0.0,
                                 1.0,
                                 vec4(0),
@@ -211,9 +219,9 @@ vec3 calc_normal(vec3 p) {
 mat3 TBN(vec3 N) {
     vec3 T, B;
     
-    if (N.z < -0.9999999) {
+    if (N.z < -0.999999) {
         T = vec3(0, -1, 0);
-        N = vec3(-1, 0, 0);
+        B = vec3(-1, 0, 0);
     } else {
         const float a = 1.0 / (1.0 + N.z);
         const float b = -N.x*N.y*a;
@@ -308,7 +316,7 @@ ray PBR(ray r, record rec, inout random rand) {
         }
         
         vec3 reflex = reflect(r.direction, N);
-        L = hemispheric_sampling_roughness(reflex, roughness, rand);            
+        L = hemispheric_sampling_roughness(reflex, roughness, rand);
     } else {
         // 漫反射
         C *= albedo;
@@ -402,9 +410,8 @@ void fragment() {
 //    color = (R + G + B) / 3.0;
     
     // 单帧内多重采样
-//    const uint N = 1U;
+//    const uint N = 100U;
 //    for (uint i = 0U; i < N; i++) {
-//        rand.seed.z += 0.001;
 //        color += sample(cam, uv, vec4(1.0), rand);
 //    }
 //    color = color / float(N+1U);

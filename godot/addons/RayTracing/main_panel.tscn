@@ -10,17 +10,17 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aperture = 0.005
+shader_parameter/camera_aperture = 0.056
 shader_parameter/camera_aspect = 2.02985
-shader_parameter/camera_focus = 2.0
+shader_parameter/camera_focus = 4.279
 shader_parameter/camera_gamma = 0.2
-shader_parameter/camera_position = Vector3(5.61913, 2.10877, 4.35454)
-shader_parameter/camera_rotation = Basis(0.647107, -0.17009, 0.743153, 0, 0.974765, 0.223101, -0.762378, -0.144372, 0.630789)
+shader_parameter/camera_position = Vector3(4.44556, 2.21181, 3.08758)
+shader_parameter/camera_rotation = Basis(0.691581, -0.252357, 0.676594, 0, 0.936837, 0.349421, -0.722119, -0.241685, 0.647981)
 shader_parameter/camera_vfov = 30.5
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 790.0
+shader_parameter/frame = 502.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -521,7 +521,7 @@ offset_left = 32.0
 offset_right = 120.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "72"
+text = "71"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -543,7 +543,7 @@ offset_left = 76.0
 offset_right = 120.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "630"
+text = "860"
 horizontal_alignment = 2
 
 [connection signal="value_changed" from="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]
