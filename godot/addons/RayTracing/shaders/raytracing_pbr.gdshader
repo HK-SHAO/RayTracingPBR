@@ -38,7 +38,7 @@ struct material {
 // 光子击中的记录
 struct record {
     bool hit;           // 是否击中
-    float t;            // 沿射线前进的距离
+    float t;            // 沿射线前进的距离 (为负代表在物体内部击中)
     vec3 position;      // 击中的位置
     vec3 normal;        // 击中位置的法线
     material mtl;       // 击中的材质
@@ -268,10 +268,11 @@ record raycast(ray r) {
         object obj = map(rec.position);
         if (abs(obj.sd) < PRECISION) {
             rec.mtl = obj.mtl;
+            rec.t *= sign(obj.sd);
             rec.hit = true;
             return rec;
         }
-        rec.t += obj.sd;
+        rec.t += abs(obj.sd);
     }
     // 没有击中物体
     rec.hit = false;
@@ -319,7 +320,7 @@ vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout random rand) 
 }
 
 // 应用 PBR 材质
-ray PBR(ray r, record rec, inout random rand) {
+ray PBR(ray r, inout record rec, inout random rand) {
     // 材质参数
     vec3 albedo = rec.mtl.albedo;
     float roughness = rec.mtl.roughness;
@@ -334,31 +335,41 @@ ray PBR(ray r, record rec, inout random rand) {
     vec3 C  = r.color.rgb;
     vec3 L;
     
-    float F = fresnel_schlick_roughness(max(0., dot(N, V)), 0.04, roughness);
+    rec.normal = N;
     
-    if (noise(rand) < transmission) {
-        // 折射
-        
-        L = refract(r.direction, sign(rec.t) * N, 1.0/1.25);
-        
-    } else if (noise(rand) < F + metallic) {
+    float F = fresnel_schlick_roughness(max(0., dot(N, V)), 0.04, roughness);
+
+    // 反射或者漫反射
+    if (noise(rand) < F + metallic) {
         // 不知道为啥这样，反正金属度效果就是好一些 (lll￢ω￢)
         if (noise(rand) < metallic) {
             C *= albedo; 
-        }
-        
+        } 
         N = hemispheric_sampling_roughness(N, roughness, rand);
         L = reflect(r.direction, N);
-        
     } else {
         // 漫反射
         C *= albedo;
         L = hemispheric_sampling(N, rand);
     }
-    
+
+    // 对透明度的处理还有问题
+    bool glass = false;
+    if (noise(rand) < transmission) {
+        glass = true;
+        
+        // 透射和折射
+        C *= albedo;
+        float ior = 1.0 / 1.5;
+        if (rec.t < 0.0) {
+            ior = 1.0 / ior;
+            N = -N;
+        }
+        L = refract(r.direction, N, ior);
+    }
+
     // 如果光射到表面下面就直接吸收掉
-    if (dot(L, N) < 0.0) {
-//        L = hemispheric_sampling(N, rand);
+    if (dot(L, N) < 0.0 && !glass) {
         r.color.a = 0.0;
     }
 
@@ -383,6 +394,10 @@ ray raytrace(ray r, inout random rand) {
         }
         
         r = PBR(r, rec, rand);
+        
+//        r.color.rgb = 0.5 + 0.5*rec.normal;
+//        r.color.a = 1.0;
+//        break;
         
         // 光被吸收完了就不用继续了
         if (r.color.a <= 0.0) {
