@@ -37,7 +37,7 @@ uint base_hash(uvec2 p) {
     return h32 ^ (h32 >> 16U);
 }
 
-float hash1(in float seed) {
+float hash1(inout float seed) {
     uint n = base_hash(floatBitsToUint(vec2(seed+=.1,seed+=.1)));
     return float(n)/intBitsToFloat(-1);
 }

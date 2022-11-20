@@ -20,51 +20,61 @@ const uint MAX_RAYTRACE = 512U;                         // 最大光线追踪次
 
 // 光线
 struct ray {
-    vec3 origin;     // 光的起点
-    vec3 direction;  // 光的方向
-    vec4 color;      // 光的颜色
+    vec3 origin;        // 光的起点
+    vec3 direction;     // 光的方向
+    vec4 color;         // 光的颜色
 };
 
 // 物体材质
 struct material {
-    vec3 albedo;     // 反照率
-    float roughness; // 粗糙度
-    float metallic;  // 金属度
-    vec4 emitting;   // 自发光 (RGB, Intensity)
-    vec3 normal;     // 切线空间法线
+    vec3 albedo;        // 反照率
+    float roughness;    // 粗糙度
+    float metallic;     // 金属度
+    float transmission; // 透明度
+    vec4 emission;      // 自发光 (RGB, Intensity)
+    vec3 normal;        // 切线空间法线
 };
 
 // 光子击中的记录
 struct record {
-    bool hit;        // 是否击中
-    float t;         // 沿射线前进的距离
-    vec3 position;   // 击中的位置
-    vec3 normal;     // 击中位置的法线
-    material mtl;    // 击中的材质
+    bool hit;           // 是否击中
+    float t;            // 沿射线前进的距离
+    vec3 position;      // 击中的位置
+    vec3 normal;        // 击中位置的法线
+    material mtl;       // 击中的材质
 };
 
 // SDF 物体
 struct object {
-    float sd;        // 到物体表面的距离
-    material mtl;    // 物体的材质
+    float sd;           // 到物体表面的距离
+    material mtl;       // 物体的材质
 };
 
 // 摄像机
 struct camera {
-    vec3 lookfrom;   // 视点位置
-    vec3 lookat;     // 目标位置
-    vec3 vup;        // 向上的方向
-    float vfov;      // 视野
-    float aspect;    // 传感器长宽比
-    float aperture;  // 光圈大小
-    float focus;     // 对焦距离
+    vec3 lookfrom;      // 视点位置
+    vec3 lookat;        // 目标位置
+    vec3 vup;           // 向上的方向
+    float vfov;         // 视野
+    float aspect;       // 传感器长宽比
+    float aperture;     // 光圈大小
+    float focus;        // 对焦距离
 };
 
 // 随机发生器
 struct random {
-    float seed;       // 随机数种子
-    float value;      // 上次的随机值
+    float seed;         // 随机数种子
+    float value;        // 上次的随机值
 };
+
+// 对三维向量进行哈希
+float hash(vec3 x) {
+    uvec3 p = floatBitsToUint(x);
+    p = 1103515245U * ((p.xyz >> 1U) ^ (p.yzx));
+    uint h32 = 1103515245U * ((p.x ^ p.z) ^ (p.y >> 3U));
+    uint n = h32 ^ (h32 >> 16U);
+    return float(n) * (1.0 / float(0x7fffffff));
+}
 
 // 生成归一化随机数
 float noise(inout random r) {
@@ -79,9 +89,10 @@ vec3 at(ray r, float t) {
 
 // 单位圆内随机取一点
 vec2 random_in_unit_disk(inout random seed) {
-    float r = mix(0.0, 1.0, noise(seed));
-    float a = mix(0.0, TAU, noise(seed));
-    return sqrt(r) * vec2(sin(a), cos(a));
+    float r = noise(seed);
+    float a = TAU * noise(seed);
+    return r * vec2(sin(a), cos(a));
+//    return sqrt(r) * vec2(sin(a), cos(a));
 }
 
 // 从摄像机获取光线
@@ -142,6 +153,7 @@ object map(vec3 p) {
                         material(vec3(1.0, 1.0, 1.0)*0.3,
                                     1.0,
                                     0.0,
+                                    0.0,
                                     vec4(0),
                                     vec3(0, 0, 1)
                         )
@@ -150,7 +162,8 @@ object map(vec3 p) {
                         material(vec3(1.0, 1.0, 1.0),
                                     1.0,
                                     0.0,
-                                    vec4(0, 1, 0, 10.0),
+                                    0.0,
+                                    vec4(0.1, 1.0, 0.1, 10.0),
                                     vec3(0, 0, 1)
                         )
         ),
@@ -158,6 +171,7 @@ object map(vec3 p) {
                         material(vec3(1.0, 0.1, 0.1),
                                     0.9,
                                     0.1,
+                                    0.0,
                                     vec4(0),
                                     vec3(0, 0, 1)
                         )
@@ -166,6 +180,7 @@ object map(vec3 p) {
                         material(vec3(0.1, 0.1, 1.0),
                                 0.3,
                                 1.0,
+                                0.0,
                                 vec4(0),
                                 vec3(0, 0, 1)
                         )
@@ -174,6 +189,7 @@ object map(vec3 p) {
                         material(vec3(1.0, 1.0, 1.0),
                                 0.1,
                                 0.9,
+                                0.0,
                                 vec4(0),
                                 vec3(0, 0, 1)
                         )
@@ -182,12 +198,23 @@ object map(vec3 p) {
                         material(vec3(1.0, 1.0, 0.1),
                                 0.0,
                                 1.0,
+                                0.0,
                                 vec4(0),
                                 vec3(0, 0, 1)
                         )
         ),
-        object(cylinder(p - vec3(0, 0.0, -2), 0.5, 0.5),
+        object(cylinder(p - vec3(0, 0.0, -2), 0.6, 0.5),
                         material(vec3(0.1, 1.0, 0.1),
+                                1.0,
+                                1.0,
+                                0.0,
+                                vec4(0),
+                                vec3(0, 0, 1)
+                        )
+        ),
+        object(sphere(p - vec3(1.0, -0.2, 2), 0.3),
+                        material(vec3(1.0, 1.0, 1.0),
+                                0.0,
                                 0.0,
                                 1.0,
                                 vec4(0),
@@ -281,6 +308,7 @@ vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout random rand) 
     float ra = TAU * noise(rand);
     float rb = noise(rand);
 
+    // 光感越大高光越锐利
     float shiny = pow(roughness, 4U);
     
     float rz = sqrt((1.0 - rb) / (1.0 + (shiny - 1.0)*rb));
@@ -296,11 +324,11 @@ ray PBR(ray r, record rec, inout random rand) {
     vec3 albedo = rec.mtl.albedo;
     float roughness = rec.mtl.roughness;
     float metallic = rec.mtl.metallic;
+    float transmission = rec.mtl.transmission;
     vec3 normal = rec.mtl.normal;
     
     // 光线和物体表面参数
-    vec3 rd = r.direction;
-    vec3 V  = -rd;
+    vec3 V  = -r.direction;
     vec3 P  = rec.position;
     vec3 N  = TBN(normal) * calc_normal(P);
     vec3 C  = r.color.rgb;
@@ -308,15 +336,20 @@ ray PBR(ray r, record rec, inout random rand) {
     
     float F = fresnel_schlick_roughness(max(0., dot(N, V)), 0.04, roughness);
     
-    if (noise(rand) < F + metallic) {
-//        if (0.5 < metallic) {
+    if (noise(rand) < transmission) {
+        // 折射
+        
+        L = refract(r.direction, sign(rec.t) * N, 1.0/1.25);
+        
+    } else if (noise(rand) < F + metallic) {
         // 不知道为啥这样，反正金属度效果就是好一些 (lll￢ω￢)
-        if (rand.value < metallic) {
+        if (noise(rand) < metallic) {
             C *= albedo; 
         }
         
-        vec3 reflex = reflect(r.direction, N);
-        L = hemispheric_sampling_roughness(reflex, roughness, rand);
+        N = hemispheric_sampling_roughness(N, roughness, rand);
+        L = reflect(r.direction, N);
+        
     } else {
         // 漫反射
         C *= albedo;
@@ -324,10 +357,9 @@ ray PBR(ray r, record rec, inout random rand) {
     }
     
     // 如果光射到表面下面就直接吸收掉
-    if (dot(L, N) <= 0.0) {
+    if (dot(L, N) < 0.0) {
 //        L = hemispheric_sampling(N, rand);
         r.color.a = 0.0;
-//        return r;
     }
 
     // 更新光的方向和颜色
@@ -346,6 +378,7 @@ ray raytrace(ray r, inout random rand) {
         // 没击中物体就肯定击中天空
         if (!rec.hit) {
             r.color *= sky(r);
+//            r.color *= 0.0;
             break;
         }
         
@@ -357,8 +390,8 @@ ray raytrace(ray r, inout random rand) {
         }
         
         // 处理自发光
-        r.color.rgb += rec.mtl.emitting.rgb*rec.mtl.emitting.a;
-        if (abs(rec.mtl.emitting.a) > 0.0) {
+        if (abs(rec.mtl.emission.a) > 0.0) {
+            r.color.rgb *= rec.mtl.emission.rgb*rec.mtl.emission.a;
             break;
         }
     }
@@ -378,7 +411,7 @@ vec3 sample(camera cam, vec2 uv, vec4 color, inout random rand) {
 
 // HDR 映射色彩
 vec3 HDR(vec3 color) {
-    return vec3(1) - exp(-color);   
+    return vec3(1) - exp(-color);
 }
 
 // 片段着色器程序入口
@@ -401,10 +434,9 @@ void fragment() {
     cam.focus = camera_focus;
     cam.aperture = camera_aperture;
     
-    // 初始化随机数发生器种子
+    // 用 UV 和时间初始化随机数发生器种子
     random rand;
-    rand.seed  = fract(TIME + rand.value);
-    rand.seed += UV.x/SCREEN_PIXEL_SIZE.y + UV.y;
+    rand.seed  = hash(vec3(uv, TIME));
     
     // 对每个光子经过的表面采样一次
     vec3 color = sample(cam, uv, vec4(1), rand);
@@ -417,7 +449,7 @@ void fragment() {
 //    color = (R + G + B) / 3.0;
     
     // 单帧内多重采样
-//    const uint N = 100U;
+//    const uint N = 10U;
 //    for (uint i = 0U; i < N; i++) {
 //        color += sample(cam, uv, vec4(1), rand);
 //    }

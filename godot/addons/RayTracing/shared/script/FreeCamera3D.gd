@@ -88,5 +88,6 @@ func _process(delta: float) -> void:
     _tmp_rotation += _rotate
     set_rotation(_tmp_rotation)
 
-    var dd := 0.00000001
+    const dd := 0.00000001
     moving = _rotate.length_squared() > dd || _translate.length_squared() > dd
+    
