@@ -1,8 +1,9 @@
-[gd_scene load_steps=12 format=3 uid="uid://ubje1c34mpqe"]
+[gd_scene load_steps=13 format=3 uid="uid://ubje1c34mpqe"]
 
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/raytracing_pbr.gdshader" id="1_0w4fs"]
 [ext_resource type="Script" path="res://addons/RayTracing/main_panel.gd" id="1_3yfr2"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_uniform_camera.gd" id="2_xxsdv"]
+[ext_resource type="Texture2D" uid="uid://ckdjst508xgv1" path="res://addons/RayTracing/textures/environment/Tokyo_BigSight_3k.hdr" id="3_v1aqf"]
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/post_processing.gdshader" id="4_0kxc5"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/alwasy_fill_viewport.gd" id="4_cek0v"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
@@ -11,12 +12,13 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 1.81194
+shader_parameter/camera_aspect = 1.41956
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.7
 shader_parameter/camera_position = Vector3(2.86614, 1.5804, 3.80388)
 shader_parameter/camera_rotation = Basis(0.816684, -0.190205, 0.544632, 0, 0.94396, 0.329679, -0.576887, -0.269269, 0.771021)
 shader_parameter/camera_vfov = 30.0
+shader_parameter/environment_hdri = ExtResource("3_v1aqf")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
@@ -91,13 +93,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
-stretch_shrink = 3
 
 [node name="SubViewport" type="SubViewport" parent="Control/RayTracing"]
 disable_3d = true
 transparent_bg = true
 handle_input_locally = false
-size = Vector2i(400, 200)
+size = Vector2i(1200, 600)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
@@ -105,8 +106,8 @@ render_target_update_mode = 4
 unique_name_in_owner = true
 texture_filter = 1
 material = SubResource("ShaderMaterial_w5e1j")
-offset_right = 400.0
-offset_bottom = 200.0
+offset_right = 1200.0
+offset_bottom = 600.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
@@ -129,13 +130,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
-stretch_shrink = 3
 
 [node name="SubViewport" type="SubViewport" parent="Control/UseBackBuffer"]
 disable_3d = true
 transparent_bg = true
 handle_input_locally = false
-size = Vector2i(400, 200)
+size = Vector2i(1200, 600)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
@@ -143,8 +143,8 @@ render_target_update_mode = 4
 unique_name_in_owner = true
 texture_filter = 1
 material = SubResource("ShaderMaterial_h8h8v")
-offset_right = 400.0
-offset_bottom = 200.0
+offset_right = 1200.0
+offset_bottom = 600.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
