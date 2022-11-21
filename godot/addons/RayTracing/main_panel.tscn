@@ -14,13 +14,13 @@ shader_parameter/camera_aperture = 0.005
 shader_parameter/camera_aspect = 1.81194
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.7
-shader_parameter/camera_position = Vector3(3.0339, 2.07773, 5.96901)
-shader_parameter/camera_rotation = Basis(0.911816, -0.134174, 0.387925, 0, 0.945003, 0.326863, -0.410474, -0.29805, 0.861727)
+shader_parameter/camera_position = Vector3(2.86614, 1.5804, 3.80388)
+shader_parameter/camera_rotation = Basis(0.816684, -0.190205, 0.544632, 0, 0.94396, 0.329679, -0.576887, -0.269269, 0.771021)
 shader_parameter/camera_vfov = 30.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 774.0
+shader_parameter/frame = 363.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -95,6 +95,7 @@ stretch_shrink = 3
 
 [node name="SubViewport" type="SubViewport" parent="Control/RayTracing"]
 disable_3d = true
+transparent_bg = true
 handle_input_locally = false
 size = Vector2i(400, 200)
 render_target_clear_mode = 1
@@ -132,6 +133,7 @@ stretch_shrink = 3
 
 [node name="SubViewport" type="SubViewport" parent="Control/UseBackBuffer"]
 disable_3d = true
+transparent_bg = true
 handle_input_locally = false
 size = Vector2i(400, 200)
 render_target_clear_mode = 1
@@ -489,14 +491,14 @@ theme_override_constants/margin_bottom = 30
 layout_mode = 2
 offset_left = 30.0
 offset_top = 30.0
-offset_right = 198.0
-offset_bottom = 134.0
+offset_right = 204.0
+offset_bottom = 164.0
 theme_override_styles/panel = ExtResource("7_0tgr0")
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/MarginContainer2/PanelContainer"]
 layout_mode = 2
-offset_right = 168.0
-offset_bottom = 104.0
+offset_right = 174.0
+offset_bottom = 134.0
 theme_override_constants/margin_left = 24
 theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 24
@@ -506,12 +508,12 @@ theme_override_constants/margin_bottom = 24
 layout_mode = 2
 offset_left = 24.0
 offset_top = 24.0
-offset_right = 144.0
-offset_bottom = 80.0
+offset_right = 150.0
+offset_bottom = 110.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-offset_right = 120.0
+offset_right = 126.0
 offset_bottom = 26.0
 
 [node name="Label" type="Label" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer"]
@@ -524,16 +526,16 @@ text = "FPS"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 32.0
-offset_right = 120.0
+offset_right = 126.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "90"
+text = "85"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 30.0
-offset_right = 120.0
+offset_right = 126.0
 offset_bottom = 56.0
 
 [node name="Label" type="Label" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2"]
@@ -546,10 +548,31 @@ text = "Sampling"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 76.0
-offset_right = 120.0
+offset_right = 126.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "773"
+text = "362"
+horizontal_alignment = 2
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+offset_top = 60.0
+offset_right = 126.0
+offset_bottom = 86.0
+
+[node name="Label" type="Label" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer3"]
+layout_mode = 2
+offset_right = 50.0
+offset_bottom = 26.0
+text = "verion"
+
+[node name="sample" type="Label" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer3"]
+layout_mode = 2
+offset_left = 54.0
+offset_right = 126.0
+offset_bottom = 26.0
+size_flags_horizontal = 3
+text = "HK-SHAO"
 horizontal_alignment = 2
 
 [connection signal="value_changed" from="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]

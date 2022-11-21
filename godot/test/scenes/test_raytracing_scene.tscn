@@ -38,7 +38,6 @@ grow_vertical = 2
 
 [node name="BlackBack" type="ColorRect" parent="."]
 visible = false
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -48,7 +47,6 @@ color = Color(0, 0, 0, 1)
 
 [node name="WhiteBack" type="ColorRect" parent="."]
 visible = false
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -57,7 +55,6 @@ grow_vertical = 2
 color = Color(0.678431, 0.67451, 0.729412, 1)
 
 [node name="RayTracing" type="SubViewportContainer" parent="."]
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -88,7 +85,6 @@ script = ExtResource("2_318b5")
 camera = NodePath("../../../../Node3D/FreeCamera3D")
 
 [node name="BackBuffer" type="SubViewportContainer" parent="."]
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -117,7 +113,6 @@ texture = SubResource("ViewportTexture_cbl28")
 script = ExtResource("6_pdm25")
 
 [node name="Gamma" type="SubViewportContainer" parent="."]
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

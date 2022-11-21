@@ -339,7 +339,7 @@ vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout random rand) 
     float rb = noise(rand);
 
     // 光感越大高光越锐利
-    float shiny = pow(roughness, 4U);
+    float shiny = pow5(roughness);
     
     float rz = sqrt((1.0 - rb) / (1.0 + (shiny - 1.0)*rb));
     vec2 v = vec2(cos(ra), sin(ra));
@@ -384,10 +384,10 @@ ray PBR(ray r, inout record rec, inout random rand) {
             eta = ENV_IOR / ior;
         }
         
-        float F0 = 0.08;
+        const float F0 = 0.08;
         float F = fresnel_schlick(NoV, F0, ior);
         N = hemispheric_sampling_roughness(N, roughness, rand);
-        if (noise(rand) < F + metallic) {
+        if (noise(rand) < F + metallic && NoV > 0.0) {
             L = reflect(r.direction, N);
             r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
         } else {
@@ -396,7 +396,7 @@ ray PBR(ray r, inout record rec, inout random rand) {
   
         }
     } else {
-        float F0 = 0.04;
+        const float F0 = 0.04;
         float F = fresnel_schlick(NoV, F0, roughness);
     
         // 反射或者漫反射
@@ -411,9 +411,7 @@ ray PBR(ray r, inout record rec, inout random rand) {
         }
 
         // 如果光射到表面下面就直接吸收掉
-        if (dot(L, N) < 0.0) {
-            r.color.a = 0.0;
-        }
+        r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
     }
 
     // 更新光的方向和颜色
@@ -498,6 +496,9 @@ void fragment() {
     // 用 UV 和时间初始化随机数发生器种子
     random rand;
     rand.seed  = hash(vec3(uv, TIME));
+
+    // 超采样
+    uv += vec2(noise(rand), noise(rand)) * SCREEN_PIXEL_SIZE;
     
     // 对每个光子经过的表面采样一次
     vec3 color = sample(cam, uv, vec4(1), rand);
