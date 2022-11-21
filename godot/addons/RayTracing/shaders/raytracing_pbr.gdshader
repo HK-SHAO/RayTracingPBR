@@ -21,7 +21,7 @@ const uint MAX_RAYTRACE = 512U;                         // 最大光线追踪次
 const float ENV_IOR = 1.0;                              // 环境的折射率
 
 // 传入贴图
-uniform sampler2D environment_hdri;                     // 环境HDRI
+uniform sampler2D environment_hdri;                     // 环境 HDRI 贴图
 
 // 光线
 struct ray {
@@ -304,8 +304,9 @@ record raycast(ray r) {
     return rec;
 }
 
+// 球面坐标到笛卡尔坐标
 const vec2 invAtan = vec2(0.1591, 0.3183);
-vec2 SampleSphericalMap(vec3 v)
+vec2 sample_spherical_map(vec3 v)
 {
     vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
     uv *= invAtan;
@@ -313,17 +314,17 @@ vec2 SampleSphericalMap(vec3 v)
     return uv;
 }
 
-// 天空
+// 采样天空
 vec4 sky(ray r) {
 //    float t = 0.5 + 0.5 * r.direction.y;
 //    vec4 bottom = vec4(1.0, 1.0, 1.0, 1.0);
 //    vec4 top = vec4(0.5, 0.7, 1.0, 1.0);
 //    return mix(bottom, top, t);
-	vec2 uv = SampleSphericalMap(normalize(r.direction));
-	uv.y = 1.0 - uv.y;
-	vec3 color = texture(environment_hdri, uv).rgb;
-	
-	return vec4(color, 1.0);
+    vec2 uv = sample_spherical_map(normalize(r.direction));
+    uv.y = 1.0 - uv.y;
+    vec3 color = texture(environment_hdri, uv).rgb;
+
+    return vec4(color, 1.0);
 }
 
 // 快速计算五次方
