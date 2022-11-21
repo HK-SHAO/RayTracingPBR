@@ -98,8 +98,7 @@ vec3 at(ray r, float t) {
 vec2 random_in_unit_disk(inout random seed) {
     float r = noise(seed);
     float a = TAU * noise(seed);
-    return r * vec2(sin(a), cos(a));
-//    return sqrt(r) * vec2(sin(a), cos(a));
+    return sqrt(r) * vec2(sin(a), cos(a));
 }
 
 // 从摄像机获取光线
