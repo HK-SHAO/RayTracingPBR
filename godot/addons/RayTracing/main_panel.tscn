@@ -13,14 +13,14 @@ shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
 shader_parameter/camera_aspect = 1.81194
 shader_parameter/camera_focus = 2.0
-shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(2.85544, 1.22803, 5.45343)
-shader_parameter/camera_rotation = Basis(0.888677, -0.101422, 0.446827, 0, 0.975033, 0.221318, -0.458196, -0.19671, 0.866628)
+shader_parameter/camera_gamma = 0.7
+shader_parameter/camera_position = Vector3(3.0339, 2.07773, 5.96901)
+shader_parameter/camera_rotation = Basis(0.911816, -0.134174, 0.387925, 0, 0.945003, 0.326863, -0.410474, -0.29805, 0.861727)
 shader_parameter/camera_vfov = 30.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 142.0
+shader_parameter/frame = 774.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -549,7 +549,7 @@ offset_left = 76.0
 offset_right = 120.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "141"
+text = "773"
 horizontal_alignment = 2
 
 [connection signal="value_changed" from="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]

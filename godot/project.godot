@@ -26,9 +26,9 @@ _global_script_class_icons={
 
 [application]
 
-config/name="Ray Tracing Shader Demo"
+config/name="Ray-Tracing-Shader-Demo"
 config/description="Ray Tracing Shader Demo by HK-SHAO."
-run/main_scene="res://test/scenes/test_raytracing_scene.tscn"
+run/main_scene="res://addons/RayTracing/main_panel.tscn"
 config/features=PackedStringArray("4.0", "Forward Plus")
 config/icon="res://icon.svg"
 
