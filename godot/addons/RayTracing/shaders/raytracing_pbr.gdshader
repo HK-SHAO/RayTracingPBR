@@ -348,14 +348,14 @@ vec3 hemispheric_sampling(vec3 n, inout random rand) {
     float ra = TAU * noise(rand);
     float rb = noise(rand);
     
+    float rz = sqrt(rb);
     vec2 v = vec2(cos(ra), sin(ra));
-    vec2 rxy = sqrt(rb) * v; 
-    float rz = sqrt(1.0 - rb);
+    vec2 rxy = sqrt(1.0 - rb) * v; 
     
     return TBN(n) * vec3(rxy, rz);
 }
 
-// 用粗糙度采样沿向量 n 采样
+// 用粗糙度采样沿向量 n 半球采样
 vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout random rand) {
     float ra = TAU * noise(rand);
     float rb = noise(rand);
@@ -450,10 +450,20 @@ ray PBR(ray r, inout record rec, inout random rand) {
 
 // 光线追踪
 ray raytrace(ray r, inout random rand) {
+    // 俄罗斯轮盘赌概率，防止光线过分的反复反射
     const float roulette_prob = 0.9;
+    
     for (uint i = 0U; i < MAX_RAYTRACE; i++) {
-        record rec = raycast(r);
+        // 光被吸收掉就不用继续了
+        if (r.color.a <= 0.0001 || noise(rand) > roulette_prob) {
+            r.color *= 0.0;
+            break;
+        }
+        // 能量守恒
+        r.color /= roulette_prob;
         
+        // 与地图求交
+        record rec = raycast(r);
         // 没击中物体就肯定击中天空
         if (!rec.hit) {
             r.color *= sky(r);
@@ -461,20 +471,12 @@ ray raytrace(ray r, inout random rand) {
             break;
         }
         
+        // 应用 PBR 材质
         r = PBR(r, rec, rand);
         
 //        r.color.rgb = 0.5 + 0.5*rec.normal;
 //        r.color.a = 1.0;
 //        break;
-        
-        // 光被吸收掉就不用继续了
-        if (r.color.a <= 0.0001 || noise(rand) > roulette_prob) {
-           r.color *= 0.0;
-            break;
-        }
-        
-        // 能量守恒
-        r.color /= roulette_prob;
         
         // 处理自发光
         if (abs(rec.mtl.emission.a) > 0.0) {

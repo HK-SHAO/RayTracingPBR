@@ -2,27 +2,27 @@
 
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/raytracing_pbr.gdshader" id="1_0w4fs"]
 [ext_resource type="Script" path="res://addons/RayTracing/main_panel.gd" id="1_3yfr2"]
+[ext_resource type="Theme" uid="uid://cb8ecutokhlq7" path="res://addons/RayTracing/theme/ui_theme.tres" id="1_o3uud"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_uniform_camera.gd" id="2_xxsdv"]
 [ext_resource type="Texture2D" uid="uid://ckdjst508xgv1" path="res://addons/RayTracing/textures/environment/Tokyo_BigSight_3k.hdr" id="3_v1aqf"]
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/post_processing.gdshader" id="4_0kxc5"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/alwasy_fill_viewport.gd" id="4_cek0v"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
-[ext_resource type="StyleBox" uid="uid://bulmrmwwx8ncl" path="res://addons/RayTracing/theme/ui_style_box_flat.stylebox" id="7_0tgr0"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 1.81194
+shader_parameter/camera_aspect = 2.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(4.2842, 3.41169, 4.63931)
-shader_parameter/camera_rotation = Basis(0.71089, -0.310187, 0.631146, 0, 0.89743, 0.441059, -0.703255, -0.313554, 0.637998)
+shader_parameter/camera_position = Vector3(0, 0, 4)
+shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("3_v1aqf")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 38.0
+shader_parameter/frame = 302.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_5c6e4"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -70,6 +70,7 @@ grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
+theme = ExtResource("1_o3uud")
 script = ExtResource("1_3yfr2")
 
 [node name="Control" type="Control" parent="."]
@@ -195,7 +196,6 @@ offset_left = 30.0
 offset_top = 30.0
 offset_right = 430.0
 offset_bottom = 444.0
-theme_override_styles/panel = ExtResource("7_0tgr0")
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/MarginContainer/PanelContainer"]
 layout_mode = 2
@@ -462,16 +462,16 @@ unique_name_in_owner = true
 layout_mode = 2
 offset_top = 300.0
 offset_right = 352.0
-offset_bottom = 331.0
+offset_bottom = 323.0
 mouse_default_cursor_shape = 2
 text = "Reset Position"
 
 [node name="sample_once_b" type="Button" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_top = 335.0
+offset_top = 327.0
 offset_right = 352.0
-offset_bottom = 366.0
+offset_bottom = 350.0
 mouse_default_cursor_shape = 2
 text = "Resample"
 
@@ -495,7 +495,6 @@ offset_left = 30.0
 offset_top = 30.0
 offset_right = 270.0
 offset_bottom = 164.0
-theme_override_styles/panel = ExtResource("7_0tgr0")
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/MarginContainer2/PanelContainer"]
 layout_mode = 2
@@ -531,7 +530,7 @@ offset_left = 32.0
 offset_right = 192.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "85"
+text = "90"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -553,7 +552,7 @@ offset_left = 76.0
 offset_right = 192.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "992"
+text = "301"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
