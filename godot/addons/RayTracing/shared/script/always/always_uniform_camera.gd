@@ -10,6 +10,7 @@ var control: Control
 var gamma: float = 0.5
 var focus: float = 2.0
 var aperture: float = 0.005
+var vfov: float = 30
 
 func _ready() -> void:
     control = get_parent() as Control
@@ -20,7 +21,7 @@ func _process(_delta: float) -> void:
     var camera_position := camera.transform.origin
     var camera_rotation := camera.transform.basis
     var aspect := control.size.x / control.size.y
-    var vfov := camera.fov
+    camera.fov = max(vfov, 1.0);
 
 
     material.set_shader_parameter("camera_position", camera_position)

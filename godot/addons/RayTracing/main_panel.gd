@@ -55,7 +55,7 @@ func _on_camera_focus_s_value_changed(value: float) -> void:
 
 
 func _on_camera_fov_s_value_changed(value: float) -> void:
-    camera.fov = value
+    %always_uniform_camera.vfov = value
     %camera_fov.text = str(value)
     %OutShaderRect.frame = 0
 
