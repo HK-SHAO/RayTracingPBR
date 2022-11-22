@@ -18,7 +18,7 @@ const float MAP_SIZE    = float(0x7fffffff);            // 地图大小
 const uint MAX_RAYMARCH = 512U;                         // 最大光线步进次数
 const uint MAX_RAYTRACE = 512U;                         // 最大光线追踪次数
 
-const float ENV_IOR = 1.0;                              // 环境的折射率
+const float ENV_IOR = 1.000277;                         // 环境的折射率
 
 // 传入贴图
 uniform sampler2D environment_hdri;                     // 环境 HDRI 贴图
@@ -157,8 +157,8 @@ object map(vec3 p) {
     object objs[] = {
         object(sphere(p - vec3(0, -100.5, 0), 100),
                         material(vec3(1.0, 1.0, 1.0)*0.3,
-                                    1.0, // 粗糙度
-                                    0.0, // 金属度
+                                    0.0, // 粗糙度
+                                    1.0, // 金属度
                                     0.0, // 透明度
                                     1.0, // 折射率
                                     vec4(0),
@@ -197,7 +197,7 @@ object map(vec3 p) {
         ),
         object(box(p - vec3(0, 0, -1), vec3(2, 1, 0.2)),
                         material(vec3(1.0, 1.0, 1.0),
-                                    0.1, // 粗糙度
+                                    0.01, // 粗糙度
                                     0.9, // 金属度
                                     0.0, // 透明度
                                     1.0, // 折射率
@@ -230,7 +230,7 @@ object map(vec3 p) {
                                     0.0, // 粗糙度
                                     0.0, // 金属度
                                     1.0, // 透明度
-                                    1.25, // 折射率
+                                    1.5, // 折射率
                                     vec4(0),
                                     vec3(0, 0, 1)
                         )
@@ -240,7 +240,7 @@ object map(vec3 p) {
                                     0.0, // 粗糙度
                                     0.0, // 金属度
                                     1.0, // 透明度
-                                    1.25, // 折射率
+                                    1.778, // 折射率
                                     vec4(0),
                                     vec3(0, 0, 1)
                         )
@@ -334,8 +334,13 @@ float pow5(float x) {
 }
 
 // 用粗糙度计算菲涅尔近似值
-float fresnel_schlick(float cosine, float F0, float X) {
-    return F0 + (max(1.0 - X, F0) - F0) * pow5(abs(1.0 - cosine));
+float fresnel_schlick(float cosine, float F0) {
+    return F0 + (1.0 - F0) * pow5(abs(1.0 - cosine));
+}
+
+// 用粗糙度计算菲涅尔近似值
+float fresnel_schlick_roughness(float cosine, float F0, float roughness) {
+    return F0 + (max(1.0 - roughness, F0) - F0) * pow5(abs(1.0 - cosine));
 }
 
 // 以 n 为法线进行半球采样
@@ -401,20 +406,21 @@ ray PBR(ray r, inout record rec, inout random rand) {
             eta = ENV_IOR / ior;
         }
         
-        const float F0 = 0.08;
-        float F = fresnel_schlick(NoV, F0, ior);
+        float F0 = (eta - 1.0) / (eta + 1.0);
+        F0 *= 5.0 * F0; // 让透明材质的反射更明显一些
+        float F = fresnel_schlick(NoV, F0);
         N = hemispheric_sampling_roughness(N, roughness, rand);
+        
         if (noise(rand) < F + metallic && NoV > 0.0) {
             L = reflect(r.direction, N);
             r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
         } else {
             L = refract(r.direction, N, eta);
             L = -L * sign(dot(L, N));
-  
         }
     } else {
         const float F0 = 0.04;
-        float F = fresnel_schlick(NoV, F0, roughness);
+        float F = fresnel_schlick_roughness(NoV, F0, roughness);
     
         // 反射或者漫反射
         if (noise(rand) < F + metallic) {
