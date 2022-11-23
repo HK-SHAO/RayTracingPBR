@@ -12,7 +12,7 @@ uniform float camera_gamma      = 0.2;                  // gamma 矫正值
 // 配置常量
 const float TMIN        = 0.001;                        // 光开始传播的起始偏移，避免光线自相交
 const float TMAX        = 2000.0;                       // 最大单次光线传播距离
-const float PRECISION   = 0.0001;                      // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+const float PRECISION   = 0.0001;                       // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
 const float MAP_SIZE    = float(0x7fffffff);            // 地图大小
 
 const uint MAX_RAYMARCH = 512U;                         // 最大光线步进次数
@@ -357,7 +357,7 @@ vec3 calc_normal(object obj, vec3 p) {
 mat3 TBN(vec3 N) {
     vec3 T, B;
     
-    if (N.z < -0.999999) {
+    if (N.z < -0.99999) {
         T = vec3(0, -1, 0);
         B = vec3(-1, 0, 0);
     } else {
