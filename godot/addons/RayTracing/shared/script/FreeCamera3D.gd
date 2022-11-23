@@ -49,7 +49,8 @@ func gui_input(event: InputEvent):
             _rotation.y -= event.relative.x * dt
             _rotation.x -= event.relative.y * dt
             if restric:
-                _rotation.x = clamp(_rotation.x, PI/-2, PI/2)
+                # 0.01 为了避免万向锁
+                _rotation.x = clamp(_rotation.x, PI/-2 + 0.01, PI/2 - 0.01)
 
     if event is InputEventMouseButton:
         match event.button_index:
