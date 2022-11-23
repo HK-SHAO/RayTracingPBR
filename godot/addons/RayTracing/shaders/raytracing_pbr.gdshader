@@ -178,8 +178,8 @@ const object map[] = {
                     1.0, // 金属度
                     0.0, // 透明度
                     1.0, // 折射率
-                    vec4(0),
-                    vec3(0, 0, 1)
+                    vec4(0), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
     ),
     object(SHAPE_SPHERE, NONE,
@@ -192,8 +192,8 @@ const object map[] = {
                     0.0, // 金属度
                     0.0, // 透明度
                     1.0, // 折射率
-                    vec4(0.1, 1.0, 0.1, 10.0),
-                    vec3(0, 0, 1)
+                    vec4(0.1, 1.0, 0.1, 10.0), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
     ),
     object(SHAPE_SPHERE, NONE,
@@ -206,8 +206,8 @@ const object map[] = {
                     0.1, // 金属度
                     0.0, // 透明度
                     1.0, // 折射率
-                    vec4(0),
-                    vec3(0, 0, 1)
+                    vec4(0), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
     ),
     object(SHAPE_SPHERE, NONE,
@@ -220,8 +220,8 @@ const object map[] = {
                     1.0, // 金属度
                     0.0, // 透明度
                     1.0, // 折射率
-                    vec4(0),
-                    vec3(0, 0, 1)
+                    vec4(0), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
     ),
     object(SHAPE_BOX, NONE,
@@ -231,11 +231,11 @@ const object map[] = {
         ),
         material(vec3(1.0, 1.0, 1.0),
                     0.01, // 粗糙度
-                    0.9, // 金属度
-                    0.0, // 透明度
-                    1.0, // 折射率
-                    vec4(0),
-                    vec3(0, 0, 1)
+                    0.9,  // 金属度
+                    0.0,  // 透明度
+                    1.0,  // 折射率
+                    vec4(0), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
     ),
     object(SHAPE_CYLINDER, NONE,
@@ -248,8 +248,8 @@ const object map[] = {
                     1.0, // 金属度
                     0.0, // 透明度
                     1.0, // 折射率
-                    vec4(0),
-                    vec3(0, 0, 1)
+                    vec4(0), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
     ),
     object(SHAPE_CYLINDER, NONE,
@@ -262,8 +262,8 @@ const object map[] = {
                     1.0, // 金属度
                     0.0, // 透明度
                     1.0, // 折射率
-                    vec4(0),
-                    vec3(0, 0, 1)
+                    vec4(0), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
     ),
     object(SHAPE_SPHERE, NONE,
@@ -276,8 +276,8 @@ const object map[] = {
                     0.0, // 金属度
                     1.0, // 透明度
                     1.5, // 折射率
-                    vec4(0),
-                    vec3(0, 0, 1)
+                    vec4(0), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
     ),
     object(SHAPE_SPHERE, NONE,
@@ -286,12 +286,12 @@ const object map[] = {
                     vec3(0.3, 0, 0)
         ),
         material(vec3(0.0, 1.0, 1.0),
-                    0.0, // 粗糙度
-                    0.0, // 金属度
-                    1.0, // 透明度
-                    1.778, // 折射率
-                    vec4(0),
-                    vec3(0, 0, 1)
+                    0.0,    // 粗糙度
+                    0.0,    // 金属度
+                    1.0,    // 透明度
+                    1.778,  // 折射率
+                    vec4(0), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
     )
 };
@@ -299,15 +299,15 @@ const object map[] = {
 // 欧拉角转旋转矩阵
 mat3 angle(vec3 a) {
     vec3 s = sin(a), c = cos(a);
-    return mat3(vec3( c.z, s.z,   0),
-                vec3(-s.z, c.z,   0),
-                vec3(   0,   0,   1 )) *
-           mat3(vec3( c.y,   0,-s.y),
-                vec3(   0,   1,   0),
-                vec3( s.y,   0, c.y )) *
-           mat3(vec3(   1,   0,   0),
-                vec3(   0, c.x, s.x),
-                vec3(   0,-s.x, c.x ));
+    return mat3(vec3( c.z,  s.z,    0),
+                vec3(-s.z,  c.z,    0),
+                vec3(   0,    0,    1)) *
+           mat3(vec3( c.y,    0, -s.y),
+                vec3(   0,    1,    0),
+                vec3( s.y,    0,  c.y)) *
+           mat3(vec3(   1,    0,    0),
+                vec3(   0,  c.x,  s.x),
+                vec3(   0, -s.x,  c.x));
 }
 
 // 计算有向距离 (物体内部距离为负)
@@ -318,7 +318,8 @@ float signed_distance(object obj, vec3 pos) {
     
     vec3 p = pos - position;
     
-    // 这里！！ 会重复的将欧拉角转换成旋转矩阵，实际上只用在第一次计算就行了，不知道该怎么缓存
+    // 会重复的将欧拉角转换成旋转矩阵，实际上只用在第一次计算就行了
+    // 也有可能被编译器优化掉了
     p = angle(rotation) * p;
     
     switch(obj.shape) {
@@ -525,35 +526,30 @@ ray PBR(ray r, inout record rec, inout random rand) {
     r.origin = P;
     r.direction = L;
     
-//    r.color.rgb = vec3(F);
-//    r.color.a = 1.0;
-    
     return r;
 }
 
 // 光线追踪
 ray raytrace(ray r, inout random rand) {
     // 俄罗斯轮盘赌概率，防止光线过分的反复反射
-    const float roulette_prob = 0.9;
+    const float roulette_prob = 0.1;
+    const float inv_pdf = 1.0 / (1.0 - roulette_prob);
     
     for (uint i = 0U; i < MAX_RAYTRACE; i++) {
-        // 光被吸收掉就不用继续了
-        if (r.color.a <= 0.0001 || noise(rand) > roulette_prob) {
+        // 光被吸收掉或者光线毙掉就不用继续了
+        float visible = length(r.color.rgb*r.color.a);
+        if (visible <= 0.0001 || noise(rand) < roulette_prob) {
             r.color *= 0.0;
             break;
         }
         // 能量守恒
-        r.color /= roulette_prob;
+        r.color *= inv_pdf;
         
         // 与地图求交
         record rec = raycast(r);
         
         //  测试法线
 //        r.color.rgb = 0.5 + 0.5*calc_normal(rec.obj, rec.position);
-//        r.color.a = 1.0;
-//        break;
-
-//        r.color.rgb = vec3(rec.obj.sd);
 //        r.color.a = 1.0;
 //        break;
         
@@ -621,13 +617,6 @@ void fragment() {
     
     // 对每个光子经过的表面采样一次
     vec3 color = sample(cam, uv, vec4(1), rand);
-    
-//    vec2 oz = vec2(1, 0);
-//    vec3 R = sample(cam, uv, oz.xyyx, rand);
-//    vec3 G = sample(cam, uv, oz.yxyx, rand);
-//    vec3 B = sample(cam, uv, oz.yyxx, rand);
-//
-//    color = (R + G + B) / 3.0;
     
     // 单帧内多重采样
 //    const uint N = 10U;
