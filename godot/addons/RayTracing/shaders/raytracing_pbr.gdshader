@@ -43,7 +43,7 @@ const float NONE = 0.0;
 const vec3 baseBright  = vec3(3.26,3.25,3.29);          // 基础颜色 -- 亮部
 const vec3 baseDark    = vec3(2.31,2.31,2.32);          // 基础颜色 -- 暗部
 const vec3 lightBright = vec3(4.29, 4.17, 4.05);        // 光照颜色 -- 亮部
-const vec3 lightDark   = vec3(3.7,3.75,3.8);            // 光照颜色 -- 暗部
+//const vec3 lightDark   = vec3(3.7,3.75,3.8);            // 光照颜色 -- 暗部
 
 // 光线
 struct ray {
@@ -185,7 +185,7 @@ float sd_cylinder(vec3 p, float h, float r) {
 
 // SDF 体积云
 float sd_cloud(vec3 p, vec3 b) {
-	vec3 q = abs(p) - b;
+    vec3 q = abs(p) - b;
     return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
 }
 
@@ -223,7 +223,7 @@ float signed_distance(object obj, vec3 pos) {
         case SHAPE_CYLINDER:
             return sd_cylinder(p, scale.y, scale.x);
         case SHAPE_CLOUD:
-			return sd_cloud(p, scale);
+            return sd_cloud(p, scale);
         default:
             return sd_sphere(p, scale.x);
     }
@@ -373,14 +373,14 @@ object nearest_object(vec3 p) {
                     vec3(0, 0, 0),
                     vec3(1000.0, 5, 1000.0)
         ),
-        material(vec3(1.0, 1.0, 1.0),	//体积云不需要材质，随便弄一个占位
+        material(vec3(1.0, 1.0, 1.0),   //体积云不需要材质，随便弄一个占位
                     0.01, // 粗糙度
-                    0.9, // 金属度
-                    0.0, // 透明度
-                    1.0, // 折射率
+                    0.9,  // 金属度
+                    0.0,  // 透明度
+                    1.0,  // 折射率
                     vec4(0),
                     vec3(0, 0, 1),
-					false
+                    false
         )
     )
     };
@@ -423,28 +423,25 @@ mat3 TBN(vec3 N) {
 
 // 获取位置的云的密度
 float get_cloud_density(vec3 p, object obj) {
-	// 高度衰减
-	float bottom = obj.trs.position.y - obj.trs.scale.y;
-	float top = obj.trs.position.y + obj.trs.scale.y;
+    // 高度衰减
+    float bottom = obj.trs.position.y - obj.trs.scale.y;
+    float top = obj.trs.position.y + obj.trs.scale.y;
     float mid = (bottom + top) / 2.0;
     float h = top - bottom;
     float weight = 1.0 - 2.0 * abs(mid - p.y) / h;
     weight = pow(weight, 0.5);
 
     // 采样噪声图
-    vec2 coord = p.xz * 0.0025;
-	coord = fract(coord);
+    vec2 coord = p.xz * 0.0025; coord = fract(coord);
     float noise = texture(perlin_noise_tex, coord).x;
-	noise += texture(perlin_noise_tex, coord*3.5).x / 3.5;
-	noise += texture(perlin_noise_tex, coord*12.25).x / 12.25;
-	noise += texture(perlin_noise_tex, coord*42.87).x / 42.87;	
-	noise /= 1.4472;
+    noise += texture(perlin_noise_tex, coord*3.5).x / 3.5;
+    noise += texture(perlin_noise_tex, coord*12.25).x / 12.25;
+    noise += texture(perlin_noise_tex, coord*42.87).x / 42.87;    
+    noise /= 1.4472;
     noise *= weight;
 
     // 截断
-    if(noise<0.5) {
-        noise = 0.0;
-    }
+    noise *= 0.5 * (1.0 + sign(noise - 0.5));
 
     return noise;
 }
@@ -474,47 +471,49 @@ record raycast(inout ray r, inout random rand) {
     for(uint i = 0U; i < MAX_RAYMARCH && rec.t < TMAX; i++) {
         rec.position = at(r, rec.t);
         object obj = nearest_object(rec.position);
-		if(obj.shape == SHAPE_CLOUD) {
-			if(obj.sd < 0.0) {
-				vec3 delta_position = rec.position;
-//				delta_position.x += TIME * 2.0;
-				float density = get_cloud_density(delta_position, obj);
-				vec3 L = normalize(vec3(noise(rand), noise(rand), noise(rand)));	//假设光入射的方向，因为云有散射
-				float light_density = get_cloud_density(delta_position + L, obj);
-				float delta = clamp(density - light_density, 0.0, 1.0);
-				
-				density *= 0.8;
-				
-				vec3 base = mix(baseBright, baseDark, density) * density;
-				vec3 light = lightBright;
-				
-				vec4 current_color = vec4(base * light, density);
-				r.cloud_color += current_color;
-			}
-			rec.t += noise(rand) * 0.3 * rec.t; //随机步长防止摩尔纹，根据距离优化
-		} else {
-			float dis = abs(obj.sd);
-        	if (dis < PRECISION) {
-				// 击中普通物体时，先混合云的颜色
-				vec4 cloud_color = r.cloud_color;
-				r.color.rgb += cloud_color.rgb;
-				r.cloud_color = vec4(0); 
-				
-            	rec.obj = obj;
-            	rec.hit = true;
-            	return rec;
-        	}
-			rec.t += dis;
-		}
+        if(obj.shape == SHAPE_CLOUD) {
+            if(obj.sd < 0.0) {
+                vec3 delta_position = rec.position;
+                float density = get_cloud_density(delta_position, obj);
+                // 假设光入射的方向，因为云有散射
+//                vec3 L = normalize(vec3(noise(rand), noise(rand), noise(rand)));
+//                float light_density = get_cloud_density(delta_position + L, obj);
+//                float delta = clamp(density - light_density, 0.0, 1.0);
+                
+                density *= 0.8;
+                
+                vec3 base = mix(baseBright, baseDark, density) * density;
+                vec3 light = lightBright;
+                
+                vec4 current_color = vec4(base * light, density);
+                r.cloud_color += current_color;
+            }
+            
+            // 随机步长防止摩尔纹，根据距离优化
+            rec.t += noise(rand) * 0.3 * rec.t;
+        } else {
+            float dis = abs(obj.sd);
+            if (dis < PRECISION) {
+                // 击中普通物体时，先混合云的颜色
+                vec4 cloud_color = r.cloud_color;
+                r.color.rgb += cloud_color.rgb;
+                r.cloud_color = vec4(0); 
+                
+                rec.obj = obj;
+                rec.hit = true;
+                return rec;
+            }
+            rec.t += dis;
+        }
         
     }
     // 没有击中物体
-	
-	// 击中天空时，也混合云的颜色
-	vec4 cloud_color = r.cloud_color;
-	r.color.rgb += cloud_color.rgb;
-	r.cloud_color = vec4(0); 
-	
+    
+    // 击中天空时，也混合云的颜色
+    vec4 cloud_color = r.cloud_color;
+    r.color.rgb += cloud_color.rgb;
+    r.cloud_color = vec4(0); 
+    
     rec.hit = false;
     return rec;
 }
@@ -584,41 +583,40 @@ vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout random rand) 
 }
 
 // 三维纹理映射
-vec3 triplaner_mapping(sampler2D tex, vec3 p, vec3 n)
-{
-	p = normalize(abs(p));
-	//// 纹理的变换矩阵
+vec3 triplaner_mapping(sampler2D tex, vec3 p, vec3 n) {
+    p = normalize(abs(p));
+    // 纹理的变换矩阵
     mat3 R = mat3(vec3(1,0,0),vec3(0,1,0),vec3(0,0,-1));
-	//// 整体缩放
-    p *= R/1.0;
-   return  (texture(tex,p.xy).rgb*n.z*n.z
-            +texture(tex,p.zy).rgb*n.x*n.x
-            +texture(tex,p.xz).rgb*n.y*n.y);
+    // 整体缩放
+    p *= R;
+    return  texture(tex,p.xy).rgb*n.z*n.z +
+            texture(tex,p.zy).rgb*n.x*n.x +
+            texture(tex,p.xz).rgb*n.y*n.y;
 }
 
 // 应用 PBR 材质
 ray PBR(ray r, inout record rec, inout random rand) {
     // 材质参数
-	vec3 albedo;
+    vec3 albedo;
     float roughness;
     float metallic;
     float transmission = rec.obj.mtl.transmission;
-	vec3 sdf_n = calc_normal(rec.obj, rec.position);
+    vec3 sdf_n = calc_normal(rec.obj, rec.position);
     vec3 normal = rec.obj.mtl.normal;
     float ior = rec.obj.mtl.ior;
-	
-	// 纹理
-	if(rec.obj.mtl.enable_texture) {
-		albedo = triplaner_mapping(albedo_map, rec.position, sdf_n);
-		roughness = triplaner_mapping(roughness_map, rec.position, sdf_n).r;
-		metallic = triplaner_mapping(metallic_map, rec.position, sdf_n).r;
-		normal = 2.0 * triplaner_mapping(normal_map, rec.position, sdf_n) - 1.0;
-		normal.xy *= -1.0;
-	} else {
-		albedo = rec.obj.mtl.albedo;
-    	roughness = rec.obj.mtl.roughness;
-    	metallic = rec.obj.mtl.metallic;
-	}
+    
+    // 纹理
+    if(rec.obj.mtl.enable_texture) {
+        albedo = triplaner_mapping(albedo_map, rec.position, sdf_n);
+        roughness = triplaner_mapping(roughness_map, rec.position, sdf_n).r;
+        metallic = triplaner_mapping(metallic_map, rec.position, sdf_n).r;
+        normal = 2.0 * triplaner_mapping(normal_map, rec.position, sdf_n) - 1.0;
+        normal.xy *= -1.0;
+    } else {
+        albedo = rec.obj.mtl.albedo;
+        roughness = rec.obj.mtl.roughness;
+        metallic = rec.obj.mtl.metallic;
+    }
     
     // 光线和物体表面参数
     vec3 V  = -r.direction;

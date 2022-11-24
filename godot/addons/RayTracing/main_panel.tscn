@@ -7,7 +7,7 @@
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/post_processing.gdshader" id="4_0kxc5"]
 [ext_resource type="Texture2D" uid="uid://cenri8jbxiy7j" path="res://addons/RayTracing/textures/grey-granite-flecks/gray-granite-flecks-albedo.png" id="4_18760"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/alwasy_fill_viewport.gd" id="4_cek0v"]
-[ext_resource type="Texture2D" uid="uid://bitwtfqjm4dhh" path="res://addons/RayTracing/textures/environment/Tokyo_BigSight_3k.hdr" id="4_jobc0"]
+[ext_resource type="Texture2D" uid="uid://bux0y62uy06jb" path="res://addons/RayTracing/textures/environment/Tokyo_BigSight_3k.hdr" id="4_jobc0"]
 [ext_resource type="Texture2D" uid="uid://kq611vfyj7oh" path="res://addons/RayTracing/textures/grey-granite-flecks/gray-granite-flecks-Metallic.png" id="5_8hfbj"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
 [ext_resource type="Texture2D" uid="uid://r4a0ygp00g8b" path="res://addons/RayTracing/textures/grey-granite-flecks/gray-granite-flecks-Normal-dx.png" id="6_u0812"]
@@ -17,14 +17,13 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
-
 shader_parameter/albedo_map = ExtResource("4_18760")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 1.32039
+shader_parameter/camera_aspect = 2.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(6.00272, 2.0028, 9.3303)
-shader_parameter/camera_rotation = Basis(0.838635, -0.0391812, 0.543252, 0, 0.997375, 0.0719363, -0.544666, -0.0603283, 0.83646)
+shader_parameter/camera_position = Vector3(0, 0, 4)
+shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
 shader_parameter/light_quality = 0.02
@@ -35,7 +34,7 @@ shader_parameter/roughness_map = ExtResource("8_05lw0")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 62.0
+shader_parameter/frame = 940.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_jhseh"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -616,7 +615,7 @@ offset_left = 32.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "90"
+text = "72"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -638,7 +637,7 @@ offset_left = 76.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "62"
+text = "939"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
