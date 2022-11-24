@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://ubje1c34mpqe"]
+[gd_scene load_steps=14 format=3 uid="uid://ubje1c34mpqe"]
 
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/raytracing_pbr.gdshader" id="1_0w4fs"]
 [ext_resource type="Script" path="res://addons/RayTracing/main_panel.gd" id="1_3yfr2"]
@@ -23,7 +23,7 @@ shader_parameter/light_quality = 0.2
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 736.0
+shader_parameter/frame = 975.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_jhseh"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -60,6 +60,8 @@ func _process(_delta: float) -> void:
 
     material.set_shader_parameter(\"frame\", frame)
 "
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_16ddy"]
 
 [node name="MainPanel" type="Control"]
 layout_mode = 3
@@ -204,7 +206,7 @@ mouse_filter = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD"]
 layout_mode = 1
-offset_right = 530.0
+offset_right = 400.0
 offset_bottom = 524.0
 mouse_filter = 2
 theme_override_constants/margin_left = 30
@@ -216,12 +218,12 @@ theme_override_constants/margin_bottom = 30
 layout_mode = 2
 offset_left = 30.0
 offset_top = 30.0
-offset_right = 500.0
+offset_right = 370.0
 offset_bottom = 494.0
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD/MarginContainer/PanelContainer"]
 layout_mode = 2
-offset_right = 470.0
+offset_right = 340.0
 offset_bottom = 464.0
 theme_override_constants/margin_left = 24
 theme_override_constants/margin_top = 24
@@ -232,12 +234,12 @@ theme_override_constants/margin_bottom = 24
 layout_mode = 2
 offset_left = 24.0
 offset_top = 24.0
-offset_right = 446.0
+offset_right = 316.0
 offset_bottom = 440.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 26.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer"]
@@ -250,7 +252,7 @@ text = "Max Samples"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 106.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
 text = "1024"
@@ -259,13 +261,13 @@ horizontal_alignment = 2
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 30.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 46.0
 
 [node name="max_sample_s" type="HSlider" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -278,7 +280,7 @@ exp_edit = true
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 50.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 76.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer3"]
@@ -291,7 +293,7 @@ text = "Gamma"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 65.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
 text = "0.5"
@@ -300,13 +302,13 @@ horizontal_alignment = 2
 [node name="HBoxContainer4" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 80.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 96.0
 
 [node name="gamma_s" type="HSlider" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -320,7 +322,7 @@ exp_edit = true
 [node name="HBoxContainer7" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 100.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 126.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer7"]
@@ -333,7 +335,7 @@ text = "FOV"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 36.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
 text = "30"
@@ -342,13 +344,13 @@ horizontal_alignment = 2
 [node name="HBoxContainer8" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 130.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 146.0
 
 [node name="camera_fov_s" type="HSlider" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer8"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -360,7 +362,7 @@ value = 30.0
 [node name="HBoxContainer9" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 150.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 176.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer9"]
@@ -373,7 +375,7 @@ text = "Focus"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 49.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
 text = "2"
@@ -382,13 +384,13 @@ horizontal_alignment = 2
 [node name="HBoxContainer10" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 180.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 196.0
 
 [node name="camera_focus_s" type="HSlider" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer10"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -402,7 +404,7 @@ exp_edit = true
 [node name="HBoxContainer11" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 200.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 226.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer11"]
@@ -415,7 +417,7 @@ text = "Aperture"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 74.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
 text = "0.005"
@@ -424,13 +426,13 @@ horizontal_alignment = 2
 [node name="HBoxContainer12" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 230.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 246.0
 
 [node name="camera_aperture_s" type="HSlider" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer12"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -442,7 +444,7 @@ value = 0.005
 [node name="HBoxContainer5" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 250.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 276.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer5"]
@@ -455,7 +457,7 @@ text = "Camera Speed"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 116.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
 text = "1000"
@@ -464,13 +466,13 @@ horizontal_alignment = 2
 [node name="HBoxContainer6" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 280.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 296.0
 
 [node name="camera_speed_s" type="HSlider" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer6"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -482,7 +484,7 @@ value = 1000.0
 [node name="HBoxContainer13" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 300.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 326.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer13"]
@@ -495,7 +497,7 @@ text = "Light Quality"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 103.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
 text = "5"
@@ -504,13 +506,13 @@ horizontal_alignment = 2
 [node name="HBoxContainer14" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 330.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 346.0
 
 [node name="light_quality_s" type="HSlider" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer14"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -525,7 +527,7 @@ exp_edit = true
 unique_name_in_owner = true
 layout_mode = 2
 offset_top = 350.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 381.0
 mouse_default_cursor_shape = 2
 text = "Reset Position"
@@ -534,7 +536,7 @@ text = "Reset Position"
 unique_name_in_owner = true
 layout_mode = 2
 offset_top = 385.0
-offset_right = 422.0
+offset_right = 292.0
 offset_bottom = 416.0
 mouse_default_cursor_shape = 2
 text = "Resample"
@@ -544,7 +546,7 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -415.0
+offset_left = -320.0
 offset_bottom = 296.0
 grow_horizontal = 0
 mouse_filter = 2
@@ -557,12 +559,12 @@ theme_override_constants/margin_bottom = 30
 layout_mode = 2
 offset_left = 30.0
 offset_top = 30.0
-offset_right = 385.0
+offset_right = 290.0
 offset_bottom = 266.0
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD/MarginContainer2/PanelContainer"]
 layout_mode = 2
-offset_right = 355.0
+offset_right = 260.0
 offset_bottom = 236.0
 theme_override_constants/margin_left = 24
 theme_override_constants/margin_top = 24
@@ -573,12 +575,12 @@ theme_override_constants/margin_bottom = 24
 layout_mode = 2
 offset_left = 24.0
 offset_top = 24.0
-offset_right = 331.0
+offset_right = 236.0
 offset_bottom = 212.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-offset_right = 307.0
+offset_right = 212.0
 offset_bottom = 26.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer"]
@@ -591,16 +593,16 @@ text = "FPS"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 32.0
-offset_right = 307.0
+offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "90"
+text = "78"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 30.0
-offset_right = 307.0
+offset_right = 212.0
 offset_bottom = 56.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2"]
@@ -613,16 +615,16 @@ text = "Sampling"
 unique_name_in_owner = true
 layout_mode = 2
 offset_left = 76.0
-offset_right = 307.0
+offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "735"
+text = "974"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 60.0
-offset_right = 307.0
+offset_right = 212.0
 offset_bottom = 86.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer3"]
@@ -634,7 +636,7 @@ text = "Verion"
 [node name="sample" type="Label" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer3"]
 layout_mode = 2
 offset_left = 55.0
-offset_right = 307.0
+offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
 text = "HK-SHAO"
@@ -643,19 +645,20 @@ horizontal_alignment = 2
 [node name="HSeparator" type="HSeparator" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 90.0
-offset_right = 307.0
+offset_right = 212.0
 offset_bottom = 102.0
 theme_override_constants/separation = 12
+theme_override_styles/separator = SubResource("StyleBoxEmpty_16ddy")
 
 [node name="PanelContainer" type="PanelContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 106.0
-offset_right = 307.0
+offset_right = 212.0
 offset_bottom = 188.0
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer"]
 layout_mode = 2
-offset_right = 307.0
+offset_right = 212.0
 offset_bottom = 82.0
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 8
@@ -666,7 +669,7 @@ theme_override_constants/margin_bottom = 8
 layout_mode = 2
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 299.0
+offset_right = 204.0
 offset_bottom = 74.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4"]
@@ -679,28 +682,28 @@ text = "Fixed FPS"
 [node name="VBoxContainer" type="VBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4"]
 layout_mode = 2
 offset_left = 77.0
-offset_right = 291.0
+offset_right = 196.0
 offset_bottom = 66.0
 size_flags_horizontal = 3
 
 [node name="HBoxContainer" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4/VBoxContainer"]
 layout_mode = 2
-offset_right = 214.0
+offset_right = 119.0
 offset_bottom = 31.0
 size_flags_horizontal = 3
 
 [node name="space" type="Control" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4/VBoxContainer/HBoxContainer"]
 layout_mode = 2
 anchors_preset = 0
-offset_right = 105.0
+offset_right = 48.0
 offset_bottom = 31.0
 size_flags_horizontal = 3
 
 [node name="fixed_fps_edit" type="LineEdit" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4/VBoxContainer/HBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_left = 109.0
-offset_right = 214.0
+offset_left = 52.0
+offset_right = 119.0
 offset_bottom = 31.0
 size_flags_horizontal = 3
 text = "90"
@@ -713,7 +716,7 @@ caret_blink = true
 unique_name_in_owner = true
 layout_mode = 2
 offset_top = 35.0
-offset_right = 214.0
+offset_right = 119.0
 offset_bottom = 66.0
 mouse_default_cursor_shape = 2
 tab_alignment = 2
