@@ -481,16 +481,16 @@ ray PBR(ray r, inout record rec, inout random rand) {
         float eta = ENV_IOR / ior;
         
         // 如果处于 SDF 物体内部就反过来
-        float sign_nov = sign(NoV);
-        eta = pow(eta, sign_nov);
-        N  *= sign_nov;
+        float outer = sign(NoV);
+        eta = pow(eta, outer);
+        N  *= outer;
         
         float F0 = (eta - 1.0) / (eta + 1.0);
         F0 *= 5.0 * F0; // 让透明材质的反射更明显一些
         float F = fresnel_schlick(NoV, F0);
         N = hemispheric_sampling_roughness(N, roughness, rand);
         
-        if (noise(rand) < F + metallic && NoV > 0.0) {
+        if (noise(rand) < F + metallic && outer > 0.0) {
             L = reflect(r.direction, N);
             r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
         } else {
