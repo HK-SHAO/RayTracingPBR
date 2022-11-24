@@ -93,8 +93,7 @@ func _on_light_quality_s_value_changed(value: float) -> void:
     %light_quality.text = str(value)
     # %PostProcessShader.frame = 0
 
-func _on_fixed_fps_edit_text_changed() -> void:
-    var text: String = %fixed_fps_edit.text
+func _on_fixed_fps_edit_text_changed(text: String) -> void:
     var value: int = clampi(abs(int(text)), 1, 360)
     var str_value = str(value)
     if str_value != text:
