@@ -1,30 +1,40 @@
-[gd_scene load_steps=17 format=3 uid="uid://ubje1c34mpqe"]
+[gd_scene load_steps=22 format=3 uid="uid://ubje1c34mpqe"]
 
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/raytracing_pbr.gdshader" id="1_0w4fs"]
 [ext_resource type="Script" path="res://addons/RayTracing/main_panel.gd" id="1_3yfr2"]
 [ext_resource type="Theme" uid="uid://dvfilhlm25cot" path="res://addons/RayTracing/theme/hud_ui.theme" id="1_rwr8h"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_uniform_camera.gd" id="2_xxsdv"]
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/post_processing.gdshader" id="4_0kxc5"]
+[ext_resource type="Texture2D" uid="uid://cenri8jbxiy7j" path="res://addons/RayTracing/textures/grey-granite-flecks/gray-granite-flecks-albedo.png" id="4_18760"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/alwasy_fill_viewport.gd" id="4_cek0v"]
 [ext_resource type="Texture2D" uid="uid://bitwtfqjm4dhh" path="res://addons/RayTracing/textures/environment/Tokyo_BigSight_3k.hdr" id="4_jobc0"]
+[ext_resource type="Texture2D" uid="uid://kq611vfyj7oh" path="res://addons/RayTracing/textures/grey-granite-flecks/gray-granite-flecks-Metallic.png" id="5_8hfbj"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
+[ext_resource type="Texture2D" uid="uid://r4a0ygp00g8b" path="res://addons/RayTracing/textures/grey-granite-flecks/gray-granite-flecks-Normal-dx.png" id="6_u0812"]
+[ext_resource type="Texture2D" uid="uid://c1hlwf1jpdnsu" path="res://addons/RayTracing/textures/noiseTex.png" id="7_jh0pe"]
+[ext_resource type="Texture2D" uid="uid://dj07jbg5e626" path="res://addons/RayTracing/textures/grey-granite-flecks/gray-granite-flecks-Roughness.png" id="8_05lw0"]
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/denoise_shader.gdshader" id="8_yowq5"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
+shader_parameter/albedo_map = ExtResource("4_18760")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 1.95224
+shader_parameter/camera_aspect = 1.32039
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(0, 0, 4)
-shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/camera_position = Vector3(6.00272, 2.0028, 9.3303)
+shader_parameter/camera_rotation = Basis(0.838635, -0.0391812, 0.543252, 0, 0.997375, 0.0719363, -0.544666, -0.0603283, 0.83646)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
 shader_parameter/light_quality = 0.02
+shader_parameter/metallic_map = ExtResource("5_8hfbj")
+shader_parameter/normal_map = ExtResource("6_u0812")
+shader_parameter/perlin_noise_tex = ExtResource("7_jh0pe")
+shader_parameter/roughness_map = ExtResource("8_05lw0")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 1.0
+shader_parameter/frame = 62.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_jhseh"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
