@@ -1,36 +1,36 @@
 shader_type canvas_item;
 
-const float threshold = 0.1f;
+vec4 smartDeNoise(sampler2D tex, vec2 uv, float radius, float threshold) {
+    float radQ = radius * radius;
 
-float avg(vec3 c) {
-    return (c.r + c.g + c.b) / 3.0;
+    vec4 centrPx = texture(tex,uv);
+    
+    float zBuff = 0.0;
+    vec4 aBuff = vec4(0.0);
+    vec2 size = vec2(textureSize(tex, 0));
+    
+    for(float x=-radius; x <= radius; x++) {
+        float pt = sqrt(radQ-x*x);
+        for(float y=-pt; y <= pt; y++) {
+            vec2 d = vec2(x,y);
+
+            vec4 walkPx =  texture(tex,uv+d/size);
+
+            vec4 dC = walkPx-centrPx;
+            float deltaFactor = exp( -dot(dC, dC) * threshold);
+                                 
+            zBuff += deltaFactor;
+            aBuff += deltaFactor*walkPx;
+        }
+    }
+    return aBuff/zBuff;
 }
 
 void fragment() {
     vec4 color = texture(TEXTURE, UV);
     vec4 back = texture(SCREEN_TEXTURE, SCREEN_UV);
     vec3 col = mix(color.rgb, back.rgb, 0.2f);
-    if(avg(color.rgb) < threshold) {
-        vec3 sur[4];
-        float pixelMove = 1.f;
-        float e = pixelMove * SCREEN_PIXEL_SIZE.x;
-        float e2 = pixelMove * SCREEN_PIXEL_SIZE.y;
-        sur[0] = texture(SCREEN_TEXTURE, SCREEN_UV + vec2(e,0.f)).rgb;
-        sur[1] = texture(SCREEN_TEXTURE, SCREEN_UV + vec2(-e,0.f)).rgb;
-        sur[2] = texture(SCREEN_TEXTURE, SCREEN_UV + vec2(0.f,e2)).rgb;
-        sur[3] = texture(SCREEN_TEXTURE, SCREEN_UV + vec2(0.f,-e2)).rgb;
-        vec3 sum = vec3(0.f);
-        float counter=0.f;
-        for(int i = 0;i < 4; i++){
-            if(avg(sur[i]) > threshold){
-                sum+=sur[i];
-                counter++;
-            }
-        }
-        
-        sum/=counter;
-        col = sum;
-    }
+    col = smartDeNoise(TEXTURE, UV, 10.0, 1.0).rgb;
     
     COLOR = vec4(col, 1.);
 }
