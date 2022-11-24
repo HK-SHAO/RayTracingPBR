@@ -13,7 +13,7 @@ var gamma: float = 0.5
 var focus: float = 2.0
 var aperture: float = 0.005
 var vfov: float = 30
-var quality: float = 5
+var quality: float = 50
 
 func _ready() -> void:
     control = %ShaderRect as Control
