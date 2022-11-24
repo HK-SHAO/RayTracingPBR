@@ -17,7 +17,7 @@ var quality: float = 50
 
 func _ready() -> void:
     control = %ShaderRect as Control
-    material = get_parent().material
+    material = control.material
     
     post_process_material = %PostProcessShader.material
 

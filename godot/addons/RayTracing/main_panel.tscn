@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://ubje1c34mpqe"]
+[gd_scene load_steps=17 format=3 uid="uid://ubje1c34mpqe"]
 
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/raytracing_pbr.gdshader" id="1_0w4fs"]
 [ext_resource type="Script" path="res://addons/RayTracing/main_panel.gd" id="1_3yfr2"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/alwasy_fill_viewport.gd" id="4_cek0v"]
 [ext_resource type="Texture2D" uid="uid://bitwtfqjm4dhh" path="res://addons/RayTracing/textures/environment/Tokyo_BigSight_3k.hdr" id="4_jobc0"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
+[ext_resource type="Shader" path="res://addons/RayTracing/shaders/denoise_shader.gdshader" id="8_yowq5"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
@@ -19,11 +20,11 @@ shader_parameter/camera_position = Vector3(0, 0, 4)
 shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
-shader_parameter/light_quality = 0.00658918
+shader_parameter/light_quality = 0.02
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 651.0
+shader_parameter/frame = 336.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_jhseh"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -60,6 +61,12 @@ func _process(_delta: float) -> void:
 
     material.set_shader_parameter(\"frame\", frame)
 "
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_yu7rk"]
+shader = ExtResource("8_yowq5")
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_r5yof"]
+viewport_path = NodePath("Control/PostProcess/SubViewport")
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_16ddy"]
 
@@ -164,7 +171,6 @@ metadata/_edit_use_anchors_ = true
 script = ExtResource("4_cek0v")
 
 [node name="Denoise" type="SubViewportContainer" parent="Control"]
-visible = false
 texture_filter = 1
 layout_mode = 1
 anchors_preset = 15
@@ -181,7 +187,18 @@ transparent_bg = true
 handle_input_locally = false
 size = Vector2i(400, 200)
 render_target_clear_mode = 1
-render_target_update_mode = 0
+render_target_update_mode = 4
+
+[node name="DenoiseShader" type="TextureRect" parent="Control/Denoise/SubViewport"]
+material = SubResource("ShaderMaterial_yu7rk")
+offset_right = 400.0
+offset_bottom = 200.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+texture = SubResource("ViewportTexture_r5yof")
+
+[node name="alwasy_fill_viewport" type="Node" parent="Control/Denoise/SubViewport/DenoiseShader"]
+script = ExtResource("4_cek0v")
 
 [node name="FreeCamera3D" type="Camera3D" parent="."]
 unique_name_in_owner = true
@@ -205,7 +222,7 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD"]
-layout_mode = 1
+layout_mode = 0
 offset_right = 400.0
 offset_bottom = 524.0
 mouse_filter = 2
@@ -477,9 +494,11 @@ offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
 mouse_default_cursor_shape = 2
-max_value = 10000.0
+min_value = 0.001
+max_value = 1e+07
 step = 0.1
 value = 1000.0
+exp_edit = true
 
 [node name="HBoxContainer13" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -500,7 +519,7 @@ offset_left = 103.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "151.764"
+text = "50"
 horizontal_alignment = 2
 
 [node name="HBoxContainer14" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
@@ -520,7 +539,7 @@ mouse_default_cursor_shape = 2
 min_value = 0.001
 max_value = 10000.0
 step = 0.001
-value = 151.764
+value = 50.0
 exp_edit = true
 
 [node name="rest_camera_b" type="Button" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
@@ -596,7 +615,7 @@ offset_left = 32.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "34"
+text = "10"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -618,7 +637,7 @@ offset_left = 76.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "650"
+text = "335"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -733,7 +752,7 @@ alignment = 2
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer12/camera_aperture_s" to="." method="_on_camera_aperture_s_value_changed"]
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer6/camera_speed_s" to="." method="_on_camera_speed_s_value_changed"]
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer14/light_quality_s" to="." method="_on_light_quality_s_value_changed"]
-[connection signal="pressed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/rest_camera_b" to="." method="_on_restcamerab_pressed"]
-[connection signal="pressed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/sample_once_b" to="." method="_on_sampleonceb_pressed"]
+[connection signal="pressed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/rest_camera_b" to="." method="_on_rest_camera_b_pressed"]
+[connection signal="pressed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/sample_once_b" to="." method="_on_sample_once_b_pressed"]
 [connection signal="text_changed" from="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4/VBoxContainer/HBoxContainer/fixed_fps_edit" to="." method="_on_fixed_fps_edit_text_changed"]
 [connection signal="toggled" from="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4/VBoxContainer/fixed_fps_switch" to="." method="_on_fixed_fps_switch_toggled"]

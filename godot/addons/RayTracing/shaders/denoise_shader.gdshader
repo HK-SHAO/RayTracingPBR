@@ -5,4 +5,6 @@ void fragment() {
 //    vec4 back = texture(SCREEN_TEXTURE, SCREEN_UV);
 //
 //    COLOR = vec4(max(color.rgb, back.rgb), 1.0);
+//    COLOR = texture(TEXTURE, UV);
+    COLOR.r = 0.0;
 }

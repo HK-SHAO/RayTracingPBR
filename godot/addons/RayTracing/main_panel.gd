@@ -44,49 +44,29 @@ func _process(delta: float) -> void:
     if (%fixed_fps_switch as CheckButton).button_pressed:
         _fixed_fps(delta)
 
-
-func _on_sampleonceb_pressed() -> void:
-    %PostProcessShader.frame = 0
-
-
-func _on_restcamerab_pressed() -> void:
-    camera.transform = initCameraTransform
-    camera.reset_rotation(initCameraRotation)
-    %PostProcessShader.frame = 0
-
-
-func _on_camera_speed_s_value_changed(value: float) -> void:
-    camera.max_speed = value
-
-
 func _on_camera_aperture_s_value_changed(value: float) -> void:
     %always_uniform_camera.aperture = value
     %camera_aperture.text = str(value)
     %PostProcessShader.frame = 0
-
 
 func _on_camera_focus_s_value_changed(value: float) -> void:
     %always_uniform_camera.focus = value
     %camera_focus.text = str(value)
     %PostProcessShader.frame = 0
 
-
 func _on_camera_fov_s_value_changed(value: float) -> void:
     %always_uniform_camera.vfov = value
     %camera_fov.text = str(value)
     %PostProcessShader.frame = 0
-
 
 func _on_gamma_s_value_changed(value: float) -> void:
     %always_uniform_camera.gamma = value
     %gamma.text = str(value)
     %PostProcessShader.frame = 0
 
-
 func _on_max_sample_s_value_changed(value: float) -> void:
     %PostProcessShader.max_sample = int(value)
     %max_sample.text = str(value)
-
 
 func _on_light_quality_s_value_changed(value: float) -> void:
     %always_uniform_camera.quality = value
@@ -99,6 +79,16 @@ func _on_fixed_fps_edit_text_changed(text: String) -> void:
     if str_value != text:
         %fixed_fps_edit.text = str_value
 
-
 func _on_fixed_fps_switch_toggled(button_pressed: bool) -> void:
     (%fixed_fps_switch as CheckButton).text = "ON" if button_pressed else "OFF"
+
+func _on_rest_camera_b_pressed() -> void:
+    camera.transform = initCameraTransform
+    camera.reset_rotation(initCameraRotation)
+    %PostProcessShader.frame = 0
+
+func _on_sample_once_b_pressed() -> void:
+    %PostProcessShader.frame = 0
+
+func _on_camera_speed_s_value_changed(value: float) -> void:
+    camera.max_speed = value
