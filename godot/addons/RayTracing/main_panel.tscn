@@ -19,11 +19,11 @@ shader_parameter/camera_position = Vector3(0, 0, 4)
 shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
-shader_parameter/light_quality = 0.00450448
+shader_parameter/light_quality = 0.000525412
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 553.0
+shader_parameter/frame = 384.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_jhseh"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -497,7 +497,7 @@ offset_left = 103.0
 offset_right = 312.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "222.001"
+text = "1903.267"
 horizontal_alignment = 2
 
 [node name="HBoxContainer14" type="HBoxContainer" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
@@ -517,7 +517,7 @@ mouse_default_cursor_shape = 2
 min_value = 0.001
 max_value = 10000.0
 step = 0.001
-value = 222.001
+value = 1903.27
 exp_edit = true
 
 [node name="rest_camera_b" type="Button" parent="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
@@ -615,7 +615,7 @@ offset_left = 76.0
 offset_right = 192.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "552"
+text = "383"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -654,17 +654,32 @@ offset_bottom = 133.0
 [node name="Label" type="Label" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4"]
 layout_mode = 2
 offset_top = 4.0
-offset_right = 73.0
+offset_right = 106.0
 offset_bottom = 30.0
-text = "Fixed FPS"
+text = "Fixed Min FPS"
 
-[node name="fixed_fps_edit" type="TextEdit" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4"]
+[node name="HBoxContainer" type="HBoxContainer" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4"]
+layout_mode = 2
+offset_left = 110.0
+offset_right = 192.0
+offset_bottom = 35.0
+size_flags_horizontal = 3
+
+[node name="space" type="Control" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4/HBoxContainer"]
+layout_mode = 2
+anchors_preset = 0
+offset_right = 18.0
+offset_bottom = 35.0
+size_flags_horizontal = 3
+
+[node name="fixed_fps_edit" type="TextEdit" parent="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4/HBoxContainer"]
 unique_name_in_owner = true
 layout_direction = 3
 layout_mode = 2
-offset_right = 115.0
+offset_right = 60.0
 offset_bottom = 35.0
 size_flags_horizontal = 3
+size_flags_stretch_ratio = 3.13
 text = "90"
 wrap_mode = 1
 scroll_fit_content_height = true
@@ -690,4 +705,4 @@ tab_1/title = "Enable"
 [connection signal="value_changed" from="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer14/light_quality_s" to="." method="_on_light_quality_s_value_changed"]
 [connection signal="pressed" from="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/rest_camera_b" to="." method="_on_restcamerab_pressed"]
 [connection signal="pressed" from="UI/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/sample_once_b" to="." method="_on_sampleonceb_pressed"]
-[connection signal="text_changed" from="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4/fixed_fps_edit" to="." method="_on_fixed_fps_edit_text_changed"]
+[connection signal="text_changed" from="UI/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4/HBoxContainer/fixed_fps_edit" to="." method="_on_fixed_fps_edit_text_changed"]

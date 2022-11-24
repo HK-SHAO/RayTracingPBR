@@ -7,8 +7,8 @@ extends Control
 var initCameraTransform: Transform3D
 var initCameraRotation: Vector3
 
-var fps: int = 0
 var fixed_fps: int = 90
+var fps: int = fixed_fps
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -23,25 +23,13 @@ func _ready() -> void:
     %light_quality_s.value = %always_uniform_camera.quality
     %fixed_fps_edit.text = str(fixed_fps)
 
-var delta_fps_cache: Array = []
-var last_average_fps = 0
-
 func _fixed_fps(delta: float) -> void:
     var delta_fps := fps - fixed_fps
-#    print(delta_fps)
-#    print(delta_fps_cache)
-    if delta_fps_cache.size() >= 100: delta_fps_cache.pop_front()
-    delta_fps_cache.append(delta_fps)
     
-    var average_fps = 0
-    for i in delta_fps_cache:
-        average_fps += i
-    average_fps /= delta_fps_cache.size()
-    
-#    print(average_fps)
     var base = %light_quality_s.value
-    if average_fps >= 0:    base += 1 + abs(average_fps)
-    else:                   base -= 0.001 + abs(average_fps) * 0.001
+    
+    if delta_fps >= 0:   base += 0.01
+    elif delta_fps < 4: base -= min(base*0.01, 0.001)
     
     %light_quality_s.value = base
 
@@ -52,8 +40,9 @@ func _process(delta: float) -> void:
     if is_instance_valid(camera):
         %camera_speed.text = str(camera.max_speed)
         %camera_speed_s.value = camera.max_speed
-        
-    _fixed_fps(delta)
+    
+    if (%fixed_fps_tab_bar as TabBar).current_tab == 1:
+        _fixed_fps(delta)
 
 
 func _on_sampleonceb_pressed() -> void:
