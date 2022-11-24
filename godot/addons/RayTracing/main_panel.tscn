@@ -17,6 +17,7 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
+
 shader_parameter/albedo_map = ExtResource("4_18760")
 shader_parameter/camera_aperture = 0.005
 shader_parameter/camera_aspect = 1.32039
@@ -181,6 +182,7 @@ metadata/_edit_use_anchors_ = true
 script = ExtResource("4_cek0v")
 
 [node name="Denoise" type="SubViewportContainer" parent="Control"]
+process_mode = 4
 texture_filter = 1
 layout_mode = 1
 anchors_preset = 15
@@ -189,20 +191,19 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
-stretch_shrink = 3
 
 [node name="SubViewport" type="SubViewport" parent="Control/Denoise"]
 disable_3d = true
 transparent_bg = true
 handle_input_locally = false
-size = Vector2i(400, 200)
+size = Vector2i(1200, 600)
 render_target_clear_mode = 1
 render_target_update_mode = 4
 
 [node name="DenoiseShader" type="TextureRect" parent="Control/Denoise/SubViewport"]
 material = SubResource("ShaderMaterial_yu7rk")
-offset_right = 400.0
-offset_bottom = 200.0
+offset_right = 1200.0
+offset_bottom = 600.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 texture = SubResource("ViewportTexture_r5yof")
@@ -625,7 +626,7 @@ offset_left = 32.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "65"
+text = "64"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -647,7 +648,7 @@ offset_left = 76.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "401"
+text = "435"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
