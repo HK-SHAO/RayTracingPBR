@@ -37,6 +37,10 @@ config/icon="res://icon.svg"
 window/size/viewport_width=1200
 window/size/viewport_height=600
 
+[editor]
+
+movie_writer/movie_file="C:/Users/hk-sh/GodotPrjs/RayTracingPBR/build/movie/.png"
+
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/RayTracing/plugin.cfg")

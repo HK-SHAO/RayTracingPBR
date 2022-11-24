@@ -1,15 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://c3uinmhygn6lj"]
+[gd_scene load_steps=2 format=3 uid="uid://c3uinmhygn6lj"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_50dma"]
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_1ic6v"]
 
 [node name="TestScene" type="Node3D"]
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0)
 mesh = SubResource("BoxMesh_50dma")
-
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
-transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 72.1265, 5.03722, 21.0519)
-rotation_edit_mode = 2
-mesh = SubResource("CylinderMesh_1ic6v")
