@@ -249,7 +249,7 @@ object nearest_object(vec3 p) {
             )
         ),
         object(SHAPE_SPHERE, NONE,
-            transform(  vec3(sin(TIME), 0.5, 0.5 + cos(TIME)),
+            transform(  vec3(sin(TIME*0.0), 0.5, 0.5 + cos(TIME*0.0)),
                         vec3(0, 0, 0),
                         vec3(0.5, 0, 0)
             ),
@@ -295,7 +295,7 @@ object nearest_object(vec3 p) {
         ),
         object(SHAPE_BOX, NONE,
             transform(  vec3(0, 0, -1),
-                        vec3(0, TIME, 0),
+                        vec3(0, TIME*0.0, 0),
                         vec3(2, 1, 0.2)
             ),
             material(vec3(1.0, 1.0, 1.0),
