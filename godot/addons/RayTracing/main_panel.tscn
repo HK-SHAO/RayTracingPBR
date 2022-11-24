@@ -16,8 +16,8 @@ shader_parameter/camera_aperture = 0.0
 shader_parameter/camera_aspect = 1.95224
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(0.410615, 0.551556, 3.4294)
-shader_parameter/camera_rotation = Basis(0.987878, -0.0193762, 0.152966, 0, 0.991912, 0.125648, -0.154187, -0.124144, 0.980056)
+shader_parameter/camera_position = Vector3(3.49307, 1.36524, 4.90506)
+shader_parameter/camera_rotation = Basis(0.794239, -0.0811403, 0.601905, 0, 0.990874, 0.133579, -0.607344, -0.106109, 0.787127)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
 shader_parameter/light_quality = 0.0001
@@ -615,7 +615,7 @@ offset_left = 32.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "90"
+text = "64"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -637,7 +637,7 @@ offset_left = 76.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "709"
+text = "435"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]

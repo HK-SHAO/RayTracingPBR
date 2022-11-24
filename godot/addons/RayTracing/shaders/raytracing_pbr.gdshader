@@ -557,14 +557,14 @@ ray raytrace(ray r, inout random rand) {
             break;
         }
         
-        // 应用 PBR 材质
-        r = PBR(r, rec, rand);
-        
         // 处理自发光
         if (abs(rec.obj.mtl.emission.a) > 0.0) {
             r.color.rgb *= rec.obj.mtl.emission.rgb*rec.obj.mtl.emission.a;
             break;
         }
+        
+        // 应用 PBR 材质
+        r = PBR(r, rec, rand);
         
         // 能量守恒
         r.color *= inv_pdf;
