@@ -415,8 +415,7 @@ vec4 sky(ray r) {
 
 // 快速计算五次方
 float pow5(float x) {
-    float t = x*x;
-    t *= t;
+    float t = x*x; t *= t;
     return t*x;
 }
 
@@ -479,15 +478,12 @@ ray PBR(ray r, inout record rec, inout random rand) {
     // 对透明度的处理可能还有问题
     if (noise(rand) < transmission) {
         // 折射率之比
-        float eta;
+        float eta = ENV_IOR / ior;
         
-        if (NoV < 0.0) {
-            // 处于 SDF 物体内部
-            eta = ior / ENV_IOR;
-            N = -N;
-        } else {
-            eta = ENV_IOR / ior;
-        }
+        // 如果处于 SDF 物体内部就反过来
+        float sign_nov = sign(NoV);
+        eta = pow(eta, sign_nov);
+        N  *= sign_nov;
         
         float F0 = (eta - 1.0) / (eta + 1.0);
         F0 *= 5.0 * F0; // 让透明材质的反射更明显一些
@@ -518,9 +514,11 @@ ray PBR(ray r, inout record rec, inout random rand) {
         r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
     }
     
-    const float brightness = 1.0; // 光强
-    const float pdf = 1.0; // 重要性采样
-    C *= albedo * brightness / pdf;
+//    const float brightness = 1.0; // 光强
+//    const float pdf = 1.0; // 重要性采样
+//    C *= albedo * brightness / pdf;
+
+    C *= albedo;
 
     // 更新光的方向和颜色
     r.color.rgb = C;
@@ -539,7 +537,7 @@ ray raytrace(ray r, inout random rand) {
     
         // 光被吸收掉或者光线毙掉就不用继续了
         float visible = length(r.color.rgb*r.color.a);
-        if (visible <= 0.0001 || noise(rand) > roulette_prob) {
+        if (visible <= 0.001 || noise(rand) > roulette_prob) {
             r.color *= 0.0;
             break;
         }
