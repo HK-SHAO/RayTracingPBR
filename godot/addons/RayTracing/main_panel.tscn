@@ -12,18 +12,18 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 1.95224
+shader_parameter/camera_aspect = 2.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(0.160578, 0.850138, 4.63669)
-shader_parameter/camera_rotation = Basis(0.997612, -0.0136846, 0.0665523, 0, 0.979449, 0.2014, -0.0679427, -0.200932, 0.977196)
+shader_parameter/camera_position = Vector3(0, 0, 4)
+shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
-shader_parameter/light_quality = 0.02885
+shader_parameter/light_quality = 0.00658918
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 1.0
+shader_parameter/frame = 651.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_jhseh"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -500,7 +500,7 @@ offset_left = 103.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "5"
+text = "151.764"
 horizontal_alignment = 2
 
 [node name="HBoxContainer14" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
@@ -520,7 +520,7 @@ mouse_default_cursor_shape = 2
 min_value = 0.001
 max_value = 10000.0
 step = 0.001
-value = 5.0
+value = 151.764
 exp_edit = true
 
 [node name="rest_camera_b" type="Button" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
@@ -596,7 +596,7 @@ offset_left = 32.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "69"
+text = "34"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -618,7 +618,7 @@ offset_left = 76.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "969"
+text = "650"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -712,17 +712,19 @@ alignment = 2
 flat = true
 caret_blink = true
 
-[node name="fixed_fps_tab_bar" type="TabBar" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4/VBoxContainer"]
+[node name="fixed_fps_switch" type="CheckButton" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4/VBoxContainer"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
+offset_left = 39.0
 offset_top = 35.0
 offset_right = 119.0
 offset_bottom = 66.0
+size_flags_horizontal = 8
+size_flags_vertical = 3
 mouse_default_cursor_shape = 2
-tab_alignment = 2
-tab_count = 2
-tab_0/title = "Off"
-tab_1/title = "On"
+text = "OFF"
+alignment = 2
 
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4/gamma_s" to="." method="_on_gamma_s_value_changed"]
@@ -734,3 +736,4 @@ tab_1/title = "On"
 [connection signal="pressed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/rest_camera_b" to="." method="_on_restcamerab_pressed"]
 [connection signal="pressed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/sample_once_b" to="." method="_on_sampleonceb_pressed"]
 [connection signal="text_changed" from="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4/VBoxContainer/HBoxContainer/fixed_fps_edit" to="." method="_on_fixed_fps_edit_text_changed"]
+[connection signal="toggled" from="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer/MarginContainer/HBoxContainer4/VBoxContainer/fixed_fps_switch" to="." method="_on_fixed_fps_switch_toggled"]

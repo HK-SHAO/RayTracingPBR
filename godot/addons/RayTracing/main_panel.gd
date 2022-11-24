@@ -41,7 +41,7 @@ func _process(delta: float) -> void:
         %camera_speed.text = str(camera.max_speed)
         %camera_speed_s.value = camera.max_speed
     
-    if (%fixed_fps_tab_bar as TabBar).current_tab == 1:
+    if (%fixed_fps_switch as CheckButton).button_pressed:
         _fixed_fps(delta)
 
 
@@ -98,3 +98,7 @@ func _on_fixed_fps_edit_text_changed(text: String) -> void:
     var str_value = str(value)
     if str_value != text:
         %fixed_fps_edit.text = str_value
+
+
+func _on_fixed_fps_switch_toggled(button_pressed: bool) -> void:
+    (%fixed_fps_switch as CheckButton).text = "ON" if button_pressed else "OFF"
