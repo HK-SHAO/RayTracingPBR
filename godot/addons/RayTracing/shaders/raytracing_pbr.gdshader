@@ -224,7 +224,7 @@ object nearest_object(vec3 p) {
             )
         ),
         object(SHAPE_SPHERE, NONE,
-            transform(  vec3(0, 0, 0),
+            transform(  vec3(sin(TIME), 0.5, 0.5 + cos(TIME)),
                         vec3(0, 0, 0),
                         vec3(0.5, 0, 0)
             ),
@@ -280,7 +280,7 @@ object nearest_object(vec3 p) {
             )
         ),
         object(SHAPE_CYLINDER, NONE,
-            transform(  vec3(0, 0.1, 1),
+            transform(  vec3(0, 0.1, 0.5),
                         vec3(0, 0, 0),
                         vec3(0.2, 0.5, 0)
             ),
@@ -500,7 +500,7 @@ ray PBR(ray r, inout record rec, inout random rand) {
     } else {
         const float F0 = 0.04;
         float F = fresnel_schlick_roughness(NoV, F0, roughness);
-    
+
         // 反射或者漫反射
         if (noise(rand) < F + metallic) {
             N = hemispheric_sampling_roughness(N, roughness, rand);
@@ -534,7 +534,7 @@ ray raytrace(ray r, inout random rand) {
         // 俄罗斯轮盘赌概率，防止光线过分的反复反射
         float inv_pdf = exp(float(i) * light_quality);
         float roulette_prob = 1.0 / inv_pdf;
-    
+
         // 光被吸收掉或者光线毙掉就不用继续了
         float visible = length(r.color.rgb*r.color.a);
         if (visible <= 0.001 || noise(rand) > roulette_prob) {
