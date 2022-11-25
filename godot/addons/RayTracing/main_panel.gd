@@ -36,12 +36,12 @@ func _view_port_size_changed():
     if stretch_shrink > min:
         %resolution_s.value = min
 
-func _fixed_fps(delta: float) -> void:
+func _fixed_fps() -> void:
     var delta_fps := fps - fixed_fps
     
     var base = %light_quality_s.value
     
-    if delta_fps >= 0:   base += 0.01
+    if delta_fps >= 0:  base += 0.01
     elif delta_fps < 4: base -= min(base*0.01, 0.001)
     
     %light_quality_s.value = base
@@ -55,7 +55,7 @@ func _process(delta: float) -> void:
         %camera_speed_s.value = camera.max_speed
     
     if (%fixed_fps_switch as CheckButton).button_pressed:
-        _fixed_fps(delta)
+        _fixed_fps()
 
 func _on_camera_aperture_s_value_changed(value: float) -> void:
     %always_uniform_camera.aperture = value

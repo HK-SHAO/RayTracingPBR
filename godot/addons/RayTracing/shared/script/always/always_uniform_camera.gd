@@ -26,7 +26,7 @@ func _process(_delta: float) -> void:
     var camera_position := camera.transform.origin
     var camera_rotation := camera.transform.basis
     var aspect := control.size.x / control.size.y
-    camera.fov = max(vfov, 1.0);
+    camera.fov = clamp(vfov, 1, 179);
 
 
     material.set_shader_parameter("camera_position", camera_position)

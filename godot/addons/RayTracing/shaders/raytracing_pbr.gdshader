@@ -238,9 +238,9 @@ object nearest_object(vec3 p) {
             )
         ),
         object(SHAPE_CYLINDER, NONE,
-            transform(  vec3(-1.0, -0.2, 0),
+            transform(  vec3(-1.0, -0.3, 0),
                         vec3(0, 0, 0),
-                        vec3(0.3, 0.5, 0)
+                        vec3(0.3, 0.33, 0)
             ),
             material(vec3(1.0, 0.1, 0.1),   // 基础色
                         0.9, // 粗糙度
@@ -294,7 +294,7 @@ object nearest_object(vec3 p) {
             )
         ),
         object(SHAPE_BOX, NONE,
-            transform(  vec3(0, 0, 2),
+            transform(  vec3(0, 0, 5),
                         vec3(0, 0, 0),
                         vec3(2, 1, 0.2)
             ),
