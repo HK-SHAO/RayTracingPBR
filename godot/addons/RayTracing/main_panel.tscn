@@ -24,7 +24,7 @@ shader_parameter/light_quality = 0.02
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sbgdi"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 642.0
+shader_parameter/frame = 474.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_j1yq1"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -598,7 +598,7 @@ offset_left = 76.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "641"
+text = "473"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]

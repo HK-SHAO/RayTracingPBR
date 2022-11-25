@@ -32,6 +32,9 @@ func _view_port_size_changed():
     var viewport_rect = get_viewport_rect()
     var min = min(viewport_rect.size.x, viewport_rect.size.y)
     %resolution_s.max_value = float(min)
+    
+    if stretch_shrink > min:
+        %resolution_s.value = min
 
 func _fixed_fps(delta: float) -> void:
     var delta_fps := fps - fixed_fps
@@ -106,6 +109,7 @@ func _on_camera_speed_s_value_changed(value: float) -> void:
 
 func _on_resolution_s_value_changed(value: float) -> void:
     var num = int(value)
+    stretch_shrink = num
     %resolution.text = "1/" + str(num)
     (%RayTracing as SubViewportContainer).stretch_shrink = num
     (%PostProcess as SubViewportContainer).stretch_shrink = num
