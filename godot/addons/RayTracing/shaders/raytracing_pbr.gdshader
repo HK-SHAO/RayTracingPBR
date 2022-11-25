@@ -270,7 +270,7 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 0),
                         vec3(0.3, 0, 0)
             ),
-            material(vec3(1.0, 1.0, 1.0),   // 基础色
+            material(vec3(0.9, 0.9, 0.9),   // 基础色
                         0.0, // 粗糙度
                         0.0, // 金属度
                         1.0, // 透明度
@@ -510,7 +510,7 @@ ray raytrace(ray r, inout random rand) {
         // 光被吸收掉或者光线毙掉就不用继续了
         float visible = length(r.color.rgb*r.color.a);
         if (visible <= 0.001 || noise(rand) > roulette_prob) {
-            r.color *= 0.0;
+//            r.color *= 0.0;
             break;
         }
         

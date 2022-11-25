@@ -84,7 +84,7 @@ func _on_max_sample_s_value_changed(value: float) -> void:
 func _on_light_quality_s_value_changed(value: float) -> void:
     %always_uniform_camera.quality = value
     %light_quality.text = str(value)
-    # %PostProcessShader.frame = 0
+    %PostProcessShader.frame = 0
 
 func _on_fixed_fps_edit_text_changed(text: String) -> void:
     var value: int = clampi(abs(int(text)), 1, 360)
