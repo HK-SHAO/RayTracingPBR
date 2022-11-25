@@ -505,12 +505,12 @@ ray raytrace(ray r, inout random rand) {
     for (uint i = 0U; i < MAX_RAYTRACE; i++) {
         // 俄罗斯轮盘赌概率，防止光线过分的反复反射
         float inv_pdf = exp(float(i) * light_quality);
-        float roulette_prob = 1.0 / inv_pdf;
+        float roulette_prob = 1.0 - (1.0 / inv_pdf);
     
         // 光被吸收掉或者光线毙掉就不用继续了
         float visible = length(r.color.rgb*r.color.a);
-        if (visible <= 0.001 || noise(rand) > roulette_prob) {
-//            r.color *= 0.0;
+        if (visible <= 0.001 || noise(rand) < roulette_prob) {
+            r.color *= roulette_prob;
             break;
         }
         
