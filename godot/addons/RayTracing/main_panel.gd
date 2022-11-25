@@ -16,6 +16,9 @@ func _ready() -> void:
     initCameraTransform = camera.transform
     initCameraRotation = camera.rotation
     
+    _view_port_size_changed()
+    get_viewport().size_changed.connect(_view_port_size_changed)
+    
     %camera_aperture_s.value = %always_uniform_camera.aperture
     %camera_fov_s.value = camera.fov
     %camera_focus_s.value = %always_uniform_camera.focus
@@ -24,6 +27,11 @@ func _ready() -> void:
     %light_quality_s.value = %always_uniform_camera.quality
     %fixed_fps_edit.text = str(fixed_fps)
     %resolution_s.value = stretch_shrink
+
+func _view_port_size_changed():
+    var viewport_rect = get_viewport_rect()
+    var min = min(viewport_rect.size.x, viewport_rect.size.y)
+    %resolution_s.max_value = float(min)
 
 func _fixed_fps(delta: float) -> void:
     var delta_fps := fps - fixed_fps

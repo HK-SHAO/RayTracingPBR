@@ -237,10 +237,10 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 1) // 切线空间法线
             )
         ),
-        object(SHAPE_SPHERE, NONE,
+        object(SHAPE_CYLINDER, NONE,
             transform(  vec3(-1.0, -0.2, 0),
                         vec3(0, 0, 0),
-                        vec3(0.3, 0, 0)
+                        vec3(0.3, 0.5, 0)
             ),
             material(vec3(1.0, 0.1, 0.1),   // 基础色
                         0.9, // 粗糙度
@@ -261,6 +261,20 @@ object nearest_object(vec3 p) {
                         1.0, // 金属度
                         0.0, // 透明度
                         1.0, // 折射率
+                        vec4(0), // 自发光
+                        vec3(0, 0, 1) // 切线空间法线
+            )
+        ),
+        object(SHAPE_SPHERE, NONE,
+            transform(  vec3(0.5, -0.2, -1),
+                        vec3(0, 0, 0),
+                        vec3(0.3, 0, 0)
+            ),
+            material(vec3(1.0, 1.0, 1.0),   // 基础色
+                        0.0, // 粗糙度
+                        0.0, // 金属度
+                        1.0, // 透明度
+                        1.5, // 折射率
                         vec4(0), // 自发光
                         vec3(0, 0, 1) // 切线空间法线
             )
