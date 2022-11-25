@@ -12,19 +12,19 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_w5e1j"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aperture = 0.0
-shader_parameter/camera_aspect = 1.95224
+shader_parameter/camera_aperture = 0.005
+shader_parameter/camera_aspect = 2.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(3.49307, 1.36524, 4.90506)
-shader_parameter/camera_rotation = Basis(0.794239, -0.0811403, 0.601905, 0, 0.990874, 0.133579, -0.607344, -0.106109, 0.787127)
+shader_parameter/camera_position = Vector3(0, 0, 4)
+shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
-shader_parameter/light_quality = 0.0001
+shader_parameter/light_quality = 0.02
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h8h8v"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 1.0
+shader_parameter/frame = 402.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_jhseh"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -171,7 +171,7 @@ metadata/_edit_use_anchors_ = true
 script = ExtResource("4_cek0v")
 
 [node name="Denoise" type="SubViewportContainer" parent="Control"]
-process_mode = 4
+visible = false
 texture_filter = 1
 layout_mode = 1
 anchors_preset = 15
@@ -180,19 +180,21 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
+stretch_shrink = 3
 
 [node name="SubViewport" type="SubViewport" parent="Control/Denoise"]
+process_mode = 4
 disable_3d = true
 transparent_bg = true
 handle_input_locally = false
-size = Vector2i(1200, 600)
+size = Vector2i(400, 200)
 render_target_clear_mode = 1
-render_target_update_mode = 4
+render_target_update_mode = 0
 
 [node name="DenoiseShader" type="TextureRect" parent="Control/Denoise/SubViewport"]
 material = SubResource("ShaderMaterial_yu7rk")
-offset_right = 1200.0
-offset_bottom = 600.0
+offset_right = 400.0
+offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 texture = SubResource("ViewportTexture_r5yof")
@@ -615,7 +617,7 @@ offset_left = 32.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "64"
+text = "82"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -637,7 +639,7 @@ offset_left = 76.0
 offset_right = 212.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "435"
+text = "401"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
