@@ -108,9 +108,8 @@ func _on_camera_speed_s_value_changed(value: float) -> void:
 
 
 func _on_resolution_s_value_changed(value: float) -> void:
-    var num = int(value)
-    stretch_shrink = num
-    %resolution.text = "1/" + str(num)
-    (%RayTracing as SubViewportContainer).stretch_shrink = num
-    (%PostProcess as SubViewportContainer).stretch_shrink = num
-    (%Denoise as SubViewportContainer).stretch_shrink = num
+    stretch_shrink = int(value)
+    %resolution.text = "1/" + str(stretch_shrink)
+    (%RayTracing as SubViewportContainer).stretch_shrink = stretch_shrink
+    (%PostProcess as SubViewportContainer).stretch_shrink = stretch_shrink
+    (%Denoise as SubViewportContainer).stretch_shrink = stretch_shrink
