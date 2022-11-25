@@ -9,6 +9,7 @@ var initCameraRotation: Vector3
 
 var fixed_fps: int = 90
 var fps: int = fixed_fps
+var stretch_shrink: int = 3
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -22,6 +23,7 @@ func _ready() -> void:
     %max_sample_s.value = %PostProcessShader.max_sample
     %light_quality_s.value = %always_uniform_camera.quality
     %fixed_fps_edit.text = str(fixed_fps)
+    %resolution_s.value = stretch_shrink
 
 func _fixed_fps(delta: float) -> void:
     var delta_fps := fps - fixed_fps
@@ -92,3 +94,11 @@ func _on_sample_once_b_pressed() -> void:
 
 func _on_camera_speed_s_value_changed(value: float) -> void:
     camera.max_speed = value
+
+
+func _on_resolution_s_value_changed(value: float) -> void:
+    var num = int(value)
+    %resolution.text = "1/" + str(num)
+    (%RayTracing as SubViewportContainer).stretch_shrink = num
+    (%PostProcess as SubViewportContainer).stretch_shrink = num
+    (%Denoise as SubViewportContainer).stretch_shrink = num
