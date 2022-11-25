@@ -214,7 +214,7 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 0),
                         vec3(100, 0, 0)
             ),
-            material(vec3(1.0, 1.0, 1.0)*0.3,
+            material(vec3(1.0, 1.0, 1.0)*0.3,   // 基础色
                         0.0, // 粗糙度
                         1.0, // 金属度
                         0.0, // 透明度
@@ -228,7 +228,7 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 0),
                         vec3(0.5, 0, 0)
             ),
-            material(vec3(1.0, 1.0, 1.0),
+            material(vec3(1.0, 1.0, 1.0),   // 基础色
                         1.0, // 粗糙度
                         0.0, // 金属度
                         0.0, // 透明度
@@ -242,7 +242,7 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 0),
                         vec3(0.3, 0, 0)
             ),
-            material(vec3(1.0, 0.1, 0.1),
+            material(vec3(1.0, 0.1, 0.1),   // 基础色
                         0.9, // 粗糙度
                         0.1, // 金属度
                         0.0, // 透明度
@@ -256,7 +256,7 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 0),
                         vec3(0.3, 0, 0)
             ),
-            material(vec3(0.1, 0.1, 1.0),
+            material(vec3(0.1, 0.1, 1.0),   // 基础色
                         0.3, // 粗糙度
                         1.0, // 金属度
                         0.0, // 透明度
@@ -270,7 +270,7 @@ object nearest_object(vec3 p) {
                         vec3(0, TIME, 0),
                         vec3(2, 1, 0.2)
             ),
-            material(vec3(1.0, 1.0, 1.0),
+            material(vec3(1.0, 1.0, 1.0),   // 基础色
                         0.01, // 粗糙度
                         0.9,  // 金属度
                         0.0,  // 透明度
@@ -284,7 +284,7 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 0),
                         vec3(0.2, 0.5, 0)
             ),
-            material(vec3(1.0, 1.0, 0.1),
+            material(vec3(1.0, 1.0, 0.1),   // 基础色
                         0.0, // 粗糙度
                         1.0, // 金属度
                         0.0, // 透明度
@@ -298,7 +298,7 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 0),
                         vec3(0.5, 0.6, 0)
             ),
-            material(vec3(1.0, 0.0, 1.0),
+            material(vec3(1.0, 0.0, 1.0),   // 基础色
                         1.0, // 粗糙度
                         1.0, // 金属度
                         0.0, // 透明度
@@ -312,7 +312,7 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 0),
                         vec3(0.3, 0, 0)
             ),
-            material(vec3(1.0, 1.0, 1.0),
+            material(vec3(1.0, 1.0, 1.0),   // 基础色
                         0.0, // 粗糙度
                         0.0, // 金属度
                         1.0, // 透明度
@@ -326,7 +326,7 @@ object nearest_object(vec3 p) {
                         vec3(0, 0, 0),
                         vec3(0.3, 0, 0)
             ),
-            material(vec3(0.0, 1.0, 1.0),
+            material(vec3(0.0, 1.0, 1.0),   // 基础色
                         0.0,    // 粗糙度
                         0.0,    // 金属度
                         1.0,    // 透明度
