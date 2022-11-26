@@ -10,26 +10,27 @@
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/denoise_shader.gdshader" id="8_yowq5"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_immj4"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_p7iwt"]
 shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 1.95224
+shader_parameter/camera_aspect = 2.0
+shader_parameter/camera_exposure = 1.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(1.69846, 0.267747, 1.26515)
-shader_parameter/camera_rotation = Basis(0.779972, -0.0225152, 0.625174, 0, 0.999175, 0.0359863, -0.625587, -0.0280716, 0.779457)
-shader_parameter/camera_vfov = 67.826
+shader_parameter/camera_position = Vector3(0, 0, 4)
+shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
-shader_parameter/light_quality = 0.0001
+shader_parameter/light_quality = 0.02
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_otsxk"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_86hbe"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 7455.0
+shader_parameter/frame = 349.0
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_m88bj"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_1dtlx"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
 
-[sub_resource type="GDScript" id="GDScript_ulrc5"]
+[sub_resource type="GDScript" id="GDScript_vangu"]
 script/source = "@tool
 
 extends TextureRect
@@ -62,10 +63,10 @@ func _process(_delta: float) -> void:
     material.set_shader_parameter(\"frame\", frame)
 "
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_t8170"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4joq7"]
 shader = ExtResource("8_yowq5")
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_3l2tg"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_uh6kp"]
 viewport_path = NodePath("Control/PostProcess/SubViewport")
 
 [node name="MainPanel" type="Control"]
@@ -117,7 +118,7 @@ render_target_update_mode = 4
 [node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
 texture_filter = 1
-material = SubResource("ShaderMaterial_immj4")
+material = SubResource("ShaderMaterial_p7iwt")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
@@ -156,15 +157,15 @@ render_target_update_mode = 4
 [node name="PostProcessShader" type="TextureRect" parent="Control/PostProcess/SubViewport"]
 unique_name_in_owner = true
 texture_filter = 1
-material = SubResource("ShaderMaterial_otsxk")
+material = SubResource("ShaderMaterial_86hbe")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 mouse_filter = 2
-texture = SubResource("ViewportTexture_m88bj")
-script = SubResource("GDScript_ulrc5")
+texture = SubResource("ViewportTexture_1dtlx")
+script = SubResource("GDScript_vangu")
 metadata/_edit_use_anchors_ = true
 
 [node name="alwasy_fill_viewport" type="Node" parent="Control/PostProcess/SubViewport/PostProcessShader"]
@@ -193,12 +194,12 @@ render_target_clear_mode = 1
 render_target_update_mode = 0
 
 [node name="DenoiseShader" type="TextureRect" parent="Control/Denoise/SubViewport"]
-material = SubResource("ShaderMaterial_t8170")
+material = SubResource("ShaderMaterial_4joq7")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
-texture = SubResource("ViewportTexture_3l2tg")
+texture = SubResource("ViewportTexture_uh6kp")
 
 [node name="alwasy_fill_viewport" type="Node" parent="Control/Denoise/SubViewport/DenoiseShader"]
 script = ExtResource("4_cek0v")
@@ -239,12 +240,12 @@ layout_mode = 2
 offset_left = 30.0
 offset_top = 30.0
 offset_right = 370.0
-offset_bottom = 444.0
+offset_bottom = 494.0
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD/MarginContainer/PanelContainer"]
 layout_mode = 2
 offset_right = 340.0
-offset_bottom = 414.0
+offset_bottom = 464.0
 theme_override_constants/margin_left = 24
 theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 24
@@ -255,7 +256,7 @@ layout_mode = 2
 offset_left = 24.0
 offset_top = 24.0
 offset_right = 316.0
-offset_bottom = 390.0
+offset_bottom = 440.0
 
 [node name="HBoxContainer" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -461,11 +462,53 @@ max_value = 1.0
 step = 0.001
 value = 0.005
 
-[node name="HBoxContainer5" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
+[node name="HBoxContainer13" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 offset_top = 250.0
 offset_right = 292.0
 offset_bottom = 276.0
+
+[node name="Label" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer13"]
+layout_mode = 2
+offset_right = 72.0
+offset_bottom = 26.0
+text = "Exposure"
+
+[node name="camera_exposure" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer13"]
+unique_name_in_owner = true
+layout_mode = 2
+offset_left = 76.0
+offset_right = 292.0
+offset_bottom = 26.0
+size_flags_horizontal = 3
+text = "1"
+horizontal_alignment = 2
+
+[node name="HBoxContainer14" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+offset_top = 280.0
+offset_right = 292.0
+offset_bottom = 296.0
+
+[node name="camera_exposure_s" type="HSlider" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer14"]
+unique_name_in_owner = true
+layout_mode = 2
+offset_right = 292.0
+offset_bottom = 16.0
+size_flags_horizontal = 3
+size_flags_vertical = 1
+mouse_default_cursor_shape = 2
+min_value = 0.001
+max_value = 10000.0
+step = 0.001
+value = 1.0
+exp_edit = true
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+offset_top = 300.0
+offset_right = 292.0
+offset_bottom = 326.0
 
 [node name="Label" type="Label" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer5"]
 layout_mode = 2
@@ -485,9 +528,9 @@ horizontal_alignment = 2
 
 [node name="HBoxContainer6" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-offset_top = 280.0
+offset_top = 330.0
 offset_right = 292.0
-offset_bottom = 296.0
+offset_bottom = 346.0
 
 [node name="camera_speed_s" type="HSlider" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer6"]
 unique_name_in_owner = true
@@ -506,18 +549,18 @@ exp_edit = true
 [node name="rest_camera_b" type="Button" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_top = 300.0
+offset_top = 350.0
 offset_right = 292.0
-offset_bottom = 331.0
+offset_bottom = 381.0
 mouse_default_cursor_shape = 2
 text = "Reset Position"
 
 [node name="sample_once_b" type="Button" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-offset_top = 335.0
+offset_top = 385.0
 offset_right = 292.0
-offset_bottom = 366.0
+offset_bottom = 416.0
 mouse_default_cursor_shape = 2
 text = "Resample"
 
@@ -576,7 +619,7 @@ offset_left = 32.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "77"
+text = "65"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -598,7 +641,7 @@ offset_left = 76.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "477"
+text = "348"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -783,8 +826,8 @@ size_flags_horizontal = 3
 size_flags_vertical = 1
 mouse_default_cursor_shape = 2
 min_value = 1.0
-max_value = 512.0
-value = 3.0
+max_value = 1168.0
+value = 1.0
 exp_edit = true
 allow_greater = true
 
@@ -793,6 +836,7 @@ allow_greater = true
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer8/camera_fov_s" to="." method="_on_camera_fov_s_value_changed"]
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer10/camera_focus_s" to="." method="_on_camera_focus_s_value_changed"]
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer12/camera_aperture_s" to="." method="_on_camera_aperture_s_value_changed"]
+[connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer14/camera_exposure_s" to="." method="_on_camera_exposure_s_value_changed"]
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer6/camera_speed_s" to="." method="_on_camera_speed_s_value_changed"]
 [connection signal="pressed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/rest_camera_b" to="." method="_on_rest_camera_b_pressed"]
 [connection signal="pressed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/sample_once_b" to="." method="_on_sample_once_b_pressed"]

@@ -10,6 +10,7 @@ var control: Control
 var post_process_material: ShaderMaterial
 
 var gamma: float = 0.5
+var exposure: float = 1.0
 var focus: float = 2.0
 var aperture: float = 0.005
 var vfov: float = 30
@@ -36,5 +37,6 @@ func _process(_delta: float) -> void:
     material.set_shader_parameter("camera_focus", focus)
     material.set_shader_parameter("camera_aperture", aperture)
     material.set_shader_parameter("camera_gamma", gamma)
+    material.set_shader_parameter("camera_exposure", exposure)
     
     material.set_shader_parameter("light_quality", 1 / quality)

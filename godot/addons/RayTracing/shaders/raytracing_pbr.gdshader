@@ -8,6 +8,7 @@ uniform float camera_aspect     = 2.0;                  // 画布长宽比
 uniform float camera_vfov       = 30.0;                 // 摄像机的纵向视野
 uniform float camera_focus      = 2.0;                  // 摄像机的对焦距离
 uniform float camera_aperture   = 0.005;                // 摄像机的光圈大小
+uniform float camera_exposure   = 1.0;                  // 摄像机曝光值
 uniform float camera_gamma      = 0.2;                  // gamma 矫正值
 uniform float light_quality     = 0.2;                  // 间接光质量
 
@@ -376,14 +377,14 @@ vec2 sample_spherical_map(vec3 v) {
 
 // 采样天空
 vec4 sky(ray r) {
-    float t = 0.5 + 0.5 * r.direction.y;
-    vec4 bottom = vec4(1.0, 1.0, 1.0, 1.0);
-    vec4 top = vec4(0.5, 0.7, 1.0, 1.0);
-    return mix(bottom, top, t);
+//    float t = 0.5 + 0.5 * r.direction.y;
+//    vec4 bottom = vec4(1.0, 1.0, 1.0, 1.0);
+//    vec4 top = vec4(0.5, 0.7, 1.0, 1.0);
+//    return mix(bottom, top, t);
 
     // 采样 HDRi 环境贴图
-//    vec2 uv = sample_spherical_map(r.direction); uv.y = 1.0 - uv.y;
-//    return texture(environment_hdri, uv);
+    vec2 uv = sample_spherical_map(r.direction); uv.y = 1.0 - uv.y;
+    return texture(environment_hdri, uv);
 }
 
 // 快速计算五次方
@@ -556,35 +557,15 @@ vec3 sample(camera cam, vec2 uv, vec4 color, inout random rand) {
     return r.color.rgb * r.color.a;
 }
 
-// HDR 映射色彩
-vec3 HDR(vec3 color) {
-    return vec3(1) - exp(-color);
-}
-
-vec3 tone_mapping(vec3 color) {
-    const float a = 0.15;
-    const float b = 0.50;
-    const float c = 0.10;
-    const float d = 0.20;
-    const float e = 0.02;
-    const float f = 0.30;
-    const float w = 11.2;
-    const float exposure = 3.0;
-    color *= exposure;
-    color = ((color * (a * color + c * b) + d * e) / (color * (a * color + b) + d * f)) - e / f;
-    float white = ((w * (a * w + c * b) + d * e) / (w * (a * w + b) + d * f)) - e / f;
-    color /= white;
-    return color;
-}
-
-vec3 ACESToneMapping(vec3 color, float adapted_lum){
+// 色调映射
+vec3 ACES(vec3 color, float exposure){
     const float a = 2.51f;
     const float b = 0.03f;
     const float c = 2.43f;
     const float d = 0.59f;
     const float e = 0.14f;
 
-    color *= adapted_lum;
+    color *= exposure;
     return (color * (a * color + b)) / (color * (c * color + d) + e);
 }
 
@@ -625,8 +606,8 @@ void fragment() {
 //    }
 //    color = color / float(N + 1U);
 
-    // HDR 映射色彩
-    color.rgb = HDR(color.rgb);
+    // ACES Tone Mapping
+    color.rgb = ACES(color.rgb, camera_exposure);
     // 伽马矫正
     color.rgb = pow(color.rgb, vec3(camera_gamma));
 

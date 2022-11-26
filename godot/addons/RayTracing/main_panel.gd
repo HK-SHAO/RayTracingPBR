@@ -23,6 +23,7 @@ func _ready() -> void:
     %camera_fov_s.value = camera.fov
     %camera_focus_s.value = %always_uniform_camera.focus
     %gamma_s.value = %always_uniform_camera.gamma
+    %camera_exposure_s.value = %always_uniform_camera.exposure
     %max_sample_s.value = %PostProcessShader.max_sample
     %light_quality_s.value = %always_uniform_camera.quality
     %fixed_fps_edit.text = str(fixed_fps)
@@ -113,3 +114,9 @@ func _on_resolution_s_value_changed(value: float) -> void:
     (%RayTracing as SubViewportContainer).stretch_shrink = stretch_shrink
     (%PostProcess as SubViewportContainer).stretch_shrink = stretch_shrink
     (%Denoise as SubViewportContainer).stretch_shrink = stretch_shrink
+
+
+func _on_camera_exposure_s_value_changed(value: float) -> void:
+    %always_uniform_camera.exposure = value
+    %camera_exposure.text = str(value)
+    %PostProcessShader.frame = 0
