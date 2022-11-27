@@ -288,7 +288,7 @@ object nearest_object(vec3 p) {
             ),
             material(vec3(1.0, 1.0, 1.0),   // 基础色
                         0.0, // 粗糙度
-                        0.9,  // 金属度
+                        1.0,  // 金属度
                         0.0,  // 透明度
                         1.0,  // 折射率
                         vec4(0), // 自发光
@@ -302,7 +302,7 @@ object nearest_object(vec3 p) {
             ),
             material(vec3(1.0, 1.0, 1.0),   // 基础色
                         0.0, // 粗糙度
-                        0.9,  // 金属度
+                        1.0,  // 金属度
                         0.0,  // 透明度
                         1.0,  // 折射率
                         vec4(0), // 自发光
@@ -315,7 +315,7 @@ object nearest_object(vec3 p) {
     for (int i = 0; i < map.length(); i++) {
         object oi = map[i];
         oi.sd = signed_distance(oi, p);
-        if (oi.sd < o.sd) o = oi;
+        if (abs(oi.sd) < abs(o.sd)) o = oi;
     }
     return o;
 }
@@ -466,10 +466,10 @@ ray PBR(ray r, inout record rec, inout random rand) {
         
         if (noise(rand) < F + metallic && outer > 0.0) {
             L = reflect(r.direction, N);
-            r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
+//            r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
         } else {
             L = refract(r.direction, N, eta);
-            L = -L * sign(dot(L, N));
+//            L = -L * sign(dot(L, N));
         }
     } else {
         const float F0 = 0.04;
