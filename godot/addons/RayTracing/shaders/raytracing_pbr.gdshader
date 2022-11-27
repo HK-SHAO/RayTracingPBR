@@ -557,16 +557,32 @@ vec3 sample(camera cam, vec2 uv, vec4 color, inout random rand) {
     return r.color.rgb * r.color.a;
 }
 
-// 色调映射
-vec3 ACES(vec3 color, float exposure){
-    const float a = 2.51f;
-    const float b = 0.03f;
-    const float c = 2.43f;
-    const float d = 0.59f;
-    const float e = 0.14f;
+// ACES fitted
+// from https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl
+const mat3 ACESInputMat = mat3(
+    vec3(0.59719, 0.35458, 0.04823),
+    vec3(0.07600, 0.90834, 0.01566),
+    vec3(0.02840, 0.13383, 0.83777)
+);
 
-    color *= exposure;
-    return (color * (a * color + b)) / (color * (c * color + d) + e);
+// ODT_SAT => XYZ => D60_2_D65 => sRGB
+const mat3 ACESOutputMat = mat3(
+    vec3( 1.60475, -0.53108, -0.07367),
+    vec3(-0.10208,  1.10813, -0.00605),
+    vec3(-0.00327, -0.07276,  1.07602)
+);
+
+vec3 RRTAndODTFit(vec3 v) {
+    vec3 a = v * (v + 0.0245786) - 0.000090537;
+    vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
+    return a / b;
+}
+
+vec3 ACESFitted(vec3 color) {
+    color *= ACESInputMat;
+    color = RRTAndODTFit(color); // Apply RRT and ODT
+    color *= ACESOutputMat;
+    return color;
 }
 
 // 片段着色器程序入口
@@ -606,10 +622,12 @@ void fragment() {
 //    }
 //    color = color / float(N + 1U);
 
-    // ACES Tone Mapping
-    color.rgb = ACES(color.rgb, camera_exposure);
     // 伽马矫正
     color.rgb = pow(color.rgb, vec3(camera_gamma));
+
+    // 色调映射 (ACES Tone Mapping)
+    color *= camera_exposure;
+    color.rgb = ACESFitted(color.rgb);
 
     // 测试随机数
 //    color = vec3(noise(rand), noise(rand), noise(rand));

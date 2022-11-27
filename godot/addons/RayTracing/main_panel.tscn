@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://ubje1c34mpqe"]
+[gd_scene load_steps=17 format=3 uid="uid://ubje1c34mpqe"]
 
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/raytracing_pbr.gdshader" id="1_0w4fs"]
 [ext_resource type="Script" path="res://addons/RayTracing/main_panel.gd" id="1_3yfr2"]
@@ -10,27 +10,27 @@
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/denoise_shader.gdshader" id="8_yowq5"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_vw73x"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dlx7l"]
 shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 2.0
-shader_parameter/camera_exposure = 1.0
+shader_parameter/camera_aspect = 1.95224
+shader_parameter/camera_exposure = 0.983
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(0, 0, 4)
-shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/camera_position = Vector3(1.17828, 0.963357, 3.72049)
+shader_parameter/camera_rotation = Basis(0.955888, -0.0467169, 0.289485, 0, 0.987128, 0.159303, -0.293215, -0.152298, 0.943729)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
 shader_parameter/light_quality = 0.02
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_drcny"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2ys56"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 544.0
+shader_parameter/frame = 221.0
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_sf7mj"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_v2do6"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
 
-[sub_resource type="GDScript" id="GDScript_q6056"]
+[sub_resource type="GDScript" id="GDScript_0u4st"]
 script/source = "@tool
 
 extends TextureRect
@@ -63,11 +63,15 @@ func _process(_delta: float) -> void:
     material.set_shader_parameter(\"frame\", frame)
 "
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_bo434"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_yenkl"]
 shader = ExtResource("8_yowq5")
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_0nho0"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_qsxm7"]
 viewport_path = NodePath("Control/PostProcess/SubViewport")
+
+[sub_resource type="Environment" id="Environment_hj6w2"]
+background_mode = 3
+background_canvas_max_layer = 1
 
 [node name="MainPanel" type="Control"]
 layout_mode = 3
@@ -119,7 +123,7 @@ render_target_update_mode = 4
 [node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
 texture_filter = 1
-material = SubResource("ShaderMaterial_vw73x")
+material = SubResource("ShaderMaterial_dlx7l")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
@@ -159,15 +163,15 @@ render_target_update_mode = 4
 [node name="PostProcessShader" type="TextureRect" parent="Control/PostProcess/SubViewport"]
 unique_name_in_owner = true
 texture_filter = 1
-material = SubResource("ShaderMaterial_drcny")
+material = SubResource("ShaderMaterial_2ys56")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 mouse_filter = 2
-texture = SubResource("ViewportTexture_sf7mj")
-script = SubResource("GDScript_q6056")
+texture = SubResource("ViewportTexture_v2do6")
+script = SubResource("GDScript_0u4st")
 metadata/_edit_use_anchors_ = true
 
 [node name="alwasy_fill_viewport" type="Node" parent="Control/PostProcess/SubViewport/PostProcessShader"]
@@ -197,27 +201,15 @@ render_target_clear_mode = 1
 render_target_update_mode = 0
 
 [node name="DenoiseShader" type="TextureRect" parent="Control/Denoise/SubViewport"]
-material = SubResource("ShaderMaterial_bo434")
+material = SubResource("ShaderMaterial_yenkl")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
-texture = SubResource("ViewportTexture_0nho0")
+texture = SubResource("ViewportTexture_qsxm7")
 
 [node name="alwasy_fill_viewport" type="Node" parent="Control/Denoise/SubViewport/DenoiseShader"]
 script = ExtResource("4_cek0v")
-
-[node name="FreeCamera3D" type="Camera3D" parent="."]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
-rotation_edit_mode = 2
-current = true
-fov = 30.0
-script = ExtResource("5_nuxi6")
-sensitivity = 3.0
-velocity = 5.0
-max_speed = 1000.0
-smooth = 10.0
 
 [node name="HUD" type="Control" parent="."]
 layout_mode = 1
@@ -461,9 +453,11 @@ offset_bottom = 16.0
 size_flags_horizontal = 3
 size_flags_vertical = 1
 mouse_default_cursor_shape = 2
+min_value = 0.001
 max_value = 1.0
 step = 0.001
 value = 0.005
+exp_edit = true
 
 [node name="HBoxContainer13" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -644,7 +638,7 @@ offset_left = 76.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "543"
+text = "739"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -829,10 +823,27 @@ size_flags_horizontal = 3
 size_flags_vertical = 1
 mouse_default_cursor_shape = 2
 min_value = 1.0
-max_value = 1056.0
-value = 1.0
+max_value = 1552.0
+value = 3.0
 exp_edit = true
 allow_greater = true
+
+[node name="Node3D" type="Node3D" parent="."]
+
+[node name="FreeCamera3D" type="Camera3D" parent="Node3D"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
+rotation_edit_mode = 2
+current = true
+fov = 30.0
+script = ExtResource("5_nuxi6")
+sensitivity = 3.0
+velocity = 5.0
+max_speed = 1000.0
+smooth = 10.0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Node3D"]
+environment = SubResource("Environment_hj6w2")
 
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4/gamma_s" to="." method="_on_gamma_s_value_changed"]

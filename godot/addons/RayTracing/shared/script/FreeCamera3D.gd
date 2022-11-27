@@ -35,7 +35,7 @@ func _ready() -> void:
     @warning_ignore(return_value_discarded)
     control.connect("gui_input", gui_input)
 
-func gui_input(event: InputEvent):
+func gui_input(event: InputEvent) -> void:
     if not current:
         return
 
