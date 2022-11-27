@@ -30,6 +30,7 @@ const float ENV_IOR = 1.000277;                         // 环境的折射率
 const int SHAPE_SPHERE      = 0;
 const int SHAPE_BOX         = 1;
 const int SHAPE_CYLINDER    = 2;
+const int SHAPE_TEST        = 3;
 
 const float NONE = 0.0;
 
@@ -169,6 +170,15 @@ float sd_cylinder(vec3 p, float h, float r) {
     return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
 }
 
+// SDF test
+float sd_test(vec3 p, vec3 b) {
+    vec3 c = vec3(3.0);
+//    p = mod(p+0.5*c,c)-0.5*c;
+    p = p-c*clamp(round(p/c), -10, 10);
+    vec3 q = abs(p) - b;
+    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
+}
+
 // 欧拉角转旋转矩阵
 mat3 angle(vec3 a) {
     vec3 s = sin(a), c = cos(a);
@@ -202,13 +212,15 @@ float signed_distance(object obj, vec3 pos) {
             return sd_box(p, scale);
         case SHAPE_CYLINDER:
             return sd_cylinder(p, scale.y, scale.x);
+        case SHAPE_TEST:
+            return sd_test(p, scale);
         default:
             return sd_sphere(p, scale.x);
     }
 }
 
 // 找到最近的物体并计算距离
-object nearest_object(vec3 p) {
+object nearest_object(vec3 p, inout random rand) {
     // 地图
     object map[] = {
         object(SHAPE_SPHERE, NONE,
@@ -308,6 +320,34 @@ object nearest_object(vec3 p) {
                         vec4(0), // 自发光
                         vec3(0, 0, 1) // 切线空间法线
             )
+        ),
+        object(SHAPE_SPHERE, NONE,
+            transform(  vec3(0.5, -0.2, 0.8),
+                        vec3(0, 0, 0),
+                        vec3(0.3 + 0.0009*noise(rand), 0, 0)
+            ),
+            material(vec3(10.0, 10.0, 10.0),   // 基础色
+                        1.0, // 粗糙度
+                        0.0, // 金属度
+                        0.0, // 透明度
+                        1.0, // 折射率
+                        vec4(0), // 自发光
+                        vec3(0, 0, 1) // 切线空间法线
+            )
+        ),
+        object(SHAPE_TEST, NONE,
+            transform(  vec3(0.5, 1, 0.8),
+                        vec3(0, 0, 0),
+                        vec3(0.7, 0.5, 0.3)
+            ),
+            material(vec3(1.0, 1.0, 1.0),   // 基础色
+                        0.0, // 粗糙度
+                        1.0, // 金属度
+                        0.0, // 透明度
+                        1.0, // 折射率
+                        vec4(0), // 自发光
+                        vec3(0, 0, 1) // 切线空间法线
+            )
         )
     };
     
@@ -348,11 +388,11 @@ mat3 TBN(vec3 N) {
 }
 
 // 光线步进
-record raycast(ray r) {
+record raycast(ray r, inout random rand) {
     record rec; rec.t = TMIN;
     for(uint i = 0U; i < MAX_RAYMARCH && rec.t < TMAX; i++) {
         rec.position = at(r, rec.t);
-        object obj = nearest_object(rec.position);
+        object obj = nearest_object(rec.position, rand);
         float dis = abs(obj.sd);
         if (dis < PRECISION) {
             rec.obj = obj;
@@ -379,7 +419,7 @@ vec2 sample_spherical_map(vec3 v) {
 vec4 sky(ray r) {
 //    float t = 0.5 + 0.5 * r.direction.y;
 //    vec4 bottom = vec4(1.0, 1.0, 1.0, 1.0);
-//    vec4 top = vec4(0.5, 0.7, 1.0, 1.0);
+//    vec4 top = vec4(0.3, 0.5, 1.0, 3.0);
 //    return mix(bottom, top, t);
 
     // 采样 HDRi 环境贴图
@@ -517,7 +557,7 @@ ray raytrace(ray r, inout random rand) {
         }
         
         // 与地图求交
-        record rec = raycast(r);
+        record rec = raycast(r, rand);
         
         //  测试法线
 //        r.color.rgb = 0.5 + 0.5*calc_normal(rec.obj, rec.position);
