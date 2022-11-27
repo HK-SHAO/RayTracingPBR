@@ -13,19 +13,19 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_dlx7l"]
 shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 1.95224
-shader_parameter/camera_exposure = 0.983
+shader_parameter/camera_aspect = 2.0
+shader_parameter/camera_exposure = 1.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(1.05988, 0.278541, 1.01252)
-shader_parameter/camera_rotation = Basis(0.987448, 0.000189006, 0.156924, 0, 0.999827, -0.00120427, -0.156923, 0.00118933, 0.987452)
-shader_parameter/camera_vfov = 33.913
+shader_parameter/camera_position = Vector3(0, 0, 4)
+shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
-shader_parameter/light_quality = 0.0001
+shader_parameter/light_quality = 0.02
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_2ys56"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 574.0
+shader_parameter/frame = 135.0
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_v2do6"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
@@ -374,6 +374,8 @@ mouse_default_cursor_shape = 2
 max_value = 180.0
 step = 0.001
 value = 30.0
+allow_greater = true
+allow_lesser = true
 
 [node name="HBoxContainer9" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -416,6 +418,8 @@ max_value = 10000.0
 step = 0.001
 value = 2.0
 exp_edit = true
+allow_greater = true
+allow_lesser = true
 
 [node name="HBoxContainer11" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -458,6 +462,8 @@ max_value = 1.0
 step = 0.001
 value = 0.005
 exp_edit = true
+allow_greater = true
+allow_lesser = true
 
 [node name="HBoxContainer13" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -500,6 +506,8 @@ max_value = 10000.0
 step = 0.001
 value = 1.0
 exp_edit = true
+allow_greater = true
+allow_lesser = true
 
 [node name="HBoxContainer5" type="HBoxContainer" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -542,6 +550,8 @@ max_value = 1e+07
 step = 0.1
 value = 1000.0
 exp_edit = true
+allow_greater = true
+allow_lesser = true
 
 [node name="rest_camera_b" type="Button" parent="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
@@ -616,7 +626,7 @@ offset_left = 32.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "90"
+text = "32"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -638,7 +648,7 @@ offset_left = 76.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "997"
+text = "134"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -785,6 +795,8 @@ max_value = 10000.0
 step = 0.001
 value = 50.0
 exp_edit = true
+allow_greater = true
+allow_lesser = true
 
 [node name="HBoxContainer15" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -823,7 +835,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 1
 mouse_default_cursor_shape = 2
 min_value = 1.0
-max_value = 1552.0
+max_value = 1168.0
 value = 3.0
 exp_edit = true
 allow_greater = true
