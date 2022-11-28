@@ -1,11 +1,11 @@
-[gd_scene load_steps=12 format=3 uid="uid://b432qh47qklx8"]
+[gd_scene load_steps=12 format=3 uid="uid://bxvovxmr8s3wh"]
 
 [ext_resource type="Script" path="res://test/scripts/always/always_shader_camera_pos.gd" id="2_318b5"]
 [ext_resource type="Shader" path="res://test/shaders/camera_raytracing.gdshader" id="2_vj3lo"]
 [ext_resource type="Shader" path="res://test/shaders/test_gamma.gdshader" id="5_8ao1x"]
 [ext_resource type="Shader" path="res://test/shaders/test_backbuffer.gdshader" id="5_q4lqq"]
 [ext_resource type="Script" path="res://test/scripts/OldFreeCamera3D.gd" id="6_6knrr"]
-[ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_shader_backbuffer.gd" id="6_pdm25"]
+[ext_resource type="Script" path="res://test/scripts/always/always_shader_backbuffer.gd" id="6_pdm25"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_y0fov"]
 shader = ExtResource("2_vj3lo")
@@ -38,7 +38,6 @@ grow_vertical = 2
 
 [node name="BlackBack" type="ColorRect" parent="."]
 visible = false
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -48,7 +47,6 @@ color = Color(0, 0, 0, 1)
 
 [node name="WhiteBack" type="ColorRect" parent="."]
 visible = false
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -57,7 +55,6 @@ grow_vertical = 2
 color = Color(0.678431, 0.67451, 0.729412, 1)
 
 [node name="RayTracing" type="SubViewportContainer" parent="."]
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -88,7 +85,6 @@ script = ExtResource("2_318b5")
 camera = NodePath("../../../../Node3D/FreeCamera3D")
 
 [node name="BackBuffer" type="SubViewportContainer" parent="."]
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -117,7 +113,6 @@ texture = SubResource("ViewportTexture_cbl28")
 script = ExtResource("6_pdm25")
 
 [node name="Gamma" type="SubViewportContainer" parent="."]
-layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

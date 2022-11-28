@@ -13,7 +13,7 @@ uniform float camera_gamma      = 0.2;                  // gamma 矫正值
 uniform float light_quality     = 0.2;                  // 间接光质量
 
 // 传入贴图
-uniform sampler2D environment_hdri;                     // 环境 HDRI 贴图
+uniform sampler2D environment_hdri;                     // 环境 HDRi 贴图
 
 // 配置常量
 const float TMIN        = 0.001;                        // 光开始传播的起始偏移，避免光线自相交
@@ -176,8 +176,8 @@ float displacement(vec3 p) {
 
 // SDF test
 float sd_test(vec3 p, vec3 b) {
-    vec3 c = vec3(3.0);
-//    p = p-c*clamp(round(p/c), -10, 10);
+    vec3 c = vec3(30.0);
+    p = p-c*clamp(round(p/c), -10, 10);
     vec3 q = abs(p) - b;
     float d1 = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
 //    float d2 = 0.05*displacement(p);

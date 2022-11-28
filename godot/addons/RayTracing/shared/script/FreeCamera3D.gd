@@ -89,7 +89,7 @@ func _process(delta: float) -> void:
 
     translate(_translate)
 
-    var _rotate := (_rotation - _tmp_rotation) * (clamp(delta * smooth * 1.5, 0.01, 1.0) as float)
+    var _rotate := (_rotation - _tmp_rotation) * clampf(delta * smooth * 1.5, 0.01, 1.0)
     _tmp_rotation += _rotate
     set_rotation(_tmp_rotation)
 
