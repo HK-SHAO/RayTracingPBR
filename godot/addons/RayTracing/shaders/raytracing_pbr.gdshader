@@ -165,18 +165,23 @@ float sd_box(vec3 p, vec3 b) {
 }
 
 // SDF 圆柱
-float sd_cylinder(vec3 p, float h, float r) {
-    vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(r, h);
+float sd_cylinder(vec3 p, vec2 rh) {
+    vec2 d = abs(vec2(length(p.xz),p.y)) - rh;
     return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
+}
+
+float displacement(vec3 p) {
+    return sin(20.0*p.x)*sin(20.0*p.y)*sin(20.0*p.z);
 }
 
 // SDF test
 float sd_test(vec3 p, vec3 b) {
     vec3 c = vec3(3.0);
-//    p = mod(p+0.5*c,c)-0.5*c;
-    p = p-c*clamp(round(p/c), -10, 10);
+//    p = p-c*clamp(round(p/c), -10, 10);
     vec3 q = abs(p) - b;
-    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
+    float d1 = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
+//    float d2 = 0.05*displacement(p);
+    return d1 - 0.01;
 }
 
 // 欧拉角转旋转矩阵
@@ -203,7 +208,7 @@ float signed_distance(object obj, vec3 pos) {
     
     // 会重复的将欧拉角转换成旋转矩阵，实际上只用在第一次计算就行了
     // 也有可能被编译器优化掉了
-    p = angle(rotation) * p;
+    p *= angle(rotation);
     
     switch(obj.shape) {
         case SHAPE_SPHERE:
@@ -211,7 +216,7 @@ float signed_distance(object obj, vec3 pos) {
         case SHAPE_BOX:
             return sd_box(p, scale);
         case SHAPE_CYLINDER:
-            return sd_cylinder(p, scale.y, scale.x);
+            return sd_cylinder(p, scale.xy);
         case SHAPE_TEST:
             return sd_test(p, scale);
         default:
