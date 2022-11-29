@@ -45,6 +45,10 @@ const vec3 baseDark    = vec3(2.31,2.31,2.32);          // 基础颜色 -- 暗�
 const vec3 lightBright = vec3(4.29, 4.17, 4.05);        // 光照颜色 -- 亮部
 //const vec3 lightDark   = vec3(3.7,3.75,3.8);            // 光照颜色 -- 暗部
 
+// 平行光源
+const vec3 dir_light = normalize(vec3(-0.8,0.7,-0.2));
+const vec4 dir_light_col = vec4(1.0, 1.0, 1.0, 7.0);
+
 // 光线
 struct ray {
     vec3 origin;        // 光的起点
@@ -659,6 +663,17 @@ ray PBR(ray r, inout record rec, inout random rand) {
             L = reflect(r.direction, N);
         } else {
             // 漫反射
+			
+			//对平行光进行重要性采样
+			ray shadow_test_r = r;
+			shadow_test_r.direction = dir_light;
+			shadow_test_r.origin = vec3(P.x + noise(rand) * 0.02, P.y + noise(rand) * 0.02, P.z + noise(rand) * 0.02);
+			record shadow_rec = raycast(shadow_test_r, rand);
+			if(!shadow_rec.hit) {
+				vec3 diff = albedo * max(dot(N, dir_light), 0.0) * dir_light_col.rgb;
+				C += diff;
+			}
+			
             L = hemispheric_sampling(N, rand);
         }
 
@@ -705,6 +720,8 @@ ray raytrace(ray r, inout random rand) {
         // 没击中物体就肯定击中天空
         if (!rec.hit) {
             r.color *= sky(r);
+			r.color.rgb += pow(max(dot(r.direction, dir_light), 0.0), 50) * dir_light_col.rgb;
+			r.color.a *= dir_light_col.a;
 //            r.color *= 0.0;
             break;
         }
