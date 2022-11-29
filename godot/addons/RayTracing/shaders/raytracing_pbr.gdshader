@@ -276,7 +276,7 @@ object nearest_object(vec3 p, inout random rand) {
                         vec3(0.3, 0, 0)
             ),
             material(vec3(0.1, 0.1, 1.0),   // 基础色
-                        0.3, // 粗糙度
+                        0.2, // 粗糙度
                         1.0, // 金属度
                         0.0, // 透明度
                         1.0, // 折射率

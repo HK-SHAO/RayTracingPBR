@@ -10,27 +10,27 @@
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/denoise_shader.gdshader" id="8_yowq5"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_dlx7l"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dcfl7"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 2.0
+shader_parameter/camera_aperture = 0.001
+shader_parameter/camera_aspect = 1.95224
 shader_parameter/camera_exposure = 1.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(0, 0, 4)
-shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/camera_position = Vector3(2.33972, 0.430326, 0.0796705)
+shader_parameter/camera_rotation = Basis(0.0567593, -0.103631, 0.99287, 0, 0.994454, 0.1038, -0.998233, -0.00589242, 0.0564544)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_jobc0")
 shader_parameter/light_quality = 0.02
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_2ys56"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_h5rb1"]
 shader = ExtResource("4_0kxc5")
-shader_parameter/frame = 602.0
+shader_parameter/frame = 1180.0
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_v2do6"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_58idy"]
 viewport_path = NodePath("Control/RayTracing/SubViewport")
 
-[sub_resource type="GDScript" id="GDScript_0u4st"]
+[sub_resource type="GDScript" id="GDScript_lvafn"]
 script/source = "@tool
 
 extends TextureRect
@@ -63,13 +63,13 @@ func _process(_delta: float) -> void:
     material.set_shader_parameter(\"frame\", frame)
 "
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_yenkl"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0g8ga"]
 shader = ExtResource("8_yowq5")
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_qsxm7"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_lija5"]
 viewport_path = NodePath("Control/PostProcess/SubViewport")
 
-[sub_resource type="Environment" id="Environment_hj6w2"]
+[sub_resource type="Environment" id="Environment_1lmxh"]
 background_mode = 3
 background_canvas_max_layer = 1
 
@@ -123,7 +123,7 @@ render_target_update_mode = 4
 [node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
 texture_filter = 1
-material = SubResource("ShaderMaterial_dlx7l")
+material = SubResource("ShaderMaterial_dcfl7")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
@@ -163,15 +163,15 @@ render_target_update_mode = 4
 [node name="PostProcessShader" type="TextureRect" parent="Control/PostProcess/SubViewport"]
 unique_name_in_owner = true
 texture_filter = 1
-material = SubResource("ShaderMaterial_2ys56")
+material = SubResource("ShaderMaterial_h5rb1")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 mouse_filter = 2
-texture = SubResource("ViewportTexture_v2do6")
-script = SubResource("GDScript_0u4st")
+texture = SubResource("ViewportTexture_58idy")
+script = SubResource("GDScript_lvafn")
 metadata/_edit_use_anchors_ = true
 
 [node name="alwasy_fill_viewport" type="Node" parent="Control/PostProcess/SubViewport/PostProcessShader"]
@@ -201,12 +201,12 @@ render_target_clear_mode = 1
 render_target_update_mode = 0
 
 [node name="DenoiseShader" type="TextureRect" parent="Control/Denoise/SubViewport"]
-material = SubResource("ShaderMaterial_yenkl")
+material = SubResource("ShaderMaterial_0g8ga")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
-texture = SubResource("ViewportTexture_qsxm7")
+texture = SubResource("ViewportTexture_lija5")
 
 [node name="alwasy_fill_viewport" type="Node" parent="Control/Denoise/SubViewport/DenoiseShader"]
 script = ExtResource("4_cek0v")
@@ -626,7 +626,7 @@ offset_left = 32.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "87"
+text = "83"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -648,7 +648,7 @@ offset_left = 76.0
 offset_right = 292.0
 offset_bottom = 26.0
 size_flags_horizontal = 3
-text = "601"
+text = "517"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -835,8 +835,8 @@ size_flags_horizontal = 3
 size_flags_vertical = 1
 mouse_default_cursor_shape = 2
 min_value = 1.0
-max_value = 1168.0
-value = 3.0
+max_value = 944.0
+value = 1.0
 exp_edit = true
 allow_greater = true
 
@@ -855,7 +855,7 @@ max_speed = 1000.0
 smooth = 10.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="Node3D"]
-environment = SubResource("Environment_hj6w2")
+environment = SubResource("Environment_1lmxh")
 
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4/gamma_s" to="." method="_on_gamma_s_value_changed"]

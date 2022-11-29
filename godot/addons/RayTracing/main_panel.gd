@@ -11,7 +11,6 @@ var fixed_fps: int = 90
 var fps: int = fixed_fps
 var stretch_shrink: int = 3
 
-# Called when the node enters the scene tree for the first time.
 func _ready() -> void:
     initCameraTransform = camera.transform
     initCameraRotation = camera.rotation
