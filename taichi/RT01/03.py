@@ -14,8 +14,8 @@ class Ray:  # 光线类
     color: vec4     # 光的颜色
 
     @ti.func
-    def at(self, t: float) -> vec3: # 计算光子所在位置
-        return self.origin + t * self.direction
+    def at(r, t: float) -> vec3: # 计算光子所在位置
+        return r.origin + t * r.direction
 
 @ti.func
 def sky_color(ray, time) -> vec3:

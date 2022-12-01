@@ -21,14 +21,14 @@ class Ray:  # 光线类
     color: vec4     # 光的颜色
 
     @ti.func
-    def at(self, t: float) -> vec3: # 计算光子所在位置
-        return self.origin + t * self.direction
+    def at(r, t: float) -> vec3: # 计算光子所在位置
+        return r.origin + t * r.direction
 
 @ti.dataclass
 class HitRecord:    # 光子碰撞记录类
     position: vec3  # 光子碰撞的位置
-    distance: float # 光子传输的距离
-    hit: ti.u8      # 是否击中到物体
+    distance: float # 光子步进的距离
+    hit: ti.i32     # 是否击中到物体
 
 @ti.func
 def sd_sphere(p: vec3, r: float) -> float:  # SDF 球体
@@ -39,7 +39,8 @@ def raycast(ray) -> HitRecord:  # 光线步进求交
     record = HitRecord(ray.origin, TMIN, False) # 初始化光子碰撞记录
     for _ in range(MAX_RAYMARCH):   # 光线步进
         record.position = ray.at(record.distance)   # 计算光子所在位置
-        sd = sd_sphere(record.position - vec3(0, 0, -1), 0.5)   # 计算光子与球体的有向距离
+        # 计算光子与球体的有向距离，将球体位移到了 (0, 0, -1)，半径为 0.5
+        sd = sd_sphere(record.position - vec3(0, 0, -1), 0.5)
         dis = abs(sd)   # 绝对值为无符号距离
         if dis < PRECISION: # 如果光子与球体的距离小于精度即为击中
             record.hit = True   # 设置击中状态
@@ -74,7 +75,7 @@ def render(time: float):   # 渲染函数
         if record.hit:
             ray.color.rgb = vec3(1.0, 0.0, 0.0) # 设置为红色
         else:
-            ray.color.rgb = sky_color(ray, time)  # 获取天空颜色
+            ray.color.rgb = sky_color(ray, time)    # 获取天空颜色
         
         image_pixels[i, j] = ray.color.rgb  # 设置像素颜色
 

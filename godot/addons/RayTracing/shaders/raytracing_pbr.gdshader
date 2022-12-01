@@ -123,7 +123,7 @@ vec2 random_in_unit_disk(inout random seed) {
 ray get_ray(camera c, vec2 uv, vec4 color, inout random rand) {
     // 根据 VFOV 和显示画布长宽比计算传感器长宽
     float theta = radians(c.vfov);
-    float half_height = tan(theta / 2.0);
+    float half_height = tan(theta * 0.5);
     float half_width = c.aspect * half_height;
     
     // 以目标位置到摄像机位置为 Z 轴正方向
@@ -132,22 +132,23 @@ ray get_ray(camera c, vec2 uv, vec4 color, inout random rand) {
     vec3 x = normalize(cross(c.vup, z));
     vec3 y = cross(z, x);
     
-    vec3 lower_left_corner = c.lookfrom - half_width  * c.focus*x
-                                        - half_height * c.focus*y
-                                        -               c.focus*z;
+    vec3 hwfx = half_width  * c.focus * x;
+    vec3 hhfy = half_height * c.focus * y;
     
-    vec3 horizontal = 2.0 * half_width  * c.focus * x;
-    vec3 vertical   = 2.0 * half_height * c.focus * y;
+    vec3 lower_left_corner = c.lookfrom - hwfx - hhfy - c.focus * z;
+    
+    vec3 horizontal = 2.0 * hwfx;
+    vec3 vertical   = 2.0 * hhfy;
     
     // 模拟光进入镜头光圈
-    float lens_radius = c.aperture / 2.0;
+    float lens_radius = c.aperture * 0.5;
     vec2 rud = lens_radius * random_in_unit_disk(rand);
     vec3 offset = x * rud.x + y * rud.y;
     
     // 计算光线起点和方向
     vec3 ro = c.lookfrom + offset;
-    vec3 po = lower_left_corner + uv.x*horizontal 
-                                + uv.y*vertical;
+    vec3 po = lower_left_corner + uv.x * horizontal
+                                + uv.y * vertical;
     vec3 rd = normalize(po - ro);
     
     return ray(ro, rd, color);
@@ -170,13 +171,13 @@ float sd_cylinder(vec3 p, vec2 rh) {
     return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
 }
 
-float displacement(vec3 p) {
-    return sin(20.0*p.x)*sin(20.0*p.y)*sin(20.0*p.z);
-}
+//float displacement(vec3 p) {
+//    return sin(20.0*p.x)*sin(20.0*p.y)*sin(20.0*p.z);
+//}
 
 // SDF test
 float sd_test(vec3 p, vec3 b) {
-    vec3 c = vec3(30.0);
+    vec3 c = vec3(3.0);
     p = p-c*clamp(round(p/c), -10, 10);
     vec3 q = abs(p) - b;
     float d1 = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
