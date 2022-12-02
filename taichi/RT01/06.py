@@ -117,6 +117,7 @@ def nearest_object(p: vec3) -> Object:  # 计算最近的物体
     obj.sd = signed_distance(obj, p)
     return obj
 
+@ti.func
 def calc_normal(obj, p: vec3) -> vec3:  # 计算物体法线
     e = vec2(1, -1) * 0.5773 * 0.0005
     return normalize(   e.xyy*signed_distance(obj, p + e.xyy) + \
@@ -166,7 +167,7 @@ def render(time: float):   # 渲染函数
         normal = calc_normal(record.obj, record.position) # 计算法线
         
         if record.hit:
-            # ray.color.rgb = record.obj.mtl.albedo   # 设置为材质颜色
+            # ray.color.rgb *= record.obj.mtl.albedo   # 设置为材质颜色
             ray.color.rgb = 0.5 + 0.5 * normal  # 设置为法线颜色
         else:
             ray.color.rgb = sky_color(ray, time)  # 获取天空颜色

@@ -10,11 +10,17 @@ image_pixels = ti.Vector.field(3, float, image_resolution)  # 图像的像素场
 aspect_ratio = image_resolution[0] / image_resolution[1]    # 图像宽高比
 
 # 配置常量
-TMIN        = 0.001     # 光开始传播的起始偏移，避免光线自相交
-TMAX        = 2000.0    # 最大单次光线传播距离
-PRECISION   = 0.0001    # 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+TMIN        = 0.001                 # 光开始传播的起始偏移，避免光线自相交
+TMAX        = 2000.0                # 最大单次光线传播距离
+PRECISION   = 0.0001                # 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+MAP_SIZE    = float(0x7fffffff);    # 地图大小
 
-MAX_RAYMARCH = 512      # 最大光线步进次数
+MAX_RAYMARCH = 512  # 最大光线步进次数
+MAX_RAYTRACE = 512  # 最大路径追踪次数
+
+SHAPE_NONE      = 0 # 无形状
+SHAPE_SPHERE    = 1 # 球体
+SHAPE_BOX       = 2 # 箱体
 
 @ti.dataclass
 class Ray:  # 光线类
@@ -33,12 +39,14 @@ class Material:
 @ti.dataclass
 class Transform:
     position: vec3
+    scale: vec3
 
 @ti.dataclass
 class Object:
-    sd: float
-    mtl: Material
+    type: ti.u32
     trs: Transform
+    mtl: Material
+    sd: float
 
 @ti.dataclass
 class HitRecord:    # 光子碰撞记录类
@@ -103,19 +111,58 @@ def sd_sphere(p: vec3, r: float) -> float:  # SDF 球体
     return length(p) - r
 
 @ti.func
-def signed_distance(obj, pos: vec3) -> float:
-    p = pos - obj.trs.position
-    r = 0.5
-    sd = sd_sphere(p, r)
-    return sd
+def sd_box(p: vec3, b: vec3) -> float:  # SDF 盒子
+    q = abs(p) - b
+    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0)
 
 @ti.func
-def nearest_object(p: vec3) -> Object:
-    obj = Object()
-    obj.mtl.albedo = vec3(1, 0, 0)
-    obj.trs.position = vec3(0, 0, -1)
-    obj.sd = signed_distance(obj, p)
-    return obj
+def signed_distance(obj, pos: vec3) -> float:   # 对物体求 SDF 距离
+    position = obj.trs.position # 位置空间变换（下一步再实现旋转变换）
+    scale = obj.trs.scale   # 用缩放控制物体大小
+
+    p = pos - position
+    # 为不同形状选择不同的 SDF 函数
+    if obj.type == SHAPE_SPHERE:
+        obj.sd = sd_sphere(p, scale.x)
+    elif obj.type == SHAPE_BOX:
+        obj.sd = sd_box(p, scale)
+    else:
+        obj.sd = sd_sphere(p, scale.x)
+
+    return obj.sd   # 返回符号距离
+
+objects_num = 3 # 地图中物体的数量
+objects = Object.field(shape=objects_num)
+
+# 存放物体形状的场
+objects.type = [
+    SHAPE_SPHERE,
+    SHAPE_SPHERE, 
+    SHAPE_BOX
+]
+
+# 存放物体变换的场
+objects.trs = [
+    Transform(vec3(0, -100.5, -1), vec3(100)),
+    Transform(vec3(0, 0, -1), vec3(0.5)),
+    Transform(vec3(0, 0, -2), vec3(0.2, 0.3, 0.5))
+]
+
+# 存放物体材质的场
+objects.mtl = [
+    Material(vec3(1, 1, 1)), 
+    Material(vec3(1, 0, 0)), 
+    Material(vec3(0, 1, 0))
+]
+
+@ti.func
+def nearest_object(p: vec3) -> Object:  # 求最近物体
+    o = Object(sd=MAP_SIZE)
+    for i in ti.static(range(objects_num)):
+        oi = Object(type=objects.type[i], trs=objects.trs[i], mtl=objects.mtl[i])
+        oi.sd = signed_distance(oi, p)
+        if abs(oi.sd) < abs(o.sd): o = oi
+    return o
 
 @ti.func
 def calc_normal(obj, p: vec3) -> vec3:  # 计算物体法线
@@ -146,6 +193,67 @@ def sky_color(ray, time) -> vec3:
     blue = 0.5 * sin(time) + 0.5    # 计算蓝色分量
     return mix(vec3(1.0, 1.0, blue), vec3(0.5, 0.7, 1.0), t)    # 混合两种颜色
 
+@ti.func
+def pow5(x: float):
+    t = x*x
+    t *= t
+    return t*x
+
+@ti.func
+def TBN(N: vec3) -> mat3:   # 用世界坐标下的法线计算 TBN 矩阵
+    T = vec3(0)
+    B = vec3(0)
+    
+    if N.z < -0.99999:
+        T = vec3(0, -1, 0)
+        B = vec3(-1, 0, 0)
+    else:
+        a = 1.0 / (1.0 + N.z)
+        b = -N.x*N.y*a
+        
+        T = vec3(1.0 - N.x*N.x*a, b, -N.x)
+        B = vec3(b, 1.0 - N.y*N.y*a, -N.y)
+    
+    return mat3(T, B, N)
+
+@ti.func
+def hemispheric_sampling(n: vec3) -> vec3:  # 以 n 为法线进行半球采样
+    ra = ti.random() * 2 * pi
+    rb = ti.random()
+    
+    rz = sqrt(rb)
+    v = vec2(cos(ra), sin(ra))
+    rxy = sqrt(1.0 - rb) * v
+    
+    return TBN(n) @ vec3(rxy, rz)   # 用 TBN 矩阵将切线空间方向转换到世界空间
+
+@ti.func
+def raytrace(ray, time: float) -> Ray:
+    for i in range(MAX_RAYTRACE):
+        record = raycast(ray)   # 光线步进求交
+        
+        if not record.hit:
+            ray.color.rgb = sky_color(ray, time)  # 获取天空颜色
+            break
+
+        visible = length(ray.color.rgb*ray.color.a)
+        if visible < 0.001:  # 如果光已经衰减到不可分辨程度了就不继续了
+            break
+        
+        # 这里的法线会始终指向物体外面
+        normal = calc_normal(record.obj, record.position) # 计算法线
+        # ray.color.rgb = 0.5 + 0.5 * normal  # 设置为法线颜色
+
+        N = hemispheric_sampling(normal)    # 半球采样
+        ray.direction = reflect(ray.direction, N)  # 反射光线
+        ray.origin = record.position    # 设置光线起点
+        ray.color.rgb *= record.obj.mtl.albedo   # 设置为材质颜色
+        # ray.color.a *= 0.5  # 让强度衰减一些
+        if dot(normal, ray.direction) < 0:
+            ray.color.a = 0
+
+    return ray
+
 @ti.kernel
 def render(
     time: float, 
@@ -167,17 +275,12 @@ def render(
         camera.focus = 4                    # 设置对焦距离
 
         ray = camera.get_ray(uv, vec4(1.0)) # 生成光线
-
-        record = raycast(ray)   # 光线步进求交
-        normal = calc_normal(record.obj, record.position) # 计算法线
+        ray = raytrace(ray, time) # 光线追踪
         
-        if record.hit:
-            # ray.color.rgb *= record.obj.mtl.albedo   # 设置为材质颜色
-            ray.color.rgb = 0.5 + 0.5 * normal  # 设置为法线颜色
-        else:
-            ray.color.rgb = sky_color(ray, time)  # 获取天空颜色
-        
-        image_pixels[i, j] = ray.color.rgb  # 设置像素颜色
+        color = ray.color.rgb
+        # 伽马矫正
+        color = pow(color, vec3(0.5))
+        image_pixels[i, j] = color  # 设置像素颜色
 
 window = ti.ui.Window("Taichi Renderer", image_resolution)  # 创建窗口
 canvas = window.get_canvas()    # 获取画布
@@ -186,7 +289,7 @@ camera.position(0, 0, 4)        # 设置摄像机初始位置
 
 start_time = time.time()    # 获取程序开始时时间
 while window.running:
-    camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.LMB)   # 从用户输入更新摄像机
+    camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.LMB)
     delta_time = time.time() - start_time   # 计算时间差
     render(
         delta_time, 

@@ -15,7 +15,7 @@ TMAX        = 2000.0                # 最大单次光线传播距离
 PRECISION   = 0.0001                # 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
 MAP_SIZE    = float(0x7fffffff);    # 地图大小
 
-MAX_RAYMARCH = 512      # 最大光线步进次数
+MAX_RAYMARCH = 512  # 最大光线步进次数
 
 SHAPE_NONE      = 0 # 无形状
 SHAPE_SPHERE    = 1 # 球体
@@ -115,12 +115,12 @@ def sd_box(p: vec3, b: vec3) -> float:  # SDF 盒子
     return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0)
 
 @ti.func
-def signed_distance(obj, pos: vec3) -> float:
-    position = obj.trs.position
-    scale = obj.trs.scale
+def signed_distance(obj, pos: vec3) -> float:   # 对物体求 SDF 距离
+    position = obj.trs.position # 位置空间变换（下一步再实现旋转变换）
+    scale = obj.trs.scale   # 用缩放控制物体大小
 
     p = pos - position
-
+    # 为不同形状选择不同的 SDF 函数
     if obj.type == SHAPE_SPHERE:
         obj.sd = sd_sphere(p, scale.x)
     elif obj.type == SHAPE_BOX:
@@ -128,38 +128,40 @@ def signed_distance(obj, pos: vec3) -> float:
     else:
         obj.sd = sd_sphere(p, scale.x)
 
-    return obj.sd
+    return obj.sd   # 返回符号距离
 
-objects_num = 2
+objects_num = 2 # 地图中物体的数量
 objects = Object.field(shape=objects_num)
 
+# 存放物体形状的场
 objects.type = [
     SHAPE_SPHERE, 
     SHAPE_BOX
 ]
 
+# 存放物体变换的场
 objects.trs = [
     Transform(vec3(0, 0, -1), vec3(0.5)),
     Transform(vec3(0, 0, -2), vec3(0.2, 0.3, 0.5))
 ]
 
+# 存放物体材质的场
 objects.mtl = [
     Material(vec3(1, 0, 0)), 
     Material(vec3(0, 1, 0))
 ]
 
 @ti.func
-def nearest_object(p: vec3) -> Object:
+def nearest_object(p: vec3) -> Object:  # 求最近物体
     o = Object(sd=MAP_SIZE)
     for i in ti.static(range(objects_num)):
         oi = Object(type=objects.type[i], trs=objects.trs[i], mtl=objects.mtl[i])
         oi.sd = signed_distance(oi, p)
         if abs(oi.sd) < abs(o.sd): o = oi
-
     return o
 
-# 计算物体法线
-def calc_normal(obj, p: vec3) -> vec3:
+@ti.func
+def calc_normal(obj, p: vec3) -> vec3:  # 计算物体法线
     e = vec2(1, -1) * 0.5773 * 0.0005
     return normalize(   e.xyy*signed_distance(obj, p + e.xyy) + \
                         e.yyx*signed_distance(obj, p + e.yyx) + \
@@ -213,7 +215,7 @@ def render(
         normal = calc_normal(record.obj, record.position) # 计算法线
         
         if record.hit:
-            # ray.color.rgb = record.obj.mtl.albedo   # 设置为材质颜色
+            # ray.color.rgb *= record.obj.mtl.albedo   # 设置为材质颜色
             ray.color.rgb = 0.5 + 0.5 * normal  # 设置为法线颜色
         else:
             ray.color.rgb = sky_color(ray, time)  # 获取天空颜色
