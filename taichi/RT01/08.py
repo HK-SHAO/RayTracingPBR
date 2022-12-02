@@ -133,29 +133,19 @@ def signed_distance(obj, pos: vec3) -> float:   # 对物体求 SDF 距离
 objects_num = 2 # 地图中物体的数量
 objects = Object.field(shape=objects_num)
 
-# 存放物体形状的场
-objects.type = [
-    SHAPE_SPHERE, 
-    SHAPE_BOX
-]
+objects[0] = Object(type=SHAPE_SPHERE,
+                    trs=Transform(vec3(0, 0, -1), vec3(0.5)),
+                    mtl=Material(vec3(1, 0, 0)))
 
-# 存放物体变换的场
-objects.trs = [
-    Transform(vec3(0, 0, -1), vec3(0.5)),
-    Transform(vec3(0, 0, -2), vec3(0.2, 0.3, 0.5))
-]
-
-# 存放物体材质的场
-objects.mtl = [
-    Material(vec3(1, 0, 0)), 
-    Material(vec3(0, 1, 0))
-]
+objects[1] = Object(type=SHAPE_BOX,
+                    trs=Transform(vec3(0, 0, -2), vec3(0.2, 0.3, 0.5)),
+                    mtl=Material(vec3(0, 1, 0)))
 
 @ti.func
 def nearest_object(p: vec3) -> Object:  # 求最近的物体
-    o = Object(sd=MAP_SIZE)
-    for i in ti.static(range(objects_num)):
-        oi = Object(objects.type[i], trs=objects.trs[i], mtl=objects.mtl[i])
+    o = Object(sd=MAP_SIZE) # 设置一个最大的 SDF 值，即地图边界
+    for i in range(objects_num):
+        oi = objects[i]
         oi.sd = signed_distance(oi, p)
         if abs(oi.sd) < abs(o.sd): o = oi
     return o

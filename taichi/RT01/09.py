@@ -134,32 +134,23 @@ def signed_distance(obj, pos: vec3) -> float:   # 对物体求 SDF 距离
 objects_num = 3 # 地图中物体的数量
 objects = Object.field(shape=objects_num)
 
-# 存放物体形状的场
-objects.type = [
-    SHAPE_SPHERE,
-    SHAPE_SPHERE, 
-    SHAPE_BOX
-]
+objects[0] = Object(type=SHAPE_SPHERE,
+                    trs=Transform(vec3(0, -100.5, -1), vec3(100)),
+                    mtl=Material(vec3(1, 1, 1)))
 
-# 存放物体变换的场
-objects.trs = [
-    Transform(vec3(0, -100.5, -1), vec3(100)),
-    Transform(vec3(0, 0, -1), vec3(0.5)),
-    Transform(vec3(0, 0, -2), vec3(0.2, 0.3, 0.5))
-]
+objects[1] = Object(type=SHAPE_SPHERE,
+                    trs=Transform(vec3(0, 0, -1), vec3(0.5)),
+                    mtl=Material(vec3(1, 0, 0)))
 
-# 存放物体材质的场
-objects.mtl = [
-    Material(vec3(1, 1, 1)), 
-    Material(vec3(1, 0, 0)), 
-    Material(vec3(0, 1, 0))
-]
+objects[2] = Object(type=SHAPE_BOX,
+                    trs=Transform(vec3(0, 0, -2), vec3(0.2, 0.3, 0.5)),
+                    mtl=Material(vec3(0, 1, 0)))
 
 @ti.func
-def nearest_object(p: vec3) -> Object:  # 求最近物体
-    o = Object(sd=MAP_SIZE)
-    for i in ti.static(range(objects_num)):
-        oi = Object(type=objects.type[i], trs=objects.trs[i], mtl=objects.mtl[i])
+def nearest_object(p: vec3) -> Object:  # 求最近的物体
+    o = Object(sd=MAP_SIZE) # 设置一个最大的 SDF 值，即地图边界
+    for i in range(objects_num):
+        oi = objects[i]
         oi.sd = signed_distance(oi, p)
         if abs(oi.sd) < abs(o.sd): o = oi
     return o
@@ -229,7 +220,7 @@ def hemispheric_sampling(n: vec3) -> vec3:  # 以 n 为法线进行半球采样
 
 @ti.func
 def raytrace(ray, time: float) -> Ray:
-    for i in range(MAX_RAYTRACE):
+    for _ in range(MAX_RAYTRACE):
         record = raycast(ray)   # 光线步进求交
         
         if not record.hit:
@@ -248,9 +239,9 @@ def raytrace(ray, time: float) -> Ray:
         ray.direction = reflect(ray.direction, N)  # 反射光线
         ray.origin = record.position    # 设置光线起点
         ray.color.rgb *= record.obj.mtl.albedo   # 设置为材质颜色
-        # ray.color.a *= 0.5  # 让强度衰减一些
-        if dot(normal, ray.direction) < 0:
-            ray.color.a = 0
+        ray.color.a *= 0.5  # 让强度衰减一些
+        if dot(normal, ray.direction) < 0: # 如果光线反射到了物体内部，也直接跳出循环
+            break
 
     return ray
 
@@ -277,7 +268,7 @@ def render(
         ray = camera.get_ray(uv, vec4(1.0)) # 生成光线
         ray = raytrace(ray, time) # 光线追踪
         
-        color = ray.color.rgb
+        color = ray.color.rgb * ray.color.a
         # 伽马矫正
         color = pow(color, vec3(0.5))
         image_pixels[i, j] = color  # 设置像素颜色
