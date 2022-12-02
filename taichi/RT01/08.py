@@ -152,10 +152,10 @@ objects.mtl = [
 ]
 
 @ti.func
-def nearest_object(p: vec3) -> Object:  # 求最近物体
+def nearest_object(p: vec3) -> Object:  # 求最近的物体
     o = Object(sd=MAP_SIZE)
     for i in ti.static(range(objects_num)):
-        oi = Object(type=objects.type[i], trs=objects.trs[i], mtl=objects.mtl[i])
+        oi = Object(objects.type[i], trs=objects.trs[i], mtl=objects.mtl[i])
         oi.sd = signed_distance(oi, p)
         if abs(oi.sd) < abs(o.sd): o = oi
     return o
