@@ -1,23 +1,24 @@
 # Ray Tracing PBR
-<div style="text-align: center;">
+<center>
 <img src="./icon.png" width=100></img>
-</div>
+</center>
 
 - 团队名：追光小队
 - 项目名：用 Tichi 优化的基于 PBR 和 SDF 的实时光线追踪渲染器和可交互应用
 
 ![](./docs/Screenshots/p2.png)
+
 <div style="text-align: center;">渲染了100万面镜子</div>
 
 ## 简介
 
-实际上光线追踪是一个很传统的研究，但事实上高品质实时光线追踪是渲染领域的老大难问题，在高品质高效率的光照模型和光追降噪是一个值得研究的前沿问题。
+实际上光线追踪是一个很传统的研究，但高品质实时光线追踪仍然是渲染领域的老大难问题，在高品质高效率的光照模型和光追降噪是值得研究的问题。
 
-这次 taichi hackathon 我们实现了一种简洁高效的 PBR 光照模型，然后研究了 Intel 最新的一篇光追降噪论文，而且它看起确实还不错 :)
+这次 taichi hackathon 我们实现了一种简洁高效的 PBR 光照模型，还研究了 Intel 最新的一篇光追降噪论文，而且它看起确实还不错 :)
 
 此外，我们尝试将 taichi 与 Godot 游戏引擎结合，并成功的将我们的代码移植到了 Godot 中并顺利的跑了起来，而且为它做了一个可交互的 GUI 与用户操作逻辑。
 
-## 这三天我们做了什么？
+## 这**四天**我们做了什么？
 
 1. **从第零行代码开始，实现了基于 PBR 和 SDF 地图的实时光线追踪渲染器**
    - 这个渲染程序支持纹理映射，类似原理化 BSDF ，可以赋予反照率、粗糙度、金属度、透明度、折射率、法线贴图并渲染物体，并且支持自发光物体和光源
@@ -27,7 +28,7 @@
    - 这个渲染程序使用了 Godot 引擎的 GUI ，可以自由平滑的调整 `max samples`, `gamma`, `focus`, `aperture`, `exposure`, `camera speed`, `camera fov`, `light quality`, `resolution scaling` 等参数
    - 平滑自然的移动摄像机，以及自由的调整焦距和光圈等属性
    - 做了 ACES 色调映射算法
-2. **写了一篇 4W+ 字的用 taichi 实现 PBR 光追的科普文章**
+2. **写了一篇 4W+ 字的、用 taichi 实现 PBR 光追的科普文章**
    - https://shao.fun/blog/w/taichi-ray-tracing.html
    - 从零一步一步完成所有代码，代码包含大量注释
    - 制作了若干原创图讲解原理
@@ -37,16 +38,16 @@
 4. **尝试将 Godot 游戏引擎与 taichi 结合，实现在线可交互的光线追踪应用**
    - 探索 GDNative C++ 与 taichi 的结合
    - 在 Godot 中开发了一个插件 (addon) 用于演示我们的 demo
-   - 成功编译为 WebAssembly ，可以在浏览器中运行
-   - https://raytracing.shao.fun/
+   - 成功将代码编译为 WebAssembly ，可以在浏览器中运行
+   - 在线 demo: https://raytracing.shao.fun/
 5. **用 taichi 研究 Intel 一篇比较新和前沿的论文** [Temporally Stable Real-Time Joint Neural Denoising and Supersampling](https://www.intel.com/content/www/us/en/developer/articles/technical/temporally-stable-denoising-and-supersampling.html)，为满足实时光追，花了很多时间研究 1spp 下的光追降噪
-   - 尽最大努力实现了一部分 taichi 代码
+   - 尽最大努力实现了这个降噪的一部分 taichi 代码
 
 ## 不足之处
-1. 野心实在是太大了，比如还想做一个小游戏，但事实仍然有部分功能没时间实现或优化的更好，只好放弃
-2. 文章写的很赶，后面比较乱，有的地方没时间具体写了，得先赶项目设计，一会儿就要交了
+1. 野心实在是太大了，但能力不够，比如还想做一个互动小游戏，但事实因被 bug 消耗过多时间，仍然有部分功能没时间实现或优化的更好，只好放弃
+2. 为 taichi 写的科普文章写的比较赶，后面可能比较乱，有的地方没时间具体写了，得先赶答辩材料，一会儿就要交了
 3. 对 GDNative C++ 仍然还没有完全熟悉，如何将 taichi 与 Godot 引擎结合的更好，还需要大量工作，这三天真的肝不过来
-4. SDF 函数的非欧几里得空间变换仍然是个未解之谜（文章中提到），做出了妥协，用另一种次为优雅的方法实现了相似的效果
+4. SDF 函数的非欧几里得空间变换仍然是个未解之谜（文章中提到），因此做出了妥协，用另一种次为优雅的方法实现了相似的效果
 5. 没有进一步优化求交阶段的效率，例如使用 BVH 和其它更高的数据结构和算法，程序效率仍然有可优化空间
 6. 复现 Intel 的那篇光追降噪论文难度太大，不够有所收获，我们尽了最大努力实现了一部分代码
 

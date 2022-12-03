@@ -1,7 +1,13 @@
 # Taichi: 从零开始的光线追踪
 
 ::: info
-本文为 Taichi Hackathon 2022 所写
+- 本文是追光小队为 Taichi Hackathon 2022 所写
+- GitHub 仓库在 https://github.com/HK-SHAO/RayTracingPBR
+- 在线效果演示 [raytracing.shao.fun](https://raytracing.shao.fun)
+:::
+
+::: warning
+三天极限开发，爆肝写文，笔者也只是业余爱好者，本文可能会有诸多纰漏和错误，真诚期望读者能在评论区指出，谢谢啦！
 :::
 
 ![100万面镜子的渲染图](./images/taichi/banner.jpg)
@@ -66,7 +72,7 @@ GPU 拥有大量处理单元，可以同时处理大量任务[^tbos]
 
 |![](./images/taichi/29.jpg)|![](./images/taichi/30.jpg)|
 |:-:|:-:|
-|你能一眼分辨出这是 AI 画的吗？|你能一眼分辨出这渲染的吗？[^pbrbook]|
+|你能一眼分辨出这是 AI 画的吗？|你能一眼分辨出这是游戏渲染的吗？[^pbrbook]|
 
 [^pbrbook]: Physically Based Rendering:From Theory To Implementation. https://www.pbr-book.org/
 
@@ -93,9 +99,8 @@ ti gallery
 ### Taichi 速查表
 
 ::: info
-- 这份速查表[^cheatsheet]来自 Taichi 开发团队的 GitHub 仓库，它可以帮助你快速了解 Taichi 的基本语法。
-- 我为它创建了一个可在线查看的 SVG 版本，你可以在这里获取
-- [Taichi Lang Cheatsheet SVG](/blog/p/taichi-lang-cheatsheet-svg.md)
+- 这份速查表[^cheatsheet]来自 Taichi 开发团队的 GitHub 仓库，它可以帮助你快速了解 Taichi 的基本语法
+- 我为它创建了一个可在线查看的 SVG 版本，你可以在这里获取 [Taichi Lang Cheatsheet SVG](/blog/p/taichi-lang-cheatsheet-svg.md)
 :::
 
 [^cheatsheet]: Taichi Language Cheatsheet. https://github.com/taichi-dev/cheatsheet
@@ -113,11 +118,20 @@ Taichi 语言速查表
 
 现在，我会教你使用 Taichi 定义一个向量场，然后使用 GPU 绘制一片紫色并显示在窗口中。
 
-你也许已经知道，显示设备显示图像的原理是每个像素以混合不同强度的红绿蓝 (RGB) 三色光的方式显示五彩斑斓的颜色，而在计算机中也最常用 RGB 色彩空间来处理颜色。紫色是由红色光与蓝色光混合而成，绿色光的强度为 0 ，所以我们用 `vec3(1, 0, 1)` 表示紫色。
+你也许已经知道，显示设备显示图像的原理是每个像素以混合不同强度的红绿蓝 (RGB) 三色光的方式[^rgbmod]显示五彩斑斓的颜色，而在计算机中也最常用 RGB 色彩空间来处理颜色。紫色是由红色光与蓝色光混合而成，绿色光的强度为 0 ，所以我们用 `vec3(1, 0, 1)` 表示紫色。
 
-我们将图像视为一个二维的、由像素组成的向量场，每个像素都有一个颜色值，用一个三维的向量表示 RGB 三个分量的强度，且每个分量被标准化到 0 和 1 之间，用 0 表示强度最弱，用 1 表示强度最强。在 Taichi 中，我们先用 `ti.init(arch=ti.gpu)` 初始化 Taichi ，并告诉它我们要将程序在 GPU 中加速运行，然后使用 `ti.Vector.field` 来定义一个向量场。
+[^rgbmod]: RGB color model. https://en.wikipedia.org/wiki/RGB_color_model
 
-这个场的大小便是图像的分辨率，在这里我们设置为常见的 `1920x1080` ，即 1920 个像素宽、1080 个像素高的图像。然后，我们在用 `ti.kernel` 装饰 Taichi 运行时的入口（这里是 `render` 函数），使用 Taichi 的并行 `for` 为每个像素赋予紫色 `vec3(1, 0, 1)` 。最后我们用 `ti.ui.Window` 创建一个窗口，并用 `canvas.set_image` 将这个场绘制到窗口的画布中。
+::: center
+![](./images/taichi/RGB_pixels_on_a_CRT_monitor.jpg =300x)  
+放大看显示器，实际上是由 RGB 像素构成的[^rgbmod]
+:::
+
+我们将图像视为一个二维的、由像素组成的向量场[^vecf]，每个像素都有一个颜色值，用一个三维的向量表示 RGB 三个分量的强度，且每个分量被标准化到 0 和 1 之间，用 0 表示强度最弱，用 1 表示强度最强。在 Taichi 中，我们先用 `ti.init(arch=ti.gpu)` 初始化 Taichi ，并告诉它我们要将程序在 GPU 中加速运行，然后使用 `ti.Vector.field` 来定义一个向量场。
+
+[^vecf]: Vector field. https://en.wikipedia.org/wiki/Vector_field
+
+这个场的大小便是图像的分辨率，在这里我们设置为常见的 `1920x1080` ，即 1920 个像素宽、1080 个像素高的图像。然后，我们在用 `ti.kernel` 装饰 Taichi 运行时的入口（这里是 `render` 函数），使用 Taichi 的并行 `for` 为每个像素赋予紫色 `vec3(1, 0, 1)` 。最后我们用 `ti.ui.Window` 创建一个窗口[^tiggui]，并用 `canvas.set_image` 将这个场绘制到窗口的画布中。
 
 创建一个 `00.py` 文本文件，输入下面的代码。
 
@@ -769,7 +783,9 @@ def signed_distance(obj, pos: vec3) -> float:
 
 ## 移动摄像机
 
-在之前的章节，我们已经为我们的 taichi 程序创建了一个摄像机类。为了方便我们在不同位置和角度观察物体，这一章我们会利用 taichi 内置的 `ti.ui.Camera()` 来创建一个 freelook 摄像机，并将它与我们渲染程序中的摄像机类进行绑定。
+在之前的章节，我们已经为我们的 taichi 程序创建了一个摄像机类。为了方便我们在不同位置和角度观察物体，这一章我们会利用 taichi GGUI 内置的 `ti.ui.Camera()` 来创建一个 freelook 摄像机[^tiggui]，并将它与我们渲染程序中的摄像机类进行绑定。
+
+[^tiggui]: A New UI system: GGUI. https://docs.taichi-lang.org/docs/ggui
 
 创建摄像机很简单，在初始化画布后实例化一个摄像机，然后为其设置初始位置
 
@@ -1503,7 +1519,9 @@ ray = PBR(ray, record, normal)  # 应用 PBR 材质
 
 ### 读取图片
 
-第一步当然是读取图片啦。使用 taichi 的 `ti.tools.imread` 函数读取图片为 numpy 数组，然后将其转换为 `vec3.field` 。下面的 `texture` 函数可以用归一化的 uv 坐标访问像素值。
+第一步当然是读取图片啦。使用 taichi 的 `ti.tools.imread` 函数读取图片[^tiimr]为 numpy 数组，然后将其转换为 `vec3.field` 。下面的 `texture` 函数可以用归一化的 uv 坐标访问像素值。
+
+[^tiimr]: taichi.tools.image https://docs.taichi-lang.org/api/taichi/tools/image/
 
 ```python
 @ti.data_oriented
@@ -1591,7 +1609,7 @@ def ACESFitted(color: vec3) -> vec3:    # ACES 色调映射
 - https://github.com/HK-SHAO/RayTracingPBR/blob/taichi/taichi/RT01/14.py
 :::
 
-## 进一步降噪
+## AI 降噪
 
 ::: info
 Intel 的这篇论文提出了一种效果极佳的光追降噪，[Temporally Stable Real-Time Joint Neural Denoising and Supersampling](https://www.intel.com/content/www/us/en/developer/articles/technical/temporally-stable-denoising-and-supersampling.html)
