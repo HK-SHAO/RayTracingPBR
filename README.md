@@ -1,9 +1,13 @@
 # Ray Tracing PBR
+<div style="text-align: center;">
+<img src="./icon.png" width=100></img>
+</div>
 
 - 团队名：追光小队
 - 项目名：用 Tichi 优化的基于 PBR 和 SDF 的实时光线追踪渲染器和可交互应用
 
 ![](./docs/Screenshots/p2.png)
+<div style="text-align: center;">渲染了100万面镜子</div>
 
 ## 这三天我们做了什么？
 
@@ -47,23 +51,34 @@
 ## 展示图
 
 ![](./docs/Screenshots/Godot%20Screenshot%202022.12.01%20-%2016.45.28.31.png)
+<div style="text-align: center;">经典的球</div>
 
 ![](./docs/Screenshots/Godot%20Screenshot%202022.12.01%20-%2022.30.44.63.png)
+<div style="text-align: center;">纹理映射</div>
 
 ![](./docs/Screenshots/Godot%20Screenshot%202022.12.02%20-%2016.56.57.76.png)
+<div style="text-align: center;">金属物体</div>
 
 ![](./docs/Screenshots/Godot%20Screenshot%202022.12.01%20-%2022.42.38.51.png)
 
-纹理映射和应用法线贴图
+<div style="text-align: center;">纹理映射和应用法线贴图</div>
 
 ![](./docs/Screenshots/Godot%20Screenshot%202022.12.02%20-%2018.26.30.90.png)
 
-各种奇奇怪怪的 SDF 形状
+<div style="text-align: center;">各种奇奇怪怪的 SDF 形状</div>
 
 ![](./docs/Screenshots/p1.png)
 
+<div style="text-align: center;">自发光物体与透明体积物体</div>
+
 ![](./docs/Screenshots/p3.png)
+
+<div style="text-align: center;">物体放在玻璃立方体内部</div>
 
 ![](./docs/Screenshots/p4.png)
 
+<div style="text-align: center;">玻璃立方体内部出现的全反射</div>
+
 ![](./docs/Screenshots/p5.png)
+
+<div style="text-align: center;">镜中镜</div>
