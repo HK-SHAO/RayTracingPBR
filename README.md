@@ -28,6 +28,7 @@
    - 这个渲染程序使用了 Godot 引擎的 GUI ，可以自由平滑的调整 `max samples`, `gamma`, `focus`, `aperture`, `exposure`, `camera speed`, `camera fov`, `light quality`, `resolution scaling` 等参数
    - 平滑自然的移动摄像机，以及自由的调整焦距和光圈等属性
    - 做了 ACES Fitted 色调映射算法
+   - 上传了 bilibili 视频：[Taichi: 从零开始的光线追踪](https://www.bilibili.com/video/BV17v4y1o7GA/)
 2. **写了一篇 4W+ 字的、用 taichi 实现 PBR 光追的科普文章**
    - https://shao.fun/blog/w/taichi-ray-tracing.html
    - 从零一步一步完成所有代码，代码包含大量注释
@@ -35,13 +36,14 @@
 3. **为 Taichi Language Cheatsheet 做了一个在线 SVG 版本**
    - https://github.com/HK-SHAO/taichi-cheatsheet-svg
    - https://shao.fun/taichi-cheatsheet-svg/
+   - 并为 Taichi Language Cheatsheet 原仓库提交了两个 pr
 4. **尝试将 Godot 游戏引擎与 taichi 结合，实现在线可交互的光线追踪应用**
    - 探索 GDNative C++ 与 taichi 的结合
    - 在 Godot 中开发了一个插件 (addon) 用于演示我们的 demo
    - 成功将代码编译为 WebAssembly ，可以在浏览器中运行
    - 在线 demo: https://raytracing.shao.fun/
 5. **用 taichi 研究 Intel 一篇比较新和前沿的论文** [Temporally Stable Real-Time Joint Neural Denoising and Supersampling](https://www.intel.com/content/www/us/en/developer/articles/technical/temporally-stable-denoising-and-supersampling.html)，为满足实时光追，花了很多时间研究 1spp 下的光追降噪
-   - 尽最大努力实现了这个降噪的一部分 taichi 代码
+   - 我们尽最大努力实现了这个降噪的一部分 taichi 代码
 
 ## 不足之处
 1. 野心实在是太大了，但能力不够，比如还想做一个互动小游戏，但事实因被 bug 消耗过多时间，仍然有部分功能没时间实现或优化的更好，只好放弃
