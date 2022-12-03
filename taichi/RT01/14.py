@@ -437,6 +437,8 @@ def render(
         color = ray.color.rgb * ray.color.a # 混合颜色与光强
 
         color = pow(color, vec3(0.5))   # 伽马矫正
+        exposure = 1.5
+        color *= exposure
         color = ACESFitted(color)       # ACES 色调映射
         last_color = image_pixels[i, j] # 获取上一帧的颜色
         out_color = mix(last_color, color, 1.0 / denoise_frame) # 混合当前帧和上一帧的颜色
