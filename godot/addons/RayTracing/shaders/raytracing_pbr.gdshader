@@ -177,8 +177,8 @@ float sd_cylinder(vec3 p, vec2 rh) {
 
 // SDF test
 float sd_test(vec3 p, vec3 b) {
-    vec3 c = vec3(3.0);
-    p = p-c*clamp(round(p/c), -10, 10);
+//    vec3 c = vec3(3.0);
+//    p = p-c*clamp(round(p/c), -10, 10);
     vec3 q = abs(p) - b;
     float d1 = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
 //    float d2 = 0.05*displacement(p);
@@ -300,15 +300,15 @@ object nearest_object(vec3 p, inout random rand) {
             )
         ),
         object(SHAPE_BOX, NONE,
-            transform(  vec3(0, 0, -2),
+            transform(  vec3(0, 0, 0),
                         vec3(0, 0, 0),
-                        vec3(2, 1, 0.2)
+                        vec3(2, 2, 2)
             ),
             material(vec3(1.0, 1.0, 1.0),   // 基础色
                         0.0, // 粗糙度
-                        1.0,  // 金属度
-                        0.0,  // 透明度
-                        1.0,  // 折射率
+                        0.0,  // 金属度
+                        1.0,  // 透明度
+                        1.5,  // 折射率
                         vec4(0), // 自发光
                         vec3(0, 0, 1) // 切线空间法线
             )
@@ -473,6 +473,7 @@ vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout random rand) 
     vec2 v = vec2(cos(ra), sin(ra));
     vec2 rxy = sqrt(abs(1.0 - rz*rz)) * v;
     
+    // WIP: 待优化，这边 TBN 矩阵可以只算一次
     return TBN(n) * vec3(rxy, rz);
 }
 
@@ -487,6 +488,7 @@ ray PBR(ray r, inout record rec, inout random rand) {
     float ior = rec.obj.mtl.ior;
     
     // 光线和物体表面参数
+    vec3 I = r.direction;
     vec3 V  = -r.direction;
     vec3 P  = rec.position;
     vec3 N  = TBN(normal) * calc_normal(rec.obj, P);
@@ -506,25 +508,31 @@ ray PBR(ray r, inout record rec, inout random rand) {
         N  *= outer;
         
         float F0 = (eta - 1.0) / (eta + 1.0);
-        F0 *= 5.0 * F0; // 让透明材质的反射更明显一些
+        F0 *= F0; // 让透明材质的反射更明显一些
         float F = fresnel_schlick(NoV, F0);
         N = hemispheric_sampling_roughness(N, roughness, rand);
         
-        if (noise(rand) < F + metallic && outer > 0.0) {
-            L = reflect(r.direction, N);
+        float NoI = -NoV;
+        float k = 1.0 - eta * eta * (1.0 - NoI * NoI);
+        
+        // k < 0 全反射
+        // 为啥是 outer ？
+        if (noise(rand) < F + metallic && outer > 0.0 || k < 0.0) {
+            L = reflect(I, N); // 为透明材质带来菲涅尔反射
 //            r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
         } else {
-            L = refract(r.direction, N, eta);
+            // TODO: 替换掉 refract 优化效率
+//            L = eta * I - (eta * NoI + sqrt(k)) * N;
+            L = refract(I, N, eta);
 //            L = -L * sign(dot(L, N));
         }
     } else {
-        const float F0 = 0.04;
-        float F = fresnel_schlick_roughness(NoV, F0, roughness);
+        float F = fresnel_schlick_roughness(NoV, 0.04, roughness);
     
         // 反射或者漫反射
         if (noise(rand) < F + metallic) {
             N = hemispheric_sampling_roughness(N, roughness, rand);
-            L = reflect(r.direction, N);
+            L = reflect(I, N);
         } else {
             // 漫反射
             L = hemispheric_sampling(N, rand);
@@ -559,7 +567,9 @@ ray raytrace(ray r, inout random rand) {
         float visible = length(r.color.rgb*r.color.a);
         if (visible <= 0.001 || noise(rand) < roulette_prob) {
             r.color *= roulette_prob;
-            break;
+            // 测试光线反射次数
+//            r.color.rgba = vec4(1.0,0.0,0.0,1.0);
+            return r;
         }
         
         // 与地图求交
@@ -574,13 +584,13 @@ ray raytrace(ray r, inout random rand) {
         if (!rec.hit) {
             r.color *= sky(r);
 //            r.color *= 0.0;
-            break;
+            return r;
         }
         
         // 处理自发光
         if (abs(rec.obj.mtl.emission.a) > 0.0) {
             r.color.rgb *= rec.obj.mtl.emission.rgb*rec.obj.mtl.emission.a;
-            break;
+            return r;
         }
         
         // 应用 PBR 材质
