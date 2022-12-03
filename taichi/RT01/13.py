@@ -10,6 +10,7 @@ image_pixels = ti.Vector.field(3, float, image_resolution)  # 图像的像素场
 aspect_ratio = image_resolution[0] / image_resolution[1]    # 图像宽高比
 
 # 配置常量
+
 TMIN        = 0.001                 # 光开始传播的起始偏移，避免光线自相交
 TMAX        = 2000.0                # 最大单次光线传播距离
 PRECISION   = 0.0001                # 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
@@ -21,6 +22,22 @@ MAX_RAYTRACE = 512  # 最大路径追踪次数
 SHAPE_NONE      = 0 # 无形状
 SHAPE_SPHERE    = 1 # 球体
 SHAPE_BOX       = 2 # 箱体
+
+ENV_IOR = 1.000277  # 环境的折射率
+
+@ti.data_oriented
+class Image:
+    def __init__(self, path: str):
+        self.img = ti.tools.imread(path)
+        self.img = self.img.astype("float32")
+        self.img = self.img / 255.0
+        self.img = vec3.field(shape=self.img.shape)
+        self.img.from_numpy(self.img.to_numpy())
+
+    def texture(self, uv: vec2):
+        x = int(uv.x * self.img.shape[0])
+        y = int(uv.y * self.img.shape[1])
+        return self.img[x, y]
 
 @ti.dataclass
 class Ray:  # 光线类
@@ -34,7 +51,13 @@ class Ray:  # 光线类
 
 @ti.dataclass
 class Material:
-    albedo: vec3    # 材质颜色
+    albedo: vec3        # 材质颜色
+    roughness: float    # 材质粗糙度
+    metallic: float     # 材质金属度
+    transmission: float # 材质透明度
+    ior: float          # 材质折射率
+    emission: vec4       # 材质自发光
+    normal: vec3        # 切线空间法线
 
 @ti.dataclass
 class Transform:
@@ -131,27 +154,39 @@ def signed_distance(obj, pos: vec3) -> float:   # 对物体求 SDF 距离
 
     return obj.sd   # 返回符号距离
 
-objects_num = 3 # 地图中物体的数量
-objects = Object.field(shape=objects_num)
+objects_num = 6 # 地图中物体的数量
+objects = Object.field(shape=objects_num)   # 存放物体的场
 
 objects[0] = Object(type=SHAPE_SPHERE,
-                    trs=Transform(vec3(0, -100.5, -1), vec3(100)),
-                    mtl=Material(vec3(1, 1, 1)*0.9))
+                    trs=Transform(vec3(0, -100.5, 0), vec3(100)),
+                    mtl=Material(vec3(1, 1, 1), 1, 1, 0, 1, vec4(0), vec3(0, 0, 1)))
 
-objects[1] = Object(type=SHAPE_SPHERE,
-                    trs=Transform(vec3(0, 0, -1), vec3(0.5)),
-                    mtl=Material(vec3(1, 0, 0)*0.9))
+objects[1] = Object(type=SHAPE_BOX,
+                    trs=Transform(vec3(0, 0, -2), vec3(2, 1, 0.2)),
+                    mtl=Material(vec3(1, 1, 1), 0, 1, 0, 1, vec4(0), vec3(0, 0, 1)))
 
-objects[2] = Object(type=SHAPE_BOX,
-                    trs=Transform(vec3(0, 0, -2), vec3(0.2, 0.3, 0.5)),
-                    mtl=Material(vec3(0, 1, 0)*0.9))
+objects[2] = Object(type=SHAPE_SPHERE,
+                    trs=Transform(vec3(0, 0, 0), vec3(0.5)),
+                    mtl=Material(vec3(1, 1, 1), 1, 0, 0, 1, vec4(0.1, 1, 0.1, 10), vec3(0, 0, 1)))
+
+objects[3] = Object(type=SHAPE_SPHERE,
+                    trs=Transform(vec3(-1, -0.2, 0), vec3(0.3)),
+                    mtl=Material(vec3(1, 0.1, 0.1), 0.9, 0.1, 0, 1, vec4(0), vec3(0, 0, 1)))
+
+objects[4] = Object(type=SHAPE_SPHERE,
+                    trs=Transform(vec3(1, -0.2, 0), vec3(0.3)),
+                    mtl=Material(vec3(0.1, 0.1, 1), 0.2, 1, 0, 1, vec4(0), vec3(0, 0, 1)))
+
+objects[5] = Object(type=SHAPE_SPHERE,
+                    trs=Transform(vec3(0.5, -0.2, -1), vec3(0.3)),
+                    mtl=Material(vec3(0.9, 0.9, 1), 0, 0, 1, 1.5, vec4(0), vec3(0, 0, 1)))
 
 @ti.func
 def nearest_object(p: vec3) -> Object:  # 求最近的物体
     o = Object(sd=MAP_SIZE) # 设置一个最大的 SDF 值，即地图边界
     for i in range(objects_num):
         oi = objects[i]
-        oi.sd = signed_distance(oi, p)
+        oi.sd = signed_distance(oi, p)  # 求物体的 SDF 值
         if abs(oi.sd) < abs(o.sd): o = oi
     return o
 
@@ -178,6 +213,18 @@ def raycast(ray) -> HitRecord:  # 光线步进求交
             break
     return record   # 返回光子碰撞记录
 
+inv_atan = vec2(0.1591, 0.3183)
+def sample_spherical_map(v: vec3) -> vec2:  # 球面坐标到笛卡尔坐标
+    uv = vec2(atan2(v.z, v.x), asin(v.y))
+    uv *= inv_atan
+    uv += 0.5
+    return uv
+
+@ti.func
+def IBL(ray, img) -> vec3:    # 光照环境光
+    uv = sample_spherical_map(ray.direction)
+    return img.texture(uv)
+
 @ti.func
 def sky_color(ray, time) -> vec3:
     t = 0.5 * ray.direction.y + 0.5 # 将 y 分量归一化
@@ -185,25 +232,29 @@ def sky_color(ray, time) -> vec3:
     return mix(vec3(1.0, 1.0, blue), vec3(0.5, 0.7, 1.0), t)    # 混合两种颜色
 
 @ti.func
-def pow5(x: float):
+def pow5(x: float): # 快速计算 x 的 5 次方
     t = x*x
     t *= t
     return t*x
 
 @ti.func
 def TBN(N: vec3) -> mat3:   # 用世界坐标下的法线计算 TBN 矩阵
+    # Building an Orthonormal Basis from a 3D Unit Vector Without Normalization
+    # https://doi.org/10.1080/2165347X.2012.689606
     T = vec3(0)
     B = vec3(0)
     
+    # 这个判断条件是为了避免出现除 0 的情况
+    # 精度要根据浮点数精度调整
     if N.z < -0.99999:
         T = vec3(0, -1, 0)
         B = vec3(-1, 0, 0)
     else:
-        a = 1.0 / (1.0 + N.z)
+        a = 1 / (1 + N.z)
         b = -N.x*N.y*a
         
-        T = vec3(1.0 - N.x*N.x*a, b, -N.x)
-        B = vec3(b, 1.0 - N.y*N.y*a, -N.y)
+        T = vec3(1 - N.x*N.x*a, b, -N.x)
+        B = vec3(b, 1 - N.y*N.y*a, -N.y)
     
     return mat3(T, B, N)
 
@@ -214,9 +265,79 @@ def hemispheric_sampling(n: vec3) -> vec3:  # 以 n 为法线进行半球采样
     
     rz = sqrt(rb)
     v = vec2(cos(ra), sin(ra))
-    rxy = sqrt(1.0 - rb) * v
+    rxy = sqrt(1 - rb) * v
     
     return TBN(n) @ vec3(rxy, rz)   # 用 TBN 矩阵将切线空间方向转换到世界空间
+
+@ti.func
+def hemispheric_sampling_roughness(n: vec3, roughness: float) -> vec3:  # 用粗糙度采样沿向量 n 半球采样
+    ra = ti.random() * 2 * pi
+    rb = ti.random()
+
+    shiny = pow5(roughness) # 光感越大高光越锐利
+    
+    rz = sqrt((1.0 - rb) / (1.0 + (shiny - 1.0)*rb))
+    v = vec2(cos(ra), sin(ra))
+    rxy = sqrt(abs(1 - rz*rz)) * v
+    
+    return TBN(n) @ vec3(rxy, rz)
+
+@ti.func
+def fresnel_schlick(cosine: float, F0: float) -> float:   # 计算菲涅尔近似值
+    return F0 + (1 - F0) * pow5(abs(1 - cosine))
+
+@ti.func
+def fresnel_schlick_roughness(cosine: float, F0: float, roughness: float) -> float:  # 计算粗糙度下的菲涅尔近似值
+    return F0 + (max(1 - roughness, F0) - F0) * pow5(abs(1 - cosine))
+
+@ti.func
+def PBR(ray, record, normal: vec3) -> Ray:
+    roughness = record.obj.mtl.roughness        # 获取粗糙度
+    metallic = record.obj.mtl.metallic          # 获取金属度
+    transmission = record.obj.mtl.transmission  # 获取透明度
+    ior = record.obj.mtl.ior                    # 获取折射率
+
+    I = ray.direction   # 入射方向
+    V = -ray.direction  # 观察方向
+    # 将材质的切线空间法线转换到世界空间
+    N = TBN(record.obj.mtl.normal) @ normal   # 法线方向
+
+    NoV = dot(N, V)
+
+    if ti.random() < transmission:  # 折射部分
+        eta = ENV_IOR / ior # 折射率之比
+        outer = sign(NoV)   # 大于零就是穿入物体，小于零是穿出物体
+        eta = pow(eta, outer)   # 更改折射率之比
+        N  *= outer   # 如果是穿出物体表面，就更改法线方向
+
+        NoI = -NoV
+        k = 1.0 - eta * eta * (1.0 - NoI * NoI) # 这个值如果小于 0 就说明全反射了
+
+        F0 = (eta - 1) / (eta + 1)  # 基础反射率
+        F0 *= F0
+        F = fresnel_schlick(NoV, F0)
+        N = hemispheric_sampling_roughness(N, roughness)    # 根据粗糙度抖动法线方向
+    
+        if ti.random() < F + metallic and outer > 0:
+            ray.direction = reflect(I, N)   # 反射
+        else:
+            # ray.direction = refract(I, N, eta)    # 折射
+            ray.direction = eta * I - (eta * NoI + sqrt(k)) * N
+    else:
+        F = fresnel_schlick_roughness(NoV, 0.04, roughness)
+        if ti.random() < F + metallic:  # 反射部分
+            N = hemispheric_sampling_roughness(N, roughness)
+            ray.direction = reflect(I, N)   # 平面反射
+        else:   # 漫反射部分
+            ray.direction = hemispheric_sampling(N)  # 半球采样
+
+    # N = hemispheric_sampling_roughness(N, 0)
+    # ray.direction = reflect(I, N)
+    
+    ray.origin = record.position    # 更新光线起点
+    ray.color.rgb *= record.obj.mtl.albedo   # 更新光的颜色
+
+    return ray
 
 @ti.func
 def raytrace(ray, time: float) -> Ray:
@@ -234,12 +355,16 @@ def raytrace(ray, time: float) -> Ray:
         # 这里的法线会始终指向物体外面
         normal = calc_normal(record.obj, record.position) # 计算法线
         # ray.color.rgb = 0.5 + 0.5 * normal  # 设置为法线颜色
+        # break
 
-        N = hemispheric_sampling(normal)    # 半球采样
-        ray.direction = reflect(ray.direction, N)  # 反射光线
-        ray.origin = record.position    # 设置光线起点
-        ray.color.rgb *= record.obj.mtl.albedo   # 设置为材质颜色
-        ray.color.a *= 0.5  # 让强度衰减一些
+        # 处理自发光
+        emission = record.obj.mtl.emission
+        if abs(record.obj.mtl.emission.a) > 0.0:
+            ray.color.rgb *= emission.rgb*emission.a
+            break
+
+        ray = PBR(ray, record, normal)  # 应用 PBR 材质
+
         if dot(normal, ray.direction) < 0: # 如果光线反射到了物体内部，也直接跳出循环
             break
 

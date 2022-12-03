@@ -136,15 +136,15 @@ objects = Object.field(shape=objects_num)
 
 objects[0] = Object(type=SHAPE_SPHERE,
                     trs=Transform(vec3(0, -100.5, -1), vec3(100)),
-                    mtl=Material(vec3(1, 1, 1)))
+                    mtl=Material(vec3(1, 1, 1)*0.9))
 
 objects[1] = Object(type=SHAPE_SPHERE,
                     trs=Transform(vec3(0, 0, -1), vec3(0.5)),
-                    mtl=Material(vec3(1, 0, 0)))
+                    mtl=Material(vec3(1, 0, 0)*0.9))
 
 objects[2] = Object(type=SHAPE_BOX,
                     trs=Transform(vec3(0, 0, -2), vec3(0.2, 0.3, 0.5)),
-                    mtl=Material(vec3(0, 1, 0)))
+                    mtl=Material(vec3(0, 1, 0)*0.9))
 
 @ti.func
 def nearest_object(p: vec3) -> Object:  # 求最近的物体
@@ -224,7 +224,7 @@ def raytrace(ray, time: float) -> Ray:
         record = raycast(ray)   # 光线步进求交
         
         if not record.hit:
-            ray.color.rgb = sky_color(ray, time)  # 获取天空颜色
+            ray.color.rgb *= sky_color(ray, time)  # 获取天空颜色
             break
 
         visible = length(ray.color.rgb*ray.color.a)
@@ -253,8 +253,8 @@ def render(
     camera_up: vec3):   # 渲染函数
 
     for i, j in image_pixels:   # 并行遍历像素场
-        resolution = vec2(image_resolution)
-        uv = vec2(i, j) / resolution    # 计算像素坐标
+        SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
+        uv = vec2(i, j) * SCREEN_PIXEL_SIZE # 计算像素坐标
 
         camera = Camera()
         camera.lookfrom = camera_position   # 设置摄像机位置

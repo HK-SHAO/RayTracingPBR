@@ -154,8 +154,8 @@ def render(
     camera_up: vec3):   # 渲染函数
 
     for i, j in image_pixels:   # 并行遍历像素场
-        resolution = vec2(image_resolution)
-        uv = vec2(i, j) / resolution    # 计算像素坐标
+        SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
+        uv = vec2(i, j) * SCREEN_PIXEL_SIZE # 计算像素坐标
 
         camera = Camera()
         camera.lookfrom = camera_position   # 设置摄像机位置

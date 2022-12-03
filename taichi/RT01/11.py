@@ -39,6 +39,7 @@ class Material:
 @ti.dataclass
 class Transform:
     position: vec3
+    rotation: vec3
     scale: vec3
 
 @ti.dataclass
@@ -116,11 +117,25 @@ def sd_box(p: vec3, b: vec3) -> float:  # SDF 盒子
     return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0)
 
 @ti.func
+def rotate(a: vec3) -> mat3: # 欧拉角到旋转矩阵
+    s = sin(a)
+    c = cos(a)
+    return  mat3(   vec3( c.z,  s.z,    0),
+                    vec3(-s.z,  c.z,    0),
+                    vec3(   0,    0,    1)) @\
+            mat3(   vec3( c.y,    0, -s.y),
+                    vec3(   0,    1,    0),
+                    vec3( s.y,    0,  c.y)) @\
+            mat3(   vec3(   1,    0,    0),
+                    vec3(   0,  c.x,  s.x),
+                    vec3(   0, -s.x,  c.x)  )
+
+@ti.func
 def signed_distance(obj, pos: vec3) -> float:   # 对物体求 SDF 距离
     position = obj.trs.position # 位置空间变换（下一步再实现旋转变换）
     scale = obj.trs.scale   # 用缩放控制物体大小
 
-    p = pos - position
+    p = rotate(obj.trs.rotation) @ (pos - position)
     # 为不同形状选择不同的 SDF 函数
     if obj.type == SHAPE_SPHERE:
         obj.sd = sd_sphere(p, scale.x)
@@ -135,15 +150,15 @@ objects_num = 3 # 地图中物体的数量
 objects = Object.field(shape=objects_num)
 
 objects[0] = Object(type=SHAPE_SPHERE,
-                    trs=Transform(vec3(0, -100.5, -1), vec3(100)),
+                    trs=Transform(vec3(0, -100.5, -1), vec3(0), vec3(100)),
                     mtl=Material(vec3(1, 1, 1)*0.9))
 
 objects[1] = Object(type=SHAPE_SPHERE,
-                    trs=Transform(vec3(0, 0, -1), vec3(0.5)),
+                    trs=Transform(vec3(0, 0, -1), vec3(0), vec3(0.5)),
                     mtl=Material(vec3(1, 0, 0)*0.9))
 
 objects[2] = Object(type=SHAPE_BOX,
-                    trs=Transform(vec3(0, 0, -2), vec3(0.2, 0.3, 0.5)),
+                    trs=Transform(vec3(0, 0, -2), vec3(0), vec3(0.2, 0.3, 0.5)),
                     mtl=Material(vec3(0, 1, 0)*0.9))
 
 @ti.func
