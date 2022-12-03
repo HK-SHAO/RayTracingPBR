@@ -1,13 +1,14 @@
+![](./docs/Screenshots/p2.png)
+<div align=center>渲染100万面镜子</div>
+
+---
+
 # Ray Tracing PBR
 
 <div align=center><img src="./icon.png" width=100></img></div>
 
 - 团队名：追光小队
 - 项目名：用 Tichi 优化的基于 PBR 和 SDF 的实时光线追踪渲染器和可交互应用
-
-![](./docs/Screenshots/p2.png)
-
-<div align=center>渲染100万面镜子</div>
 
 ## 简介
 
@@ -26,7 +27,7 @@
    - 这个渲染程序支持 BTDF ，可以渲染出神奇的透射和折射现象
    - 这个渲染程序使用了 Godot 引擎的 GUI ，可以自由平滑的调整 `max samples`, `gamma`, `focus`, `aperture`, `exposure`, `camera speed`, `camera fov`, `light quality`, `resolution scaling` 等参数
    - 平滑自然的移动摄像机，以及自由的调整焦距和光圈等属性
-   - 做了 ACES 色调映射算法
+   - 做了 ACES Fitted 色调映射算法
 2. **写了一篇 4W+ 字的、用 taichi 实现 PBR 光追的科普文章**
    - https://shao.fun/blog/w/taichi-ray-tracing.html
    - 从零一步一步完成所有代码，代码包含大量注释
