@@ -34,6 +34,7 @@ class Image:
         self.img = vec3.field(shape=self.img.shape)
         self.img.from_numpy(self.img.to_numpy())
 
+    @ti.func
     def texture(self, uv: vec2):
         x = int(uv.x * self.img.shape[0])
         y = int(uv.y * self.img.shape[1])
@@ -214,6 +215,8 @@ def raycast(ray) -> HitRecord:  # 光线步进求交
     return record   # 返回光子碰撞记录
 
 inv_atan = vec2(0.1591, 0.3183)
+
+@ti.func
 def sample_spherical_map(v: vec3) -> vec2:  # 球面坐标到笛卡尔坐标
     uv = vec2(atan2(v.z, v.x), asin(v.y))
     uv *= inv_atan
