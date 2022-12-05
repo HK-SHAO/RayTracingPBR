@@ -18,7 +18,7 @@
 
 实际上光线追踪是一个很传统的研究，但高品质实时光线追踪仍然是渲染领域的老大难问题，高品质高性能的光照模型和光线追踪与降噪是值得研究的问题。
 
-这次 taichi hackathon 我们实现了一种简洁高效的 PBR 光照模型，还研究了 Intel 最新的一篇光追降噪论文，而且它看起确实还不错 :)
+这次 [taichi hackathon](https://forum.taichi-lang.cn/t/topic/3647/) 我们实现了一种简洁高效的 PBR 光照模型，还研究了 Intel 最新的一篇光追降噪论文，而且它看起确实还不错 :)
 
 此外，我们尝试将 taichi 与 Godot 游戏引擎结合，并成功的将我们的代码移植到了 Godot 中并顺利的跑了起来，而且为它做了一个可交互的 GUI 与用户操作逻辑。
 
@@ -35,6 +35,7 @@
    - 上传了 bilibili 视频：[Taichi: 从零开始的光线追踪](https://www.bilibili.com/video/BV17v4y1o7GA/)
 2. **写了一篇 4W+ 字的、用 taichi 实现 PBR 光追的科普文章**
    - https://shao.fun/blog/w/taichi-ray-tracing.html
+   - https://forum.taichi-lang.cn/t/topic/3665/
    - 从零一步一步完成所有代码，代码包含大量注释
    - 制作了若干原创图讲解原理
 3. **为 Taichi Language Cheatsheet 做了一个在线 SVG 版本**
