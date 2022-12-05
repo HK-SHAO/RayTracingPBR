@@ -57,7 +57,7 @@ class Material:
     metallic: float     # 材质金属度
     transmission: float # 材质透明度
     ior: float          # 材质折射率
-    emission: vec4       # 材质自发光
+    emission: vec4      # 材质自发光
     normal: vec3        # 切线空间法线
 
 @ti.dataclass
@@ -214,7 +214,7 @@ def raycast(ray) -> HitRecord:  # 光线步进求交
             break
     return record   # 返回光子碰撞记录
 
-inv_atan = vec2(0.1591, 0.3183)
+inv_atan = vec2(0.5 / pi, 1 / pi)
 
 @ti.func
 def sample_spherical_map(v: vec3) -> vec2:  # 球面坐标到笛卡尔坐标

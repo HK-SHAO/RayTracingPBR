@@ -413,7 +413,7 @@ record raycast(ray r, inout random rand) {
 }
 
 // 球面坐标到笛卡尔坐标
-const vec2 inv_atan = vec2(0.1591, 0.3183);
+const vec2 inv_atan = vec2(0.5 / PI, 1.0 / PI);
 vec2 sample_spherical_map(vec3 v) {
     vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
     uv *= inv_atan;
