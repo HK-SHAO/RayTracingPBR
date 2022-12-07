@@ -28,11 +28,9 @@ ENV_IOR = 1.000277  # 环境的折射率
 @ti.data_oriented
 class Image:
     def __init__(self, path: str):
-        self.img = ti.tools.imread(path)
-        self.img = self.img.astype("float32")
-        self.img = self.img / 255.0
-        self.img = vec3.field(shape=self.img.shape)
-        self.img.from_numpy(self.img.to_numpy())
+        img = ti.tools.imread(path).astype('float32') / 255
+        self.img = vec3.field(shape=img.shape)
+        self.img.from_numpy(img.to_numpy())
 
     @ti.func
     def texture(self, uv: vec2):
