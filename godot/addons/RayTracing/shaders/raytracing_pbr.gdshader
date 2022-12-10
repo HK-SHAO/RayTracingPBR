@@ -15,7 +15,6 @@ uniform float frame             = 1.0;                  // 降噪帧
 
 // 传入贴图
 uniform sampler2D environment_hdri;                     // 环境 HDRi 贴图
-uniform sampler2D noise_map;                            // 噪声采样贴图
 
 // 配置常量
 const float TMIN        = 0.001;                        // 光开始传播的起始偏移，避免光线自相交
@@ -94,6 +93,15 @@ struct random {
     float value;        // 上次的随机值
 };
 
+// 对三维向量进行哈希
+float hash(vec3 x) {
+    uvec3 p = floatBitsToUint(x);
+    p = 1103515245U * ((p.xyz >> 1U) ^ (p.yzx));
+    uint h32 = 1103515245U * ((p.x ^ p.z) ^ (p.y >> 3U));
+    uint n = h32 ^ (h32 >> 16U);
+    return float(n) * (1.0 / float(0x7fffffff));
+}
+
 // 生成归一化随机数
 float noise(inout random r) {
     r.value = fract(sin(r.seed++)*43758.5453123);
@@ -155,7 +163,7 @@ float sd_sphere(vec3 p, float s) {
 // SDF 盒子
 float sd_box(vec3 p, vec3 b) {
     vec3 q = abs(p) - b;
-    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
+    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - 0.02;
 }
 
 // SDF 圆柱
@@ -209,9 +217,9 @@ const object map[] = {
                     vec3(0, 0, 0),
                     vec3(100, 0, 0)
         ),
-        material(vec3(1.0, 1.0, 1.0)*0.3,   // 基础色
-                    1.0, // 粗糙度
-                    0.0, // 金属度
+        material(vec3(1.0, 1.0, 1.0)*0.1,   // 基础色
+                    0.0, // 粗糙度
+                    1.0, // 金属度
                     0.0, // 透明度
                     1.0, // 折射率
                     vec3(1), // 自发光
@@ -603,7 +611,7 @@ void fragment() {
     
     // 用 UV 和时间初始化随机数发生器种子
     random rand;
-    rand.seed  = texture(noise_map, uv).r;
+    rand.seed  = hash(vec3(uv, TIME));
 
     // 超采样
     uv += vec2(noise(rand), noise(rand)) * SCREEN_PIXEL_SIZE;
