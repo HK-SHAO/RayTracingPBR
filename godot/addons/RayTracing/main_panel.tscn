@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://ubje1c34mpqe"]
+[gd_scene load_steps=13 format=3 uid="uid://ubje1c34mpqe"]
 
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/raytracing_pbr.gdshader" id="1_0w4fs"]
 [ext_resource type="Script" path="res://addons/RayTracing/main_panel.gd" id="1_3yfr2"]
@@ -8,21 +8,33 @@
 [ext_resource type="Texture2D" uid="uid://d0erk6s4c5shr" path="res://addons/RayTracing/textures/environment/kloofendal_48d_partly_cloudy_puresky_4k.hdr" id="4_d5yv7"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_405kx"]
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_pm6f5"]
+noise_type = 4
+seed = 107647
+frequency = 1.0
+fractal_type = 0
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_afses"]
+width = 654
+height = 335
+noise = SubResource("FastNoiseLite_pm6f5")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_l0uw7"]
 shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 2.0
+shader_parameter/camera_aspect = 1.95224
 shader_parameter/camera_exposure = 1.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 0.5
-shader_parameter/camera_position = Vector3(0, 0, 4)
-shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/camera_position = Vector3(3.9444, 1.1781, 4.75285)
+shader_parameter/camera_rotation = Basis(0.51548, -0.211967, 0.830166, 0, 0.968789, 0.247382, -0.85681, -0.127525, 0.49945)
 shader_parameter/camera_vfov = 30.0
 shader_parameter/environment_hdri = ExtResource("4_d5yv7")
-shader_parameter/frame = 668.0
-shader_parameter/light_quality = 0.02
+shader_parameter/frame = 242.0
+shader_parameter/light_quality = 0.0001
+shader_parameter/noise_map = SubResource("NoiseTexture2D_afses")
 
-[sub_resource type="GDScript" id="GDScript_anl67"]
+[sub_resource type="GDScript" id="GDScript_ld1um"]
 script/source = "@tool
 
 extends ColorRect
@@ -32,13 +44,16 @@ extends ColorRect
 
 var frame: float = 0
 var max_sample: float = 1024
+var noise_map: NoiseTexture2D
 
 func _ready() -> void:
     viewport.size_changed.connect(on_resize)
-    resized.connect(on_resize)
+    noise_map = material.get_shader_parameter(\"noise_map\")
     
 func on_resize():
-        frame = -1
+    noise_map.width = viewport.size.x
+    noise_map.height = viewport.size.y
+    frame = -1
 
 func _process(_delta: float) -> void:
     if frame >= max_sample:
@@ -53,9 +68,10 @@ func _process(_delta: float) -> void:
     frame += 1
 
     material.set_shader_parameter(\"frame\", frame)
+    noise_map.noise.seed += 1
 "
 
-[sub_resource type="Environment" id="Environment_i5uib"]
+[sub_resource type="Environment" id="Environment_8d0cr"]
 background_mode = 3
 background_canvas_max_layer = 1
 
@@ -109,14 +125,14 @@ render_target_update_mode = 4
 [node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
 texture_filter = 1
-material = SubResource("ShaderMaterial_405kx")
+material = SubResource("ShaderMaterial_l0uw7")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 mouse_filter = 2
-script = SubResource("GDScript_anl67")
+script = SubResource("GDScript_ld1um")
 metadata/_edit_use_anchors_ = true
 
 [node name="always_uniform_camera" type="Node" parent="Control/RayTracing/SubViewport/ShaderRect"]
@@ -386,7 +402,7 @@ anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -400.0
-offset_bottom = 346.0
+offset_bottom = 310.0
 grow_horizontal = 0
 mouse_filter = 2
 theme_override_constants/margin_left = 30
@@ -418,7 +434,7 @@ text = "FPS"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "90"
+text = "60"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -432,7 +448,7 @@ text = "Sampling"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "667"
+text = "241"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -453,6 +469,7 @@ layout_mode = 2
 theme_override_constants/separation = 12
 
 [node name="PanelContainer" type="PanelContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
+visible = false
 layout_mode = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer/PanelContainer"]
@@ -556,7 +573,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 1
 mouse_default_cursor_shape = 2
 min_value = 1.0
-max_value = 944.0
+max_value = 1552.0
 value = 3.0
 exp_edit = true
 allow_greater = true
@@ -576,7 +593,7 @@ max_speed = 1000.0
 smooth = 10.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="Node3D"]
-environment = SubResource("Environment_i5uib")
+environment = SubResource("Environment_8d0cr")
 
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/max_sample_s" to="." method="_on_max_sample_s_value_changed"]
 [connection signal="value_changed" from="HUD/MarginContainer/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer4/gamma_s" to="." method="_on_gamma_s_value_changed"]

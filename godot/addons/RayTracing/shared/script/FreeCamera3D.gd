@@ -7,7 +7,6 @@ extends Camera3D
 @export_range(0, 10, 0.01) var sensitivity:float = 3
 @export_range(0, 1000, 0.1) var velocity:float = 5
 @export_range(0, 1, 0.0001) var acceleration:float = 0.01
-@export_range(0, 10, 0.01) var speed_scale:float = 1.01
 @export var max_speed:float = 1000
 @export var min_speed:float = 0.0
 @export_range(0, 100, 0.01) var smooth:float = 10
@@ -63,11 +62,6 @@ func gui_input(event: InputEvent) -> void:
                     Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
                     captured = false
                     control.warp_mouse(captured_position)
-
-            MOUSE_BUTTON_WHEEL_UP: # increase fly velocity
-                max_speed *= speed_scale
-            MOUSE_BUTTON_WHEEL_DOWN: # decrease fly velocity
-                max_speed /= speed_scale
 
 func set_rotation(rot: Vector3):
     rotation = rot

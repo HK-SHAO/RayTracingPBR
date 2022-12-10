@@ -94,15 +94,6 @@ struct random {
     float value;        // 上次的随机值
 };
 
-// 对三维向量进行哈希
-float hash(vec3 x) {
-    uvec3 p = floatBitsToUint(x);
-    p = 1103515245U * ((p.xyz >> 1U) ^ (p.yzx));
-    uint h32 = 1103515245U * ((p.x ^ p.z) ^ (p.y >> 3U));
-    uint n = h32 ^ (h32 >> 16U);
-    return float(n) * (1.0 / float(0x7fffffff));
-}
-
 // 生成归一化随机数
 float noise(inout random r) {
     r.value = fract(sin(r.seed++)*43758.5453123);
@@ -473,8 +464,7 @@ ray PBR(ray r, inout record rec, inout random rand) {
         float NoI = -NoV;
         float k = 1.0 - eta * eta * (1.0 - NoI * NoI);
         
-        // k < 0 全反射
-        // 为啥是 outer ？
+        // k < 0 全反射，为啥是 outer ？
         if (noise(rand) < F + metallic && outer > 0.0 || k < 0.0) {
             L = reflect(I, N); // 为透明材质带来菲涅尔反射
 //            r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
@@ -613,7 +603,7 @@ void fragment() {
     
     // 用 UV 和时间初始化随机数发生器种子
     random rand;
-    rand.seed  = hash(vec3(uv, TIME)) + texture(noise_map, uv).r;
+    rand.seed  = texture(noise_map, uv).r;
 
     // 超采样
     uv += vec2(noise(rand), noise(rand)) * SCREEN_PIXEL_SIZE;
@@ -635,5 +625,6 @@ void fragment() {
 
     // 测试随机数
 //    color = vec3(noise(rand), noise(rand), noise(rand));
+//    color = vec3(texture(noise_map, uv).r);
     COLOR = vec4(color, 1.0);
 }

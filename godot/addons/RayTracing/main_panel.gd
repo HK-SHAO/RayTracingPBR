@@ -111,8 +111,6 @@ func _on_resolution_s_value_changed(value: float) -> void:
     stretch_shrink = int(value)
     %resolution.text = "1/" + str(stretch_shrink)
     (%RayTracing as SubViewportContainer).stretch_shrink = stretch_shrink
-    (%PostProcess as SubViewportContainer).stretch_shrink = stretch_shrink
-    (%Denoise as SubViewportContainer).stretch_shrink = stretch_shrink
 
 
 func _on_camera_exposure_s_value_changed(value: float) -> void:
