@@ -11,15 +11,18 @@ uniform float camera_aperture   = 0.005;                // 摄像机的光圈大
 uniform float camera_exposure   = 1.0;                  // 摄像机曝光值
 uniform float camera_gamma      = 0.2;                  // gamma 矫正值
 uniform float light_quality     = 0.2;                  // 间接光质量
+uniform float frame             = 1.0;                  // 降噪帧
 
 // 传入贴图
 uniform sampler2D environment_hdri;                     // 环境 HDRi 贴图
+uniform sampler2D noise_map;                            // 噪声采样贴图
 
 // 配置常量
 const float TMIN        = 0.001;                        // 光开始传播的起始偏移，避免光线自相交
 const float TMAX        = 2000.0;                       // 最大单次光线传播距离
 const float PRECISION   = 0.0001;                       // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
 const float MAP_SIZE    = float(0x7fffffff);            // 地图大小
+const float VISIBILITY  = 0.001;                        // 亮度可见度
 
 const uint MAX_RAYMARCH = 512U;                         // 最大光线步进次数
 const uint MAX_RAYTRACE = 512U;                         // 最大光线追踪次数
@@ -30,7 +33,6 @@ const float ENV_IOR = 1.000277;                         // 环境的折射率
 const int SHAPE_SPHERE      = 0;
 const int SHAPE_BOX         = 1;
 const int SHAPE_CYLINDER    = 2;
-const int SHAPE_TEST        = 3;
 
 const float NONE = 0.0;
 
@@ -38,7 +40,7 @@ const float NONE = 0.0;
 struct ray {
     vec3 origin;        // 光的起点
     vec3 direction;     // 光的方向
-    vec4 color;         // 光的颜色
+    vec3 color;         // 光的颜色
 };
 
 // 物体材质
@@ -48,7 +50,7 @@ struct material {
     float metallic;     // 金属度
     float transmission; // 透明度
     float ior;          // 折射率
-    vec4 emission;      // 自发光 (RGB, Intensity)
+    vec3 emission;      // 自发光
     vec3 normal;        // 切线空间法线
 };
 
@@ -120,7 +122,7 @@ vec2 random_in_unit_disk(inout random seed) {
 }
 
 // 从摄像机获取光线
-ray get_ray(camera c, vec2 uv, vec4 color, inout random rand) {
+ray get_ray(camera c, vec2 uv, vec3 color, inout random rand) {
     // 根据 VFOV 和显示画布长宽比计算传感器长宽
     float theta = radians(c.vfov);
     float half_height = tan(theta * 0.5);
@@ -171,20 +173,6 @@ float sd_cylinder(vec3 p, vec2 rh) {
     return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
 }
 
-//float displacement(vec3 p) {
-//    return sin(20.0*p.x)*sin(20.0*p.y)*sin(20.0*p.z);
-//}
-
-// SDF test
-float sd_test(vec3 p, vec3 b) {
-//    vec3 c = vec3(3.0);
-//    p = p-c*clamp(round(p/c), -10, 10);
-    vec3 q = abs(p) - b;
-    float d1 = length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
-//    float d2 = 0.05*displacement(p);
-    return d1 - 0.01;
-}
-
 // 欧拉角转旋转矩阵
 mat3 angle(vec3 a) {
     vec3 s = sin(a), c = cos(a);
@@ -218,145 +206,115 @@ float signed_distance(object obj, vec3 pos) {
             return sd_box(p, scale);
         case SHAPE_CYLINDER:
             return sd_cylinder(p, scale.xy);
-        case SHAPE_TEST:
-            return sd_test(p, scale);
         default:
             return sd_sphere(p, scale.x);
     }
 }
 
-// 找到最近的物体并计算距离
-object nearest_object(vec3 p, inout random rand) {
-    // 地图
-    object map[] = {
-        object(SHAPE_SPHERE, NONE,
-            transform(  vec3(0, -100.5, 0),
-                        vec3(0, 0, 0),
-                        vec3(100, 0, 0)
-            ),
-            material(vec3(1.0, 1.0, 1.0)*0.3,   // 基础色
-                        0.0, // 粗糙度
-                        1.0, // 金属度
-                        0.0, // 透明度
-                        1.0, // 折射率
-                        vec4(0), // 自发光
-                        vec3(0, 0, 1) // 切线空间法线
-            )
+// 地图
+const object map[] = {
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0, -100.5, 0),
+                    vec3(0, 0, 0),
+                    vec3(100, 0, 0)
         ),
-        object(SHAPE_SPHERE, NONE,
-            transform(  vec3(0, 0, 0),
-                        vec3(0, 0, 0),
-                        vec3(0.5, 0, 0)
-            ),
-            material(vec3(1.0, 1.0, 1.0),   // 基础色
-                        1.0, // 粗糙度
-                        0.0, // 金属度
-                        0.0, // 透明度
-                        1.0, // 折射率
-                        vec4(0.1, 1.0, 0.1, 10.0), // 自发光
-                        vec3(0, 0, 1) // 切线空间法线
-            )
-        ),
-        object(SHAPE_CYLINDER, NONE,
-            transform(  vec3(-1.0, -0.3, 0),
-                        vec3(0, 0, 0),
-                        vec3(0.3, 0.33, 0)
-            ),
-            material(vec3(1.0, 0.1, 0.1),   // 基础色
-                        0.9, // 粗糙度
-                        0.1, // 金属度
-                        0.0, // 透明度
-                        1.0, // 折射率
-                        vec4(0), // 自发光
-                        vec3(0, 0, 1) // 切线空间法线
-            )
-        ),
-        object(SHAPE_SPHERE, NONE,
-            transform(  vec3(1.0, -0.2, 0),
-                        vec3(0, 0, 0),
-                        vec3(0.3, 0, 0)
-            ),
-            material(vec3(0.1, 0.1, 1.0),   // 基础色
-                        0.2, // 粗糙度
-                        1.0, // 金属度
-                        0.0, // 透明度
-                        1.0, // 折射率
-                        vec4(0), // 自发光
-                        vec3(0, 0, 1) // 切线空间法线
-            )
-        ),
-        object(SHAPE_SPHERE, NONE,
-            transform(  vec3(0.5, -0.2, -1),
-                        vec3(0, 0, 0),
-                        vec3(0.3, 0, 0)
-            ),
-            material(vec3(0.9, 0.9, 0.9),   // 基础色
-                        0.0, // 粗糙度
-                        0.0, // 金属度
-                        1.0, // 透明度
-                        1.5, // 折射率
-                        vec4(0), // 自发光
-                        vec3(0, 0, 1) // 切线空间法线
-            )
-        ),
-        object(SHAPE_BOX, NONE,
-            transform(  vec3(0, 0, 0),
-                        vec3(0, 0, 0),
-                        vec3(2, 2, 2)
-            ),
-            material(vec3(1.0, 1.0, 1.0),   // 基础色
-                        0.0, // 粗糙度
-                        0.0,  // 金属度
-                        1.0,  // 透明度
-                        1.5,  // 折射率
-                        vec4(0), // 自发光
-                        vec3(0, 0, 1) // 切线空间法线
-            )
-        ),
-        object(SHAPE_BOX, NONE,
-            transform(  vec3(0, 0, 5),
-                        vec3(0, 0, 0),
-                        vec3(2, 1, 0.2)
-            ),
-            material(vec3(1.0, 1.0, 1.0),   // 基础色
-                        0.0, // 粗糙度
-                        1.0,  // 金属度
-                        0.0,  // 透明度
-                        1.0,  // 折射率
-                        vec4(0), // 自发光
-                        vec3(0, 0, 1) // 切线空间法线
-            )
-        ),
-        object(SHAPE_SPHERE, NONE,
-            transform(  vec3(0.5, -0.2, 0.8),
-                        vec3(0, 0, 0),
-                        vec3(0.3 + 0.0009*noise(rand), 0, 0)
-            ),
-            material(vec3(10.0, 10.0, 10.0),   // 基础色
-                        1.0, // 粗糙度
-                        0.0, // 金属度
-                        0.0, // 透明度
-                        1.0, // 折射率
-                        vec4(0), // 自发光
-                        vec3(0, 0, 1) // 切线空间法线
-            )
-        ),
-        object(SHAPE_TEST, NONE,
-            transform(  vec3(0.5, 1, 0.8),
-                        vec3(0, 0, 0),
-                        vec3(0.7, 0.5, 0.3)
-            ),
-            material(vec3(1.0, 1.0, 1.0),   // 基础色
-                        0.0, // 粗糙度
-                        1.0, // 金属度
-                        0.0, // 透明度
-                        1.0, // 折射率
-                        vec4(0), // 自发光
-                        vec3(0, 0, 1) // 切线空间法线
-            )
+        material(vec3(1.0, 1.0, 1.0)*0.3,   // 基础色
+                    1.0, // 粗糙度
+                    0.0, // 金属度
+                    0.0, // 透明度
+                    1.0, // 折射率
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
         )
-    };
-    
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0, 0, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.5, 0, 0)
+        ),
+        material(vec3(1.0, 1.0, 1.0),   // 基础色
+                    1.0, // 粗糙度
+                    0.0, // 金属度
+                    0.0, // 透明度
+                    1.0, // 折射率
+                    vec3(0.1, 1.0, 0.1)*10.0, // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
+        )
+    ),
+    object(SHAPE_CYLINDER, NONE,
+        transform(  vec3(-1.0, -0.3, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0.33, 0)
+        ),
+        material(vec3(1.0, 0.1, 0.1),   // 基础色
+                    0.9, // 粗糙度
+                    0.1, // 金属度
+                    0.0, // 透明度
+                    1.0, // 折射率
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(1.0, -0.2, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0, 0)
+        ),
+        material(vec3(0.1, 0.1, 1.0),   // 基础色
+                    0.2, // 粗糙度
+                    1.0, // 金属度
+                    0.0, // 透明度
+                    1.0, // 折射率
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0.0, -0.24, 3),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0, 0)
+        ),
+        material(vec3(1.0, 1.0, 1.0)*0.9,   // 基础色
+                    0.0, // 粗糙度
+                    0.0, // 金属度
+                    1.0, // 透明度
+                    1.5, // 折射率
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
+        )
+    ),
+    object(SHAPE_BOX, NONE,
+        transform(  vec3(0, 0, 0),
+                    vec3(0, 0, 0),
+                    vec3(2, 2, 2)
+        ),
+        material(vec3(1.0, 1.0, 1.0)*0.99,   // 基础色
+                    0.0, // 粗糙度
+                    0.0,  // 金属度
+                    1.0,  // 透明度
+                    1.5,  // 折射率
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
+        )
+    ),
+    object(SHAPE_BOX, NONE,
+        transform(  vec3(0, 0, 5),
+                    vec3(0, 0, 0),
+                    vec3(2, 1, 0.2)
+        ),
+        material(vec3(1.0, 1.0, 1.0),   // 基础色
+                    0.0, // 粗糙度
+                    1.0,  // 金属度
+                    0.0,  // 透明度
+                    1.0,  // 折射率
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1) // 切线空间法线
+        )
+    )
+};
+
+// 找到最近的物体并计算距离
+object nearest_object(vec3 p) {
     object o; o.sd = MAP_SIZE;
     for (int i = 0; i < map.length(); i++) {
         object oi = map[i];
@@ -394,11 +352,11 @@ mat3 TBN(vec3 N) {
 }
 
 // 光线步进
-record raycast(ray r, inout random rand) {
+record raycast(ray r) {
     record rec; rec.t = TMIN;
     for(uint i = 0U; i < MAX_RAYMARCH && rec.t < TMAX; i++) {
         rec.position = at(r, rec.t);
-        object obj = nearest_object(rec.position, rand);
+        object obj = nearest_object(rec.position);
         float dis = abs(obj.sd);
         if (dis < PRECISION) {
             rec.obj = obj;
@@ -492,7 +450,7 @@ ray PBR(ray r, inout record rec, inout random rand) {
     vec3 V  = -r.direction;
     vec3 P  = rec.position;
     vec3 N  = TBN(normal) * calc_normal(rec.obj, P);
-    vec3 C  = r.color.rgb;
+    vec3 C  = r.color;
     vec3 L;
     
     float NoV = dot(N, V);
@@ -539,21 +497,21 @@ ray PBR(ray r, inout record rec, inout random rand) {
         }
 
         // 如果光射到表面下面就直接吸收掉
-        r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
+        r.color *= (sign(dot(L, N)) + 1.0) * 0.5;
     }
-    
-//    const float brightness = 1.0; // 光强
-//    const float pdf = 1.0; // 重要性采样
-//    C *= albedo * brightness / pdf;
 
     C *= albedo;
 
     // 更新光的方向和颜色
-    r.color.rgb = C;
+    r.color = C;
     r.origin = P;
     r.direction = L;
     
     return r;
+}
+
+float brightness(vec3 rgb) {
+    return dot(rgb, vec3(0.299, 0.587, 0.114));
 }
 
 // 光线追踪
@@ -564,53 +522,45 @@ ray raytrace(ray r, inout random rand) {
         float roulette_prob = 1.0 - (1.0 / inv_pdf);
     
         // 光被吸收掉或者光线毙掉就不用继续了
-        float visible = length(r.color.rgb*r.color.a);
-        if (visible <= 0.001 || noise(rand) < roulette_prob) {
+        float visible = brightness(r.color);
+        if (visible <= VISIBILITY || noise(rand) < roulette_prob) {
             r.color *= roulette_prob;
-            // 测试光线反射次数
-//            r.color.rgba = vec4(1.0,0.0,0.0,1.0);
-            return r;
+            break;
         }
         
-        // 与地图求交
-        record rec = raycast(r, rand);
+        // 能量守恒
+        r.color *= inv_pdf;
         
-        //  测试法线
-//        r.color.rgb = 0.5 + 0.5*calc_normal(rec.obj, rec.position);
-//        r.color.a = 1.0;
-//        break;
+        // 与地图求交
+        record rec = raycast(r);
         
         // 没击中物体就肯定击中天空
         if (!rec.hit) {
-            r.color *= sky(r);
-//            r.color *= 0.0;
-            return r;
+            vec4 color = sky(r) * 2.0;
+            r.color *= color.rgb*color.a;
+            break;
         }
         
         // 处理自发光
-        if (abs(rec.obj.mtl.emission.a) > 0.0) {
-            r.color.rgb *= rec.obj.mtl.emission.rgb*rec.obj.mtl.emission.a;
-            return r;
+        r.color *= rec.obj.mtl.emission;
+        if (brightness(rec.obj.mtl.emission) > 1.0) {
+            break;
         }
         
         // 应用 PBR 材质
         r = PBR(r, rec, rand);
-        
-        // 能量守恒
-        r.color *= inv_pdf;
     }
 
     return r;
 }
 
 // 一次采样
-vec3 sample(camera cam, vec2 uv, vec4 color, inout random rand) {
+vec3 sample(camera cam, vec2 uv, vec3 color, inout random rand) {
     // 获取光线并逆向追踪光线
     ray r = get_ray(cam, uv, color, rand);
         r = raytrace(r, rand);
     
-    // 对光的颜色进行后处理得到像素颜色
-    return r.color.rgb * r.color.a;
+    return r.color;
 }
 
 // ACES fitted
@@ -663,27 +613,25 @@ void fragment() {
     
     // 用 UV 和时间初始化随机数发生器种子
     random rand;
-    rand.seed  = hash(vec3(uv, TIME));
+    rand.seed  = hash(vec3(uv, TIME)) + texture(noise_map, uv).r;
 
     // 超采样
     uv += vec2(noise(rand), noise(rand)) * SCREEN_PIXEL_SIZE;
     
     // 对每个光子经过的表面采样一次
-    vec3 color = sample(cam, uv, vec4(1), rand);
-    
-    // 单帧内多重采样
-//    const uint N = 10U;
-//    for (uint i = 0U; i < N; i++) {
-//        color += sample(cam, uv, vec4(1), rand);
-//    }
-//    color = color / float(N + 1U);
-
-    // 伽马矫正
-    color.rgb = pow(color.rgb, vec3(camera_gamma));
+    vec3 color = sample(cam, uv, vec3(1), rand);
 
     // 色调映射 (ACES Tone Mapping)
     color *= camera_exposure;
-    color.rgb = ACESFitted(color.rgb);
+    color = ACESFitted(color);
+    
+    // 伽马矫正
+    color = pow(color, vec3(camera_gamma));
+    
+    // 混合历史的帧来降噪
+    color = clamp(color, 0, 1);
+    vec3 back = texture(SCREEN_TEXTURE, SCREEN_UV).rgb;
+    color = mix(back, color, 1.0 / max(1.0, frame));
 
     // 测试随机数
 //    color = vec3(noise(rand), noise(rand), noise(rand));

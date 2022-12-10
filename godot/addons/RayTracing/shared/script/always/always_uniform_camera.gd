@@ -7,8 +7,6 @@ extends Node
 var material: ShaderMaterial
 var control: Control
 
-var post_process_material: ShaderMaterial
-
 var gamma: float = 0.5
 var exposure: float = 1.0
 var focus: float = 2.0
@@ -19,8 +17,6 @@ var quality: float = 50
 func _ready() -> void:
     control = %ShaderRect as Control
     material = control.material
-    
-    post_process_material = %PostProcessShader.material
 
 
 func _process(_delta: float) -> void:
