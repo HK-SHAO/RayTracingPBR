@@ -9,7 +9,7 @@ uniform float camera_vfov       = 30.0;                 // 摄像机的纵向视
 uniform float camera_focus      = 2.0;                  // 摄像机的对焦距离
 uniform float camera_aperture   = 0.005;                // 摄像机的光圈大小
 uniform float camera_exposure   = 1.0;                  // 摄像机曝光值
-uniform float camera_gamma      = 0.2;                  // gamma 矫正值
+uniform float camera_gamma      = 2.2;                  // gamma 矫正值
 uniform float light_quality     = 0.2;                  // 间接光质量
 uniform float frame             = 1.0;                  // 降噪帧
 
@@ -18,9 +18,8 @@ uniform sampler2D environment_hdri;                     // 环境 HDRi 贴图
 
 // 配置常量
 const float TMIN        = 0.001;                        // 光开始传播的起始偏移，避免光线自相交
-const float TMAX        = 2000.0;                       // 最大单次光线传播距离
+const float TMAX        = 2000.0;                       // 最大单次光线传播距离 (相当于可见范围)
 const float PRECISION   = 0.0001;                       // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
-const float MAP_SIZE    = float(0x7fffffff);            // 地图大小
 const float VISIBILITY  = 0.001;                        // 亮度可见度
 
 const uint MAX_RAYMARCH = 512U;                         // 最大光线步进次数
@@ -163,7 +162,7 @@ float sd_sphere(vec3 p, float s) {
 // SDF 盒子
 float sd_box(vec3 p, vec3 b) {
     vec3 q = abs(p) - b;
-    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - 0.02;
+    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0);
 }
 
 // SDF 圆柱
@@ -217,9 +216,9 @@ const object map[] = {
                     vec3(0, 0, 0),
                     vec3(100, 0, 0)
         ),
-        material(vec3(1.0, 1.0, 1.0)*0.1,   // 基础色
-                    0.0, // 粗糙度
-                    1.0, // 金属度
+        material(vec3(1.0, 1.0, 1.0)*0.2,   // 基础色
+                    0.5, // 粗糙度
+                    0.0, // 金属度
                     0.0, // 透明度
                     1.0, // 折射率
                     vec3(1), // 自发光
@@ -283,21 +282,21 @@ const object map[] = {
         )
     ),
     object(SHAPE_BOX, NONE,
-        transform(  vec3(0, 0, 0),
+        transform(  vec3(0, 0, 5),
                     vec3(0, 0, 0),
-                    vec3(2, 2, 2)
+                    vec3(2, 1, 0.2)
         ),
-        material(vec3(1.0, 1.0, 1.0)*0.99,   // 基础色
+        material(vec3(1.0, 1.0, 1.0),   // 基础色
                     0.0, // 粗糙度
-                    0.0,  // 金属度
-                    1.0,  // 透明度
-                    1.5,  // 折射率
+                    1.0,  // 金属度
+                    0.0,  // 透明度
+                    1.0,  // 折射率
                     vec3(1), // 自发光
                     vec3(0, 0, 1) // 切线空间法线
         )
     ),
     object(SHAPE_BOX, NONE,
-        transform(  vec3(0, 0, 5),
+        transform(  vec3(0, 0, -1),
                     vec3(0, 0, 0),
                     vec3(2, 1, 0.2)
         ),
@@ -314,7 +313,7 @@ const object map[] = {
 
 // 找到最近的物体并计算距离
 object nearest_object(vec3 p) {
-    object o; o.sd = MAP_SIZE;
+    object o; o.sd = TMAX;
     for (int i = 0; i < map.length(); i++) {
         object oi = map[i];
         oi.sd = signed_distance(oi, p);
@@ -469,18 +468,14 @@ ray PBR(ray r, inout record rec, inout random rand) {
         float F = fresnel_schlick(NoV, F0);
         N = hemispheric_sampling_roughness(N, roughness, rand);
         
-        float NoI = -NoV;
+        float NoI = -NoV * outer;
         float k = 1.0 - eta * eta * (1.0 - NoI * NoI);
         
         // k < 0 全反射，为啥是 outer ？
         if (noise(rand) < F + metallic && outer > 0.0 || k < 0.0) {
-            L = reflect(I, N); // 为透明材质带来菲涅尔反射
-//            r.color.a *= (sign(dot(L, N)) + 1.0) * 0.5;
+            L = I - 2.0 * NoI * N; // 为透明材质带来菲涅尔反射
         } else {
-            // TODO: 替换掉 refract 优化效率
-//            L = eta * I - (eta * NoI + sqrt(k)) * N;
-            L = refract(I, N, eta);
-//            L = -L * sign(dot(L, N));
+            L = eta * I - (eta * NoI + sqrt(k)) * N; // 斯涅尔折射
         }
     } else {
         float F = fresnel_schlick_roughness(NoV, 0.04, roughness);
@@ -561,32 +556,14 @@ vec3 sample(camera cam, vec2 uv, vec3 color, inout random rand) {
     return r.color;
 }
 
-// ACES fitted
-// from https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl
-const mat3 ACESInputMat = mat3(
-    vec3(0.59719, 0.35458, 0.04823),
-    vec3(0.07600, 0.90834, 0.01566),
-    vec3(0.02840, 0.13383, 0.83777)
-);
-
-// ODT_SAT => XYZ => D60_2_D65 => sRGB
-const mat3 ACESOutputMat = mat3(
-    vec3( 1.60475, -0.53108, -0.07367),
-    vec3(-0.10208,  1.10813, -0.00605),
-    vec3(-0.00327, -0.07276,  1.07602)
-);
-
-vec3 RRTAndODTFit(vec3 v) {
-    vec3 a = v * (v + 0.0245786) - 0.000090537;
-    vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
-    return a / b;
-}
-
-vec3 ACESFitted(vec3 color) {
-    color *= ACESInputMat;
-    color = RRTAndODTFit(color); // Apply RRT and ODT
-    color *= ACESOutputMat;
-    return color;
+vec3 aces_approx(vec3 v) {
+    v *= 0.6;
+    const float a = 2.51f;
+    const float b = 0.03f;
+    const float c = 2.43f;
+    const float d = 0.59f;
+    const float e = 0.14f;
+    return (v*(a*v+b))/(v*(c*v+d)+e);
 }
 
 // 片段着色器程序入口
@@ -619,20 +596,18 @@ void fragment() {
     // 对每个光子经过的表面采样一次
     vec3 color = sample(cam, uv, vec3(1), rand);
 
-    // 色调映射 (ACES Tone Mapping)
+    // 色调映射
     color *= camera_exposure;
-    color = ACESFitted(color);
+    color = aces_approx(color);
     
     // 伽马矫正
-    color = pow(color, vec3(camera_gamma));
+    color = pow(color, vec3(1.0 / camera_gamma));
     
     // 混合历史的帧来降噪
-    color = clamp(color, 0, 1);
     vec3 back = texture(SCREEN_TEXTURE, SCREEN_UV).rgb;
     color = mix(back, color, 1.0 / max(1.0, frame));
 
     // 测试随机数
 //    color = vec3(noise(rand), noise(rand), noise(rand));
-//    color = vec3(texture(noise_map, uv).r);
     COLOR = vec4(color, 1.0);
 }

@@ -117,3 +117,10 @@ func _on_camera_exposure_s_value_changed(value: float) -> void:
     %always_uniform_camera.exposure = value
     %camera_exposure.text = str(value)
     %ShaderRect.frame = 0
+
+
+func _on_filter_switch_toggled(button_pressed: bool) -> void:
+    if button_pressed:
+        (%RayTracing as SubViewportContainer).texture_filter = TEXTURE_FILTER_LINEAR
+    else:
+        (%RayTracing as SubViewportContainer).texture_filter = TEXTURE_FILTER_NEAREST
