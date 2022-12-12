@@ -67,9 +67,8 @@ struct object {
 // 光子击中的记录
 struct record {
     object obj;         // 物体
-    bool hit;           // 是否击中
-    float t;            // 沿射线前进的距离
     vec3 position;      // 击中的位置
+    bool hit;           // 是否击中
 };
 
 // 摄像机
@@ -192,7 +191,7 @@ float signed_distance(object obj, vec3 pos) {
     
     // 会重复的将欧拉角转换成旋转矩阵，实际上只用在第一次计算就行了
     // 也有可能被编译器优化掉了
-    p *= angle(rotation);
+    p *= angle(radians(rotation));
     
     switch(obj.shape) {
         case SHAPE_SPHERE:
@@ -348,19 +347,13 @@ mat3 TBN(vec3 N) {
 
 // 光线步进
 record raycast(ray r) {
-    record rec; rec.t = TMIN;
-    for(uint i = 0U; i < MAX_RAYMARCH && rec.t < TMAX; i++) {
-        rec.position = at(r, rec.t);
-        object obj = nearest_object(rec.position);
-        if (obj.dis < PRECISION) {
-            rec.obj = obj;
-            rec.hit = true;
-            return rec;
-        }
-        rec.t += obj.dis;
+    record rec; rec.hit = false; float t = TMIN;
+    for(uint i = 0U; i < MAX_RAYMARCH && t < TMAX && !rec.hit; i++) {
+        rec.position = at(r, t);
+        rec.obj = nearest_object(rec.position);
+        rec.hit = rec.obj.dis < PRECISION;
+        t += rec.obj.dis;
     }
-    // 没有击中物体
-    rec.hit = false;
     return rec;
 }
 
@@ -376,11 +369,6 @@ vec4 sky(ray r) {
 float pow5(float x) {
     float t = x*x; t *= t;
     return t*x;
-}
-
-// 计算菲涅尔近似值
-float fresnel_schlick(float cosine, float F0) {
-    return F0 + (1.0 - F0) * pow5(abs(1.0 - cosine));
 }
 
 // 用粗糙度计算菲涅尔近似值
@@ -432,35 +420,37 @@ ray PBR(ray r, inout record rec, inout random rand) {
     vec3 C  = r.color;
     vec3 L;
     
+    normal = N; // 备份一下原始法线 (永远朝向物体外面)
     float NoV = dot(N, V);
     float outer = sign(NoV); // 如果处于 SDF 物体内部就反过来
     NoV *= outer;
     N   *= outer;
 
+    float eta = outer > 0.0 ? ENV_IOR / ior : ior / ENV_IOR; // 计算折射率之比
+    float F0 = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0; // 让透明材质的反射更明显一些
+    float F = fresnel_schlick_roughness(NoV, F0, roughness);
+
     if (noise(rand) < transmission) {
-        float eta = outer > 0.0 ? ENV_IOR / ior : ior / ENV_IOR; // 计算折射率之比
-        float F0 = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0; // 让透明材质的反射更明显一些
-        float F = fresnel_schlick(NoV, F0);
         N = hemispheric_sampling_roughness(N, roughness, rand);
         
-        float NoI = -NoV;
-        float k = 1.0 - eta * eta * (1.0 - NoI * NoI);
+        float k = 1.0 - eta * eta * (1.0 - NoV * NoV);
         
         if (noise(rand) < F + metallic || k < 0.0) {
-            L = I - 2.0 * NoI * N; // 菲涅尔反射或全反射
+            L = I + 2.0 * NoV * N; // 菲涅尔反射或全反射
         } else {
-            L = eta * I - (eta * NoI + sqrt(k)) * N; // 斯涅尔折射
+            L = eta * I - (sqrt(k)- eta * NoV) * N; // 斯涅尔折射
         }
     } else {
-        float F = fresnel_schlick_roughness(NoV, 0.04, roughness);
-    
         // 反射或者漫反射
         if (noise(rand) < F + metallic) {
             N = hemispheric_sampling_roughness(N, roughness, rand);
-            L = reflect(I, N); // 镜面反射
+            L = I + 2.0 * NoV * N; // 镜面反射
         } else {
             L = hemispheric_sampling(N, rand); // 漫反射
         }
+        
+        // 如果光穿入表面就直接吸收掉
+        C *= (sign(dot(L, normal)) + 1.0) * 0.5;
     }
 
     C *= albedo;
@@ -473,6 +463,7 @@ ray PBR(ray r, inout record rec, inout random rand) {
     return r;
 }
 
+// RGB 亮度
 float brightness(vec3 rgb) {
     return dot(rgb, vec3(0.299, 0.587, 0.114));
 }
@@ -526,6 +517,7 @@ vec3 sample(camera cam, vec2 uv, vec3 color, inout random rand) {
     return r.color;
 }
 
+// ACES 色调映射
 vec3 aces_approx(vec3 v) {
     v *= 0.6;
     const float a = 2.51f;
@@ -575,7 +567,7 @@ void fragment() {
     
     // 混合历史的帧来降噪
     vec3 prev = texture(SCREEN_TEXTURE, SCREEN_UV).rgb;
-    color = mix(prev, color, 1.0 / max(1.0, frame));
+    color = mix(prev, clamp(color, 0, 1), 1.0 / max(1.0, frame));
 
     // 测试随机数
 //    color = vec3(noise(rand), noise(rand), noise(rand));

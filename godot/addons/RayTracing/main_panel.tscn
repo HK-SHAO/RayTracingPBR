@@ -7,20 +7,20 @@
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/alwasy_fill_viewport.gd" id="4_cek0v"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_1s1au"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_b2rs8"]
 shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
-shader_parameter/camera_aspect = 1.59512
+shader_parameter/camera_aspect = 1.94836
 shader_parameter/camera_exposure = 1.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 2.2
-shader_parameter/camera_position = Vector3(0, 0, 4)
-shader_parameter/camera_rotation = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/camera_position = Vector3(0.70096, 0.200855, 4.49715)
+shader_parameter/camera_rotation = Basis(0.984499, -0.0268552, 0.17301, 0, 0.988066, 0.153383, -0.175083, -0.151008, 0.97284)
 shader_parameter/camera_vfov = 30.0
-shader_parameter/frame = 556.0
-shader_parameter/light_quality = 0.02
+shader_parameter/frame = 588.0
+shader_parameter/light_quality = 0.0001
 
-[sub_resource type="GDScript" id="GDScript_k6yj1"]
+[sub_resource type="GDScript" id="GDScript_vcloh"]
 script/source = "@tool
 
 extends ColorRect
@@ -101,14 +101,14 @@ render_target_update_mode = 4
 
 [node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_1s1au")
+material = SubResource("ShaderMaterial_b2rs8")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 mouse_filter = 2
-script = SubResource("GDScript_k6yj1")
+script = SubResource("GDScript_vcloh")
 metadata/_edit_use_anchors_ = true
 
 [node name="always_uniform_camera" type="Node" parent="Control/RayTracing/SubViewport/ShaderRect"]
@@ -409,7 +409,7 @@ text = "FPS"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "66"
+text = "19"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -423,7 +423,7 @@ text = "Sampling"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "779"
+text = "587"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
