@@ -121,6 +121,8 @@ func _on_camera_exposure_s_value_changed(value: float) -> void:
 
 func _on_filter_switch_toggled(button_pressed: bool) -> void:
     if button_pressed:
+        (%filter_switch as CheckButton).text = "ON"
         (%RayTracing as SubViewportContainer).texture_filter = TEXTURE_FILTER_LINEAR
     else:
+        (%filter_switch as CheckButton).text = "OFF"
         (%RayTracing as SubViewportContainer).texture_filter = TEXTURE_FILTER_NEAREST

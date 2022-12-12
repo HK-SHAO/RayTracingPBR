@@ -13,15 +13,9 @@ _global_script_classes=[{
 "class": &"FreeCamera3D",
 "language": &"GDScript",
 "path": "res://addons/RayTracing/shared/script/FreeCamera3D.gd"
-}, {
-"base": "Camera3D",
-"class": &"OldFreeCamera3D",
-"language": &"GDScript",
-"path": "res://test/scripts/OldFreeCamera3D.gd"
 }]
 _global_script_class_icons={
-"FreeCamera3D": "",
-"OldFreeCamera3D": ""
+"FreeCamera3D": ""
 }
 
 [application]
