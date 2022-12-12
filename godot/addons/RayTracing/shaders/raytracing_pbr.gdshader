@@ -428,12 +428,12 @@ ray PBR(ray r, inout record rec, inout random rand) {
 
     float eta = outer > 0.0 ? ENV_IOR / ior : ior / ENV_IOR; // 计算折射率之比
     float F0 = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0; // 让透明材质的反射更明显一些
-    float F = fresnel_schlick_roughness(NoV, F0, roughness);
+    float F = fresnel_schlick_roughness(NoV, F0, roughness); // 菲尼尔
 
     if (noise(rand) < transmission) {
         N = hemispheric_sampling_roughness(N, roughness, rand);
         
-        float k = 1.0 - eta * eta * (1.0 - NoV * NoV);
+        float k = 1.0 - eta * eta * (1.0 - NoV * NoV); // 小于 0 为全反射
         
         if (noise(rand) < F + metallic || k < 0.0) {
             L = I + 2.0 * NoV * N; // 菲涅尔反射或全反射
@@ -444,7 +444,7 @@ ray PBR(ray r, inout record rec, inout random rand) {
         // 反射或者漫反射
         if (noise(rand) < F + metallic) {
             N = hemispheric_sampling_roughness(N, roughness, rand);
-            L = I + 2.0 * NoV * N; // 镜面反射
+            L = reflect(I, N); // 镜面反射
         } else {
             L = hemispheric_sampling(N, rand); // 漫反射
         }
