@@ -7,20 +7,20 @@
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/alwasy_fill_viewport.gd" id="4_cek0v"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_3ogry"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_arvp8"]
 shader = ExtResource("1_0w4fs")
 shader_parameter/camera_aperture = 0.005
 shader_parameter/camera_aspect = 1.95224
 shader_parameter/camera_exposure = 1.0
 shader_parameter/camera_focus = 2.0
 shader_parameter/camera_gamma = 2.2
-shader_parameter/camera_position = Vector3(0.518719, -0.0385943, 0.410254)
-shader_parameter/camera_rotation = Basis(0.756994, 0.167945, -0.631329, 0, 0.966288, 0.257055, 0.653295, -0.194603, 0.731542)
+shader_parameter/camera_position = Vector3(1.54447, 2.39755, 4.37212)
+shader_parameter/camera_rotation = Basis(0.976296, -0.0952345, 0.194166, 0, 0.897769, 0.440327, -0.216271, -0.429911, 0.87651)
 shader_parameter/camera_vfov = 30.0
-shader_parameter/frame = 765.0
+shader_parameter/frame = 1.0
 shader_parameter/light_quality = 0.0001
 
-[sub_resource type="GDScript" id="GDScript_0fsma"]
+[sub_resource type="GDScript" id="GDScript_aq3me"]
 script/source = "@tool
 
 extends ColorRect
@@ -91,7 +91,6 @@ stretch = true
 stretch_shrink = 3
 
 [node name="SubViewport" type="SubViewport" parent="Control/RayTracing"]
-disable_3d = true
 transparent_bg = true
 handle_input_locally = false
 canvas_item_default_texture_filter = 0
@@ -101,14 +100,14 @@ render_target_update_mode = 4
 
 [node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_3ogry")
+material = SubResource("ShaderMaterial_arvp8")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 mouse_filter = 2
-script = SubResource("GDScript_0fsma")
+script = SubResource("GDScript_aq3me")
 metadata/_edit_use_anchors_ = true
 
 [node name="always_uniform_camera" type="Node" parent="Control/RayTracing/SubViewport/ShaderRect"]
@@ -409,7 +408,7 @@ text = "FPS"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "32"
+text = "88"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -423,7 +422,7 @@ text = "Sampling"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "764"
+text = "793"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -579,7 +578,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 1
 mouse_default_cursor_shape = 2
 min_value = 1.0
-max_value = 1552.0
+max_value = 944.0
 value = 3.0
 exp_edit = true
 allow_greater = true

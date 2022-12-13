@@ -82,25 +82,26 @@ struct camera {
     float focus;        // 对焦距离
 };
 
-// 随机发生器
-struct random {
-    float seed;         // 随机数种子
-    float value;        // 上次的随机值
-};
-
 // 对三维向量进行哈希
-float hash(vec3 x) {
-    uvec3 p = floatBitsToUint(x);
+float rand13(vec3 seed) {
+    uvec3 p = floatBitsToUint(seed);
     p = 1103515245U * ((p.xyz >> 1U) ^ (p.yzx));
     uint h32 = 1103515245U * ((p.x ^ p.z) ^ (p.y >> 3U));
     uint n = h32 ^ (h32 >> 16U);
-    return float(n) * (1.0 / float(0x7fffffff));
+    return float(n) * (1.0 / float(2147483647U*2U));
 }
 
 // 生成归一化随机数
-float noise(inout random r) {
-    r.value = fract(sin(r.seed++)*43758.5453123);
-    return r.value;
+float rand11(float seed) {
+    uvec2 n = floatBitsToUint(seed) * uvec2(1597334673U, 3812015801U);
+    uint q = (n.x ^ n.y) * 1597334673U;
+    return float(q) * (1.0 / float(2147483647U*2U));
+}
+
+vec2  rand21(float seed) {
+    uvec2 n = floatBitsToUint(seed) * uvec2(1597334673U, 3812015801U);
+    n = (n.x ^ n.y) * uvec2(1597334673U, 3812015801U);
+    return vec2(n) * (1.0 / float(2147483647U*2U));
 }
 
 // 光子在射线所在的位置
@@ -109,14 +110,13 @@ vec3 at(ray r, float t) {
 }
 
 // 单位圆内随机取一点
-vec2 random_in_unit_disk(inout random rand) {
-    float r = noise(rand);
-    float a = TAU * noise(rand);
-    return sqrt(r) * vec2(sin(a), cos(a));
+vec2 random_in_unit_disk(inout float seed) {
+    vec2 r = rand21(seed++) * vec2(1.0, TAU);
+    return sqrt(r[0]) * vec2(sin(r[1]), cos(r[1]));
 }
 
 // 从摄像机获取光线
-ray get_ray(camera c, vec2 uv, vec3 color, inout random rand) {
+ray get_ray(camera c, vec2 uv, vec3 color, inout float seed) {
     // 根据 VFOV 和显示画布长宽比计算传感器长宽
     float theta = radians(c.vfov);
     float half_height = tan(theta * 0.5);
@@ -138,7 +138,7 @@ ray get_ray(camera c, vec2 uv, vec3 color, inout random rand) {
     
     // 模拟光进入镜头光圈
     float lens_radius = c.aperture * 0.5;
-    vec2 rud = lens_radius * random_in_unit_disk(rand);
+    vec2 rud = lens_radius * random_in_unit_disk(seed);
     vec3 offset = x * rud.x + y * rud.y;
     
     // 计算光线起点和方向
@@ -377,33 +377,31 @@ float fresnel_schlick_roughness(float cosine, float F0, float roughness) {
 }
 
 // 以 n 为法线进行半球采样
-vec3 hemispheric_sampling(vec3 n, inout random rand) {
-    float ra = TAU * noise(rand);
-    float rb = noise(rand);
+vec3 hemispheric_sampling(vec3 n, inout float seed) {
+    vec2 r = rand21(seed++) * vec2(1.0, TAU);
     
-    float rz = sqrt(rb);
-    vec2 v = vec2(cos(ra), sin(ra));
-    vec2 rxy = sqrt(1.0 - rb) * v; 
+    float rz = sqrt(r[0]);
+    vec2 v = vec2(cos(r[1]), sin(r[1]));
+    vec2 rxy = sqrt(1.0 - r[0]) * v; 
     
     return TBN(n) * vec3(rxy, rz);
 }
 
 // 用粗糙度采样沿向量 n 半球采样
-vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout random rand) {
-    float ra = TAU * noise(rand);
-    float rb = noise(rand);
+vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout float seed) {
+    vec2 r = rand21(seed++) * vec2(1.0, TAU);
 
     float shiny = pow5(roughness); // 光感越大高光越锐利
     
-    float rz = sqrt((1.0 - rb) / (1.0 + (shiny - 1.0)*rb));
-    vec2 v = vec2(cos(ra), sin(ra));
+    float rz = sqrt((1.0 - r[0]) / (1.0 + (shiny - 1.0) * r[0]));
+    vec2 v = vec2(cos(r[1]), sin(r[1]));
     vec2 rxy = sqrt(abs(1.0 - rz*rz)) * v;
     
     return TBN(n) * vec3(rxy, rz);
 }
 
 // 应用 PBR 材质
-ray PBR(ray r, inout record rec, inout random rand) {
+ray PBR(ray r, record rec, inout float seed) {
     // 材质参数
     vec3 albedo = rec.obj.mtl.albedo;
     float roughness = rec.obj.mtl.roughness;
@@ -430,23 +428,24 @@ ray PBR(ray r, inout record rec, inout random rand) {
     float F0 = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0; // 让透明材质的反射更明显一些
     float F = fresnel_schlick_roughness(NoV, F0, roughness); // 菲尼尔
 
-    if (noise(rand) < transmission) {
-        N = hemispheric_sampling_roughness(N, roughness, rand);
+    vec2 rand2 = rand21(seed++);
+    if (rand2[0] < transmission) {
+        N = hemispheric_sampling_roughness(N, roughness, seed);
         
         float k = 1.0 - eta * eta * (1.0 - NoV * NoV); // 小于 0 为全反射
         
-        if (noise(rand) < F + metallic || k < 0.0) {
+        if (rand2[1] < F + metallic || k < 0.0) {
             L = I + 2.0 * NoV * N; // 菲涅尔反射或全反射
         } else {
             L = eta * I - (sqrt(k)- eta * NoV) * N; // 斯涅尔折射
         }
     } else {
         // 反射或者漫反射
-        if (noise(rand) < F + metallic) {
-            N = hemispheric_sampling_roughness(N, roughness, rand);
+        if (rand2[1] < F + metallic) {
+            N = hemispheric_sampling_roughness(N, roughness, seed);
             L = reflect(I, N); // 镜面反射
         } else {
-            L = hemispheric_sampling(N, rand); // 漫反射
+            L = hemispheric_sampling(N, seed); // 漫反射
         }
         
         // 如果光穿入表面就直接吸收掉
@@ -469,7 +468,7 @@ float brightness(vec3 rgb) {
 }
 
 // 光线追踪
-ray raytrace(ray r, inout random rand) {
+ray raytrace(ray r, inout float seed) {
     for (uint i = 0U; i < MAX_RAYTRACE; i++) {
         // 俄罗斯轮盘赌概率，防止光线过分的反复反射
         float inv_pdf = exp(float(i) * light_quality);
@@ -477,7 +476,7 @@ ray raytrace(ray r, inout random rand) {
     
         // 光被吸收掉或者光线毙掉就不用继续了
         float visible = brightness(r.color);
-        if (visible <= VISIBILITY || noise(rand) < roulette_prob) {
+        if (visible <= VISIBILITY || rand11(seed++) < roulette_prob) {
             r.color *= roulette_prob;
             break;
         }
@@ -490,8 +489,8 @@ ray raytrace(ray r, inout random rand) {
         
         // 没击中物体就肯定击中天空
         if (!rec.hit) {
-            vec4 color = sky(r) * 2.0;
-            r.color *= color.rgb*color.a;
+            vec4 color = sky(r) * sin(TIME) * 2.0;
+            r.color *= color.rgb * color.a;
             break;
         }
         
@@ -502,17 +501,17 @@ ray raytrace(ray r, inout random rand) {
         }
         
         // 应用 PBR 材质
-        r = PBR(r, rec, rand);
+        r = PBR(r, rec, seed);
     }
 
     return r;
 }
 
 // 一次采样
-vec3 sample(camera cam, vec2 uv, vec3 color, inout random rand) {
+vec3 sample(camera cam, vec2 uv, vec3 color, inout float seed) {
     // 获取光线并逆向追踪光线
-    ray r = get_ray(cam, uv, color, rand);
-        r = raytrace(r, rand);
+    ray r = get_ray(cam, uv, color, seed);
+        r = raytrace(r, seed);
     
     return r.color;
 }
@@ -549,14 +548,13 @@ void fragment() {
     cam.aperture = camera_aperture;
     
     // 用 UV 和时间初始化随机数发生器种子
-    random rand;
-    rand.seed  = hash(vec3(uv, TIME));
+    float seed  = rand13(vec3(uv, TIME));
 
     // 超采样
-    uv += vec2(noise(rand), noise(rand)) * SCREEN_PIXEL_SIZE;
+    uv += rand21(seed++) * SCREEN_PIXEL_SIZE;
     
     // 对每个光子经过的表面采样一次
-    vec3 color = sample(cam, uv, vec3(1), rand);
+    vec3 color = sample(cam, uv, vec3(1), seed);
 
     // 色调映射
     color *= camera_exposure;
@@ -569,7 +567,5 @@ void fragment() {
     vec3 prev = texture(SCREEN_TEXTURE, SCREEN_UV).rgb;
     color = mix(prev, clamp(color, 0, 1), 1.0 / max(1.0, frame));
 
-    // 测试随机数
-//    color = vec3(noise(rand), noise(rand), noise(rand));
     COLOR = vec4(color, 1.0);
 }
