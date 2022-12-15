@@ -13,21 +13,24 @@ uniform float camera_gamma      = 2.2;                  // gamma 矫正值
 uniform float light_quality     = 0.2;                  // 间接光质量
 uniform float frame             = 1.0;                  // 降噪帧
 
+// 传入贴图
+uniform sampler2D environment_hdri;                     // 环境 HDRi 贴图
+
 // 配置常量
-const float TMIN        = 0.001;                        // 光开始传播的起始偏移，避免光线自相交
+const float TMIN        = 0.0001;                        // 光开始传播的起始偏移，避免光线自相交
 const float TMAX        = 2000.0;                       // 最大单次光线传播距离 (相当于可见范围)
-const float PRECISION   = 0.0001;                       // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+const float PRECISION   = 0.00001;                       // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
 const float VISIBILITY  = 0.001;                        // 亮度可见度
 
 const uint MAX_RAYMARCH = 512U;                         // 最大光线步进次数
 const uint MAX_RAYTRACE = 512U;                         // 最大光线追踪次数
 
-const float ENV_IOR = 1.000277;                         // 环境的折射率
+const float ENV_IOR     = 1.000277;                     // 环境的折射率
 
 // 枚举形状
-const int SHAPE_SPHERE      = 0;
-const int SHAPE_BOX         = 1;
-const int SHAPE_CYLINDER    = 2;
+const int SHAPE_SPHERE   = 0;
+const int SHAPE_BOX      = 1;
+const int SHAPE_CYLINDER = 2;
 
 const float NONE = 0.0;
 
@@ -40,9 +43,9 @@ struct ray {
 
 // 物体材质
 struct material {
-    vec3 albedo;        // 反照率
-    vec3 emission;      // 自发光
-    vec3 normal;        // 切线空间法线
+    vec3  albedo;       // 反照率
+    vec3  emission;     // 自发光
+    vec3  normal;       // 切线空间法线
     float roughness;    // 粗糙度
     float metallic;     // 金属度
     float transmission; // 透明度
@@ -58,24 +61,24 @@ struct transform {
 
 // SDF 物体
 struct object {
-    int shape;          // 形状
-    float dis;          // 距离物体表面
+    int       shape;    // 形状
+    float     dis;      // 距离物体表面
     transform trs;      // 变换
-    material mtl;       // 材质
+    material  mtl;      // 材质
 };
 
 // 光子击中的记录
 struct record {
     object obj;         // 物体
-    vec3 position;      // 击中的位置
-    bool hit;           // 是否击中
+    vec3   pos;         // 击中的位置
+    bool   hit;         // 是否击中
 };
 
 // 摄像机
 struct camera {
-    vec3 lookfrom;      // 视点位置
-    vec3 lookat;        // 目标位置
-    vec3 vup;           // 向上的方向
+    vec3  lookfrom;     // 视点位置
+    vec3  lookat;       // 目标位置
+    vec3  vup;          // 向上的方向
     float vfov;         // 视野
     float aspect;       // 传感器长宽比
     float aperture;     // 光圈大小
@@ -268,7 +271,7 @@ const object[] map = {
                     vec3(0, 0, 0),
                     vec3(0.3, 0, 0)
         ),
-        material(   vec3(1.0, 1.0, 1.0)*0.9,   // 基础色
+        material(   vec3(1.0, 1.0, 1.0)*1.0,   // 基础色
                     vec3(1), // 自发光
                     vec3(0, 0, 1), // 切线空间法线
                     0.0, // 粗糙度
@@ -349,20 +352,27 @@ mat3 TBN(vec3 N) {
 record raycast(ray r) {
     record rec; rec.hit = false; float t = TMIN;
     for(uint i = 0U; i < MAX_RAYMARCH && t < TMAX && !rec.hit; i++) {
-        rec.position = at(r, t);
-        rec.obj = nearest_object(rec.position);
+        rec.pos = at(r, t);
+        rec.obj = nearest_object(rec.pos);
         rec.hit = rec.obj.dis < PRECISION;
         t += rec.obj.dis;
     }
     return rec;
 }
 
+// 球面坐标到笛卡尔坐标
+const vec2 inv_atan = vec2(0.5 / PI, 1.0 / PI);
+vec2 sample_spherical_map(vec3 v) {
+    vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
+    uv *= inv_atan;
+    uv += 0.5;
+    return uv;
+}
+
 // 采样天空
 vec4 sky(ray r) {
-    float t = 0.5 + 0.5 * r.direction.y;
-    vec4 bottom = vec4(1.0, 1.0, 1.0, 1.0);
-    vec4 top = vec4(0.3, 0.5, 1.0, 1.0);
-    return mix(bottom, top, t);
+    vec2 uv = sample_spherical_map(r.direction); uv.y = 1.0 - uv.y;
+    return texture(environment_hdri, uv) * 2.0;
 }
 
 // 快速计算五次方
@@ -391,7 +401,7 @@ vec3 hemispheric_sampling(vec3 n, inout float seed) {
 vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout float seed) {
     vec2 r = rand21(seed++) * vec2(1.0, TAU);
 
-    float shiny = pow5(roughness); // 光感越大高光越锐利
+    float shiny = roughness*roughness; shiny*=shiny; // 光感越大高光越锐利
     
     float rz = sqrt((1.0 - r[0]) / (1.0 + (shiny - 1.0) * r[0]));
     vec2 v = vec2(cos(r[1]), sin(r[1]));
@@ -403,30 +413,30 @@ vec3 hemispheric_sampling_roughness(vec3 n, float roughness, inout float seed) {
 // 应用 PBR 材质
 ray PBR(ray r, record rec, inout float seed) {
     // 材质参数
-    vec3 albedo = rec.obj.mtl.albedo;
-    float roughness = rec.obj.mtl.roughness;
-    float metallic = rec.obj.mtl.metallic;
+    vec3  albedo       = rec.obj.mtl.albedo;
+    float roughness    = rec.obj.mtl.roughness;
+    float metallic     = rec.obj.mtl.metallic;
     float transmission = rec.obj.mtl.transmission;
-    vec3 normal = rec.obj.mtl.normal;
-    float ior = rec.obj.mtl.ior;
+    vec3  normal       = rec.obj.mtl.normal;
+    float ior          = rec.obj.mtl.ior;
     
     // 光线和物体表面参数
-    vec3 I  = r.direction;
+    vec3 I  =  r.direction;
     vec3 V  = -r.direction;
-    vec3 P  = rec.position;
+    vec3 P  = rec.pos;
     vec3 N  = TBN(normal) * calc_normal(rec.obj, P);
     vec3 C  = r.color;
     vec3 L;
     
-    normal = N; // 备份一下原始法线 (永远朝向物体外面)
-    float NoV = dot(N, V);
+    normal      = N; // 备份一下原始法线 (永远朝向物体外面)
+    float NoV   = dot(N, V);
     float outer = sign(NoV); // 如果处于 SDF 物体内部就反过来
-    NoV *= outer;
-    N   *= outer;
+    NoV        *= outer;
+    N          *= outer;
 
     float eta = outer > 0.0 ? ENV_IOR / ior : ior / ENV_IOR; // 计算折射率之比
-    float F0 = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0; // 让透明材质的反射更明显一些
-    float F = fresnel_schlick_roughness(NoV, F0, roughness); // 菲尼尔
+    float F0  = (eta - 1.0) / (eta + 1.0); F0 *= 3.0*F0; // 让透明材质的反射更明显一些
+    float F   = fresnel_schlick_roughness(NoV, F0, roughness); // 菲尼尔
 
     vec2 rand2 = rand21(seed++);
     if (rand2[0] < transmission) {
@@ -455,8 +465,8 @@ ray PBR(ray r, record rec, inout float seed) {
     C *= albedo;
 
     // 更新光的方向和颜色
-    r.color = C;
-    r.origin = P;
+    r.color     = C;
+    r.origin    = P;
     r.direction = L;
     
     return r;
@@ -489,7 +499,7 @@ ray raytrace(ray r, inout float seed) {
         
         // 没击中物体就肯定击中天空
         if (!rec.hit) {
-            vec4 color = sky(r) * sin(TIME) * 2.0;
+            vec4 color = sky(r) * 1.0;
             r.color *= color.rgb * color.a;
             break;
         }
@@ -524,7 +534,7 @@ vec3 aces_approx(vec3 v) {
     const float c = 2.43f;
     const float d = 0.59f;
     const float e = 0.14f;
-    return (v*(a*v+b))/(v*(c*v+d)+e);
+    return (v*(a*v + b)) / (v*(c*v + d) + e);
 }
 
 // 片段着色器程序入口
@@ -533,18 +543,18 @@ void fragment() {
     vec2 uv = vec2(UV.x, 1.0 - UV.y);
     
     // 计算摄像机方位和视线
-    vec3 lookfrom = camera_position;
+    vec3 lookfrom  = camera_position;
     vec3 direction = camera_rotation * vec3(0, 0, -1);
-    vec3 lookat = lookfrom + direction;
+    vec3 lookat    = lookfrom + direction;
     
     // 初始化摄像机
     camera cam;
     cam.lookfrom = lookfrom;
-    cam.lookat = lookat;
-    cam.aspect = camera_aspect;
-    cam.vfov = camera_vfov;
-    cam.vup = vec3(0, 1, 0);
-    cam.focus = camera_focus;
+    cam.lookat   = lookat;
+    cam.aspect   = camera_aspect;
+    cam.vfov     = camera_vfov;
+    cam.vup      = vec3(0, 1, 0);
+    cam.focus    = camera_focus;
     cam.aperture = camera_aperture;
     
     // 用 UV 和时间初始化随机数发生器种子

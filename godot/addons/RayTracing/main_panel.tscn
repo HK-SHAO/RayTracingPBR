@@ -1,26 +1,28 @@
-[gd_scene load_steps=9 format=3 uid="uid://ubje1c34mpqe"]
+[gd_scene load_steps=10 format=3 uid="uid://ubje1c34mpqe"]
 
 [ext_resource type="Shader" path="res://addons/RayTracing/shaders/raytracing_pbr.gdshader" id="1_0w4fs"]
 [ext_resource type="Script" path="res://addons/RayTracing/main_panel.gd" id="1_3yfr2"]
 [ext_resource type="Theme" uid="uid://dvfilhlm25cot" path="res://addons/RayTracing/theme/hud_ui.theme" id="1_rwr8h"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/always_uniform_camera.gd" id="2_xxsdv"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/always/alwasy_fill_viewport.gd" id="4_cek0v"]
+[ext_resource type="Texture2D" uid="uid://ba1od07d6h8ep" path="res://addons/RayTracing/textures/environments/Tokyo_BigSight_3k.hdr" id="4_kq80u"]
 [ext_resource type="Script" path="res://addons/RayTracing/shared/script/FreeCamera3D.gd" id="5_nuxi6"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_arvp8"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0328a"]
 shader = ExtResource("1_0w4fs")
-shader_parameter/camera_aperture = 0.005
+shader_parameter/camera_aperture = 0.001
 shader_parameter/camera_aspect = 1.95224
-shader_parameter/camera_exposure = 1.0
-shader_parameter/camera_focus = 2.0
+shader_parameter/camera_exposure = 1.242
+shader_parameter/camera_focus = 10000.0
 shader_parameter/camera_gamma = 2.2
-shader_parameter/camera_position = Vector3(1.54447, 2.39755, 4.37212)
-shader_parameter/camera_rotation = Basis(0.976296, -0.0952345, 0.194166, 0, 0.897769, 0.440327, -0.216271, -0.429911, 0.87651)
-shader_parameter/camera_vfov = 30.0
-shader_parameter/frame = 1.0
+shader_parameter/camera_position = Vector3(5.23809, 3.23911, 6.45845)
+shader_parameter/camera_rotation = Basis(0.741903, -0.26771, 0.614619, 0, 0.916714, 0.399308, -0.670398, -0.296264, 0.680174)
+shader_parameter/camera_vfov = 22.826
+shader_parameter/environment_hdri = ExtResource("4_kq80u")
+shader_parameter/frame = 474.0
 shader_parameter/light_quality = 0.0001
 
-[sub_resource type="GDScript" id="GDScript_aq3me"]
+[sub_resource type="GDScript" id="GDScript_syc1c"]
 script/source = "@tool
 
 extends ColorRect
@@ -100,14 +102,14 @@ render_target_update_mode = 4
 
 [node name="ShaderRect" type="ColorRect" parent="Control/RayTracing/SubViewport"]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_arvp8")
+material = SubResource("ShaderMaterial_0328a")
 offset_right = 400.0
 offset_bottom = 200.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 mouse_filter = 2
-script = SubResource("GDScript_aq3me")
+script = SubResource("GDScript_syc1c")
 metadata/_edit_use_anchors_ = true
 
 [node name="always_uniform_camera" type="Node" parent="Control/RayTracing/SubViewport/ShaderRect"]
@@ -408,7 +410,7 @@ text = "FPS"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "88"
+text = "74"
 horizontal_alignment = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -422,7 +424,7 @@ text = "Sampling"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "793"
+text = "646"
 horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="HUD/MarginContainer2/PanelContainer/MarginContainer/VBoxContainer"]
@@ -578,7 +580,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 1
 mouse_default_cursor_shape = 2
 min_value = 1.0
-max_value = 944.0
+max_value = 1552.0
 value = 3.0
 exp_edit = true
 allow_greater = true
