@@ -14,6 +14,9 @@
 [Taichi] version 1.3.0, llvm 10.0.0, commit bc087737, win, python 3.10.6
 ```
 
+- Live Demo: 
+- ShaderToy: https://www.shadertoy.com/view/ddSSWy
+
 ## 简介
 
 实际上光线追踪是一个很传统的研究，但高品质实时光线追踪仍然是渲染领域的老大难问题，高品质高性能的光照模型和光线追踪与降噪是值得研究的问题。
