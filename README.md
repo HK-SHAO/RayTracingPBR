@@ -1,4 +1,4 @@
-![](./docs/Screenshots/p2.png)
+![](./others/Screenshots/p2.png)
 <div align=center>渲染100万面镜子</div>
 
 ---
@@ -17,6 +17,7 @@
 - Live Demo: https://shao.fun/RayTracingPBR/
 - ShaderToy: https://www.shadertoy.com/view/ddSSWy
 - Godot: https://github.com/HK-SHAO/Godot-RayTracing-Demo
+- Tutorial: https://shao.fun/blog/w/taichi-ray-tracing.html
 
 ## 简介
 
@@ -70,45 +71,45 @@
 
 ## 部分展示图
 
-![](./docs/Screenshots/Godot%20Screenshot%202022.12.01%20-%2016.45.28.31.png)
+![](./others/Screenshots/Godot%20Screenshot%202022.12.01%20-%2016.45.28.31.png)
 <div align=center>经典的球</div>
 
 ---
 
-![](./docs/Screenshots/Godot%20Screenshot%202022.12.01%20-%2022.30.44.63.png)
+![](./others/Screenshots/Godot%20Screenshot%202022.12.01%20-%2022.30.44.63.png)
 <div align=center>纹理映射</div>
 
 ---
 
-![](./docs/Screenshots/Godot%20Screenshot%202022.12.02%20-%2016.56.57.76.png)
+![](./others/Screenshots/Godot%20Screenshot%202022.12.02%20-%2016.56.57.76.png)
 <div align=center>金属物体</div>
 
 ---
 
-![](./docs/Screenshots/Godot%20Screenshot%202022.12.01%20-%2022.42.38.51.png)
+![](./others/Screenshots/Godot%20Screenshot%202022.12.01%20-%2022.42.38.51.png)
 <div align=center>纹理映射和应用法线贴图</div>
 
 ---
 
-![](./docs/Screenshots/Godot%20Screenshot%202022.12.02%20-%2018.26.30.90.png)
+![](./others/Screenshots/Godot%20Screenshot%202022.12.02%20-%2018.26.30.90.png)
 <div align=center>各种奇奇怪怪的 SDF 形状</div>
 
 ---
 
-![](./docs/Screenshots/p1.png)
+![](./others/Screenshots/p1.png)
 <div align=center>自发光物体与透明体积物体</div>
 
 ---
 
-![](./docs/Screenshots/p3.png)
+![](./others/Screenshots/p3.png)
 <div align=center>物体放在玻璃立方体内部</div>
 
 ---
 
-![](./docs/Screenshots/p4.png)
+![](./others/Screenshots/p4.png)
 <div align=center>玻璃立方体内部出现的全反射</div>
 
 ---
 
-![](./docs/Screenshots/p5.png)
+![](./others/Screenshots/p5.png)
 <div align=center>镜中镜</div>
