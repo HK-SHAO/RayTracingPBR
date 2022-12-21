@@ -19,6 +19,18 @@
 - Godot: https://github.com/HK-SHAO/Godot-RayTracing-Demo
 - Tutorial: https://shao.fun/blog/w/taichi-ray-tracing.html
 
+## TODO
+
+- [ ] Checkerboard Rendering
+- [ ] Reprojection
+- [ ] Light Sources
+- [ ] Importance Sampling
+- [ ] Spectral Rendering (Chromatic dispersion and focal dispersion)
+- [ ] Mesh Rendering
+- [ ] Voxel Rendering
+- [ ] Volume Rendering
+- [ ] Further noise reduction
+
 ## 简介
 
 实际上光线追踪是一个很传统的研究，但高品质实时光线追踪仍然是渲染领域的老大难问题，高品质高性能的光照模型和光线追踪与降噪是值得研究的问题。
