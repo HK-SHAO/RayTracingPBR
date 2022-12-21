@@ -1,0 +1,2429 @@
+<head>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #canvas {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: fixed;
+        }
+        
+        .error {
+            font-family: Consolas;
+            font-size: 1.2em;
+            color: black;
+            box-sizing: border-box;
+            background-color: lightcoral;
+            border-radius: 2px;
+            border-color: lightblue;
+            border-width: thin;
+            border-style: solid;
+            line-height: 1.4em;
+            cursor:pointer;
+        }
+        .error:hover {
+            color: black;
+            background-color: brown;
+            border-color: blue;
+        }
+        #message {
+            font-family: Consolas;
+            font-size: 1.2em;
+            color: #ccc;
+            background-color: black;
+            font-weight: bold;
+            z-index: 2;
+            position: absolute;
+        }
+
+        #dat_gui_container {
+            position: absolute;
+            left: 0px;   /* position inside relatively positioned parent */
+            top: 0px;
+            z-index: 3;   /* adjust as needed */
+        }
+
+        /* Pause Button Style */
+        
+        /* Screenshot Button Style */
+
+        /* Reload Button Style */
+    </style>
+</head>
+<body>
+    <div id="message"></div>
+    <div id="dat_gui_container"></div>
+    <div id="container">
+        <!-- Pause Element -->
+    </div>
+    <!-- Screenshot Element -->
+    <!-- Reload Element -->
+</body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+<!-- Stats.js -->
+<script src='https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js' onload="
+let stats = new Stats();
+compileTimePanel = stats.addPanel(new Stats.Panel('CT MS', '#ff8', '#221'));
+stats.showPanel(0);
+// 显示在右上角
+stats.domElement.style.position = 'absolute';
+stats.domElement.style.right = '0px';
+stats.domElement.style.top = '0px';
+stats.domElement.style.zIndex = '1';
+document.body.appendChild(stats.domElement);
+requestAnimationFrame(function loop() {
+    stats.update();
+    requestAnimationFrame(loop);
+});
+"></script>
+<!-- dat.gui -->
+<script src='https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.8/dat.gui.min.js'></script>
+
+<canvas id="canvas"></canvas>
+
+<!-- Shaders -->
+<script id='./common.glsl' type='x-shader/x-fragment'>#version 300 es
+    precision highp float;
+    uniform vec3        iResolution;
+uniform float       iTime;
+uniform float       iTimeDelta;
+uniform int         iFrame;
+uniform vec4        iDate;
+uniform vec3        iChannelResolution[10];
+uniform vec4        iMouse;
+uniform vec4        iMouseButton;
+uniform sampler2D   iChannel0;
+uniform sampler2D   iChannel1;
+uniform sampler2D   iChannel2;
+uniform sampler2D   iChannel3;
+uniform sampler2D   iChannel4;
+uniform sampler2D   iChannel5;
+uniform sampler2D   iChannel6;
+uniform sampler2D   iChannel7;
+uniform sampler2D   iChannel8;
+uniform sampler2D   iChannel9;
+uniform sampler2D   iKeyboard;
+uniform float       iSampleRate;
+
+#define iGlobalTime iTime
+#define iGlobalFrame iFrame
+
+#define SHADER_TOY
+uniform float camera_vfov;
+uniform float camera_focus;
+uniform float camera_aperture;
+uniform float camera_exposure;
+uniform float camera_gamma;
+uniform float light_quality;
+uniform float TMIN;
+uniform float TMAX;
+uniform float PRECISION;
+uniform float VISIBILITY;
+uniform int MAX_RAYMARCH;
+uniform int MAX_RAYTRACE;
+uniform float ENV_IOR;
+
+    // Copyright © 2019-2022 HK-SHAO
+// MIT Licensed: https://shao.fun/blog/w/taichi-ray-tracing.html
+
+// 摄像机参数
+                 // 摄像机的纵向视野
+                  // 摄像机的对焦距离
+                  // 摄像机的光圈大小
+                    // 摄像机曝光值
+                   // gamma 矫正值
+               // 间接光质量
+
+// 配置常量
+                      // 光开始传播的起始偏移，避免光线自相交
+                     // 最大单次光线传播距离 (相当于可见范围)
+                     // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+                      // 亮度可见度
+
+                       // 最大光线步进次数
+                        // 最大光线追踪次数
+
+                   // 环境的折射率
+
+// 枚举形状
+const int SHAPE_SPHERE     = 0;
+const int SHAPE_BOX        = 1;
+const int SHAPE_CYLINDER   = 2;
+
+// 数学常量
+const float NONE = 0.0;
+const float PI   = 3.1415926535897932384626;
+const float TAU  = 2.0 * PI;
+
+// 随机发生器
+float seed; // 随机数种子
+
+float rand13(vec3 x) {
+    uvec3 p = floatBitsToUint(x);
+    p = 1103515245U * ((p.xyz >> 1U) ^ (p.yzx));
+    uint h32 = 1103515245U * ((p.x ^ p.z) ^ (p.y >> 3U));
+    uint n = h32 ^ (h32 >> 16U);
+    return float(n) * (1.0 / float(0xffffffffU));
+}
+
+float rand11() {
+    uvec2 n = floatBitsToUint(seed++) * uvec2(1597334673U, 3812015801U);
+    uint q = (n.x ^ n.y) * 1597334673U;
+    return float(q) * (1.0 / float(0xffffffffU));
+}
+
+vec2  rand21() {
+    uvec2 n = floatBitsToUint(seed++) * uvec2(1597334673U, 3812015801U);
+    n = (n.x ^ n.y) * uvec2(1597334673U, 3812015801U);
+    return vec2(n) * (1.0 / float(0xffffffffU));
+}
+
+// 物体材质
+struct material {
+    vec3  albedo;       // 反照率
+    vec3  emission;     // 自发光
+    vec3  normal;       // 切线空间法线
+    float roughness;    // 粗糙度
+    float metallic;     // 金属度
+    float transmission; // 透明度
+    float ior;          // 折射率
+};
+
+// 物体变换
+struct transform {
+    vec3 position;      // 位置
+    vec3 rotation;      // 旋转
+    vec3 scale;         // 缩放
+};
+
+// SDF 物体
+struct object {
+    int       shape;    // 形状
+    float     dis;      // 距离物体表面
+    transform trs;      // 变换
+    material  mtl;      // 材质
+};
+
+// SDF 球体
+float sd_sphere(vec3 p, float s) {
+    return length(p) - s;
+}
+
+// SDF 盒子
+float sd_box(vec3 p, vec3 b) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - 0.02;
+}
+
+// SDF 圆柱
+float sd_cylinder(vec3 p, vec2 rh) {
+    vec2 d = abs(vec2(length(p.xz),p.y)) - rh;
+    return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
+}
+
+// 地图列表
+const object[] map = object[] (
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0, -100.5, 0),
+                    vec3(0, 0, 0),
+                    vec3(100, 0, 0)
+        ),
+        material(   vec3(1.0, 1.0, 1.0)*0.1,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.9, // 粗糙度
+                    0.0, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0, 0, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.5, 0, 0)
+        ),
+        material(   vec3(1.0, 1.0, 1.0),   // 基础色
+                    vec3(0.1, 1.0, 0.1)*10.0, // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    1.0, // 粗糙度
+                    0.0, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_CYLINDER, NONE,
+        transform(  vec3(-1.0, -0.3, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0.33, 0)
+        ),
+        material(   vec3(1.0, 0.1, 0.1),   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.9, // 粗糙度
+                    0.1, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(1.0, -0.2, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0, 0)
+        ),
+        material(   vec3(0.1, 0.1, 1.0),   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.2, // 粗糙度
+                    1.0, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0.0, -0.24, 2),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0, 0)
+        ),
+        material(   vec3(1.0, 1.0, 1.0)*0.9,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.0, // 粗糙度
+                    0.0, // 金属度
+                    1.0, // 透明度
+                    1.5  // 折射率
+        )
+    ),
+    object(SHAPE_BOX, NONE,
+        transform(  vec3(0, 0, 5),
+                    vec3(0, 0, 0),
+                    vec3(2, 1, 0.2)
+        ),
+        material(   vec3(1.0, 1.0, 0.1)*0.9,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.0,  // 粗糙度
+                    1.0,  // 金属度
+                    0.0,  // 透明度
+                    1.0   // 折射率
+        )
+    ),
+    object(SHAPE_BOX, NONE,
+        transform(  vec3(0, 0, -1),
+                    vec3(0, 0, 0),
+                    vec3(2, 1, 0.2)
+        ),
+        material(vec3(1.0, 1.0, 1.0)*0.9,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.0,  // 粗糙度
+                    1.0,  // 金属度
+                    0.0,  // 透明度
+                    1.0   // 折射率
+        )
+    )
+);
+
+// Free Camera
+
+const ivec2 MEMORY_BOUNDARY = ivec2(4, 3);
+
+const ivec2 POSITION = ivec2(0, 0);
+const ivec2 MOVING = ivec2(0, 1);
+
+const ivec2 VMOUSE = ivec2(1, 0);
+const ivec2 PMOUSE = ivec2(1, 1);
+
+const ivec2 TARGET = ivec2(2, 0);
+const ivec2 TMOUSE = ivec2(2, 1);
+
+const ivec2 RESOLUTION = ivec2(3, 0);
+const ivec2 SPACE = ivec2(3, 1);
+
+mat3 CameraRotation(vec2 m) {
+    m.y = clamp(-m.y, -PI*0.5+0.01, PI*0.5-0.01);
+    vec2 s = sin(m), c = cos(m);
+    
+    mat3 rotX = mat3(1.0, 0.0, 0.0, 0.0, c.y, s.y, 0.0, -s.y, c.y);
+    mat3 rotY = mat3(c.x, 0.0, -s.x, 0.0, 1.0, 0.0, s.x, 0.0, c.x);
+    
+    return rotY * rotX;
+}
+    void main() {}
+</script>
+<script id='./camera.glsl' type='x-shader/x-fragment'>
+uniform vec3        iResolution;
+uniform float       iTime;
+uniform float       iTimeDelta;
+uniform int         iFrame;
+uniform vec4        iDate;
+uniform vec3        iChannelResolution[10];
+uniform vec4        iMouse;
+uniform vec4        iMouseButton;
+uniform sampler2D   iChannel0;
+uniform sampler2D   iChannel1;
+uniform sampler2D   iChannel2;
+uniform sampler2D   iChannel3;
+uniform sampler2D   iChannel4;
+uniform sampler2D   iChannel5;
+uniform sampler2D   iChannel6;
+uniform sampler2D   iChannel7;
+uniform sampler2D   iChannel8;
+uniform sampler2D   iChannel9;
+uniform sampler2D   iKeyboard;
+uniform float       iSampleRate;
+
+#define iGlobalTime iTime
+#define iGlobalFrame iFrame
+
+#define SHADER_TOY
+uniform float camera_vfov;
+uniform float camera_focus;
+uniform float camera_aperture;
+uniform float camera_exposure;
+uniform float camera_gamma;
+uniform float light_quality;
+uniform float TMIN;
+uniform float TMAX;
+uniform float PRECISION;
+uniform float VISIBILITY;
+uniform int MAX_RAYMARCH;
+uniform int MAX_RAYTRACE;
+uniform float ENV_IOR;
+
+const int Key_Backspace = 8, Key_Tab = 9, Key_Enter = 13, Key_Shift = 16, Key_Ctrl = 17, Key_Alt = 18, Key_Pause = 19, Key_Caps = 20, Key_Escape = 27, Key_PageUp = 33, Key_PageDown = 34, Key_End = 35,
+    Key_Home = 36, Key_LeftArrow = 37, Key_UpArrow = 38, Key_RightArrow = 39, Key_DownArrow = 40, Key_Insert = 45, Key_Delete = 46, Key_0 = 48, Key_1 = 49, Key_2 = 50, Key_3 = 51, Key_4 = 52,
+    Key_5 = 53, Key_6 = 54, Key_7 = 55, Key_8 = 56, Key_9 = 57, Key_A = 65, Key_B = 66, Key_C = 67, Key_D = 68, Key_E = 69, Key_F = 70, Key_G = 71, Key_H = 72,
+    Key_I = 73, Key_J = 74, Key_K = 75, Key_L = 76, Key_M = 77, Key_N = 78, Key_O = 79, Key_P = 80, Key_Q = 81, Key_R = 82, Key_S = 83, Key_T = 84, Key_U = 85,
+    Key_V = 86, Key_W = 87, Key_X = 88, Key_Y = 89, Key_Z = 90, Key_LeftWindow = 91, Key_RightWindows = 92, Key_Select = 93, Key_Numpad0 = 96, Key_Numpad1 = 97, Key_Numpad2 = 98, Key_Numpad3 = 99,
+    Key_Numpad4 = 100, Key_Numpad5 = 101, Key_Numpad6 = 102, Key_Numpad7 = 103, Key_Numpad8 = 104, Key_Numpad9 = 105, Key_NumpadMultiply = 106, Key_NumpadAdd = 107, Key_NumpadSubtract = 109, Key_NumpadPeriod = 110, Key_NumpadDivide = 111, Key_F1 = 112, Key_F2 = 113, Key_F3 = 114, Key_F4 = 115, Key_F5 = 116, Key_F6 = 117, Key_F7 = 118, Key_F8 = 119, Key_F9 = 120, Key_F10 = 121, Key_F11 = 122, Key_F12 = 123, Key_NumLock = 144, Key_ScrollLock = 145,
+    Key_SemiColon = 186, Key_Equal = 187, Key_Comma = 188, Key_Dash = 189, Key_Period = 190, Key_ForwardSlash = 191, Key_GraveAccent = 192, Key_OpenBracket = 219, Key_BackSlash = 220, Key_CloseBraket = 221, Key_SingleQuote = 222;
+
+bool isKeyDown(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.125);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+bool isKeyPressed(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.375);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+bool isKeyToggled(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.625);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+bool isKeyReleased(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.875);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+// Modified by HK-SHAO - 2022
+
+// Created by genis sole - 2016
+// License Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International.
+// Copyright © 2019-2022 HK-SHAO
+// MIT Licensed: https://shao.fun/blog/w/taichi-ray-tracing.html
+
+// 摄像机参数
+                 // 摄像机的纵向视野
+                  // 摄像机的对焦距离
+                  // 摄像机的光圈大小
+                    // 摄像机曝光值
+                   // gamma 矫正值
+               // 间接光质量
+
+// 配置常量
+                      // 光开始传播的起始偏移，避免光线自相交
+                     // 最大单次光线传播距离 (相当于可见范围)
+                     // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+                      // 亮度可见度
+
+                       // 最大光线步进次数
+                        // 最大光线追踪次数
+
+                   // 环境的折射率
+
+// 枚举形状
+const int SHAPE_SPHERE     = 0;
+const int SHAPE_BOX        = 1;
+const int SHAPE_CYLINDER   = 2;
+
+// 数学常量
+const float NONE = 0.0;
+const float PI   = 3.1415926535897932384626;
+const float TAU  = 2.0 * PI;
+
+// 随机发生器
+float seed; // 随机数种子
+
+float rand13(vec3 x) {
+    uvec3 p = floatBitsToUint(x);
+    p = 1103515245U * ((p.xyz >> 1U) ^ (p.yzx));
+    uint h32 = 1103515245U * ((p.x ^ p.z) ^ (p.y >> 3U));
+    uint n = h32 ^ (h32 >> 16U);
+    return float(n) * (1.0 / float(0xffffffffU));
+}
+
+float rand11() {
+    uvec2 n = floatBitsToUint(seed++) * uvec2(1597334673U, 3812015801U);
+    uint q = (n.x ^ n.y) * 1597334673U;
+    return float(q) * (1.0 / float(0xffffffffU));
+}
+
+vec2  rand21() {
+    uvec2 n = floatBitsToUint(seed++) * uvec2(1597334673U, 3812015801U);
+    n = (n.x ^ n.y) * uvec2(1597334673U, 3812015801U);
+    return vec2(n) * (1.0 / float(0xffffffffU));
+}
+
+// 物体材质
+struct material {
+    vec3  albedo;       // 反照率
+    vec3  emission;     // 自发光
+    vec3  normal;       // 切线空间法线
+    float roughness;    // 粗糙度
+    float metallic;     // 金属度
+    float transmission; // 透明度
+    float ior;          // 折射率
+};
+
+// 物体变换
+struct transform {
+    vec3 position;      // 位置
+    vec3 rotation;      // 旋转
+    vec3 scale;         // 缩放
+};
+
+// SDF 物体
+struct object {
+    int       shape;    // 形状
+    float     dis;      // 距离物体表面
+    transform trs;      // 变换
+    material  mtl;      // 材质
+};
+
+// SDF 球体
+float sd_sphere(vec3 p, float s) {
+    return length(p) - s;
+}
+
+// SDF 盒子
+float sd_box(vec3 p, vec3 b) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - 0.02;
+}
+
+// SDF 圆柱
+float sd_cylinder(vec3 p, vec2 rh) {
+    vec2 d = abs(vec2(length(p.xz),p.y)) - rh;
+    return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
+}
+
+// 地图列表
+const object[] map = object[] (
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0, -100.5, 0),
+                    vec3(0, 0, 0),
+                    vec3(100, 0, 0)
+        ),
+        material(   vec3(1.0, 1.0, 1.0)*0.1,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.9, // 粗糙度
+                    0.0, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0, 0, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.5, 0, 0)
+        ),
+        material(   vec3(1.0, 1.0, 1.0),   // 基础色
+                    vec3(0.1, 1.0, 0.1)*10.0, // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    1.0, // 粗糙度
+                    0.0, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_CYLINDER, NONE,
+        transform(  vec3(-1.0, -0.3, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0.33, 0)
+        ),
+        material(   vec3(1.0, 0.1, 0.1),   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.9, // 粗糙度
+                    0.1, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(1.0, -0.2, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0, 0)
+        ),
+        material(   vec3(0.1, 0.1, 1.0),   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.2, // 粗糙度
+                    1.0, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0.0, -0.24, 2),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0, 0)
+        ),
+        material(   vec3(1.0, 1.0, 1.0)*0.9,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.0, // 粗糙度
+                    0.0, // 金属度
+                    1.0, // 透明度
+                    1.5  // 折射率
+        )
+    ),
+    object(SHAPE_BOX, NONE,
+        transform(  vec3(0, 0, 5),
+                    vec3(0, 0, 0),
+                    vec3(2, 1, 0.2)
+        ),
+        material(   vec3(1.0, 1.0, 0.1)*0.9,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.0,  // 粗糙度
+                    1.0,  // 金属度
+                    0.0,  // 透明度
+                    1.0   // 折射率
+        )
+    ),
+    object(SHAPE_BOX, NONE,
+        transform(  vec3(0, 0, -1),
+                    vec3(0, 0, 0),
+                    vec3(2, 1, 0.2)
+        ),
+        material(vec3(1.0, 1.0, 1.0)*0.9,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.0,  // 粗糙度
+                    1.0,  // 金属度
+                    0.0,  // 透明度
+                    1.0   // 折射率
+        )
+    )
+);
+
+// Free Camera
+
+const ivec2 MEMORY_BOUNDARY = ivec2(4, 3);
+
+const ivec2 POSITION = ivec2(0, 0);
+const ivec2 MOVING = ivec2(0, 1);
+
+const ivec2 VMOUSE = ivec2(1, 0);
+const ivec2 PMOUSE = ivec2(1, 1);
+
+const ivec2 TARGET = ivec2(2, 0);
+const ivec2 TMOUSE = ivec2(2, 1);
+
+const ivec2 RESOLUTION = ivec2(3, 0);
+const ivec2 SPACE = ivec2(3, 1);
+
+mat3 CameraRotation(vec2 m) {
+    m.y = clamp(-m.y, -PI*0.5+0.01, PI*0.5-0.01);
+    vec2 s = sin(m), c = cos(m);
+    
+    mat3 rotX = mat3(1.0, 0.0, 0.0, 0.0, c.y, s.y, 0.0, -s.y, c.y);
+    mat3 rotY = mat3(c.x, 0.0, -s.x, 0.0, 1.0, 0.0, s.x, 0.0, c.x);
+    
+    return rotY * rotX;
+}
+
+
+
+
+#define store(P, V) if (all(equal(ivec2(fragCoord), P))) fragColor = V
+#define load(P) texelFetch(iChannel0, ivec2(P), 0)
+
+#define key(k) float(isKeyDown(k))
+
+const int Key_Space    = 32;
+
+vec3 KeyboardInput() {
+	vec3 i = vec3(key(Key_D) - key(Key_A), 
+                  key(Key_E) - key(Key_Q),
+                  key(Key_S) - key(Key_W));
+    
+    float n = abs(abs(i.x) - abs(i.y));
+    return i * (n + (1.0 - n)*inversesqrt(2.0));
+}
+
+vec3 CameraDirInput(vec2 vm) {
+    vec2 m = vm / iResolution.x;
+    return CameraRotation(m) * KeyboardInput();
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {   
+    if (any(greaterThan(ivec2(fragCoord), MEMORY_BOUNDARY))) return;
+    
+    fragColor = load(fragCoord);
+    
+    if (iFrame == 0) {
+        store(POSITION, vec4(0.0, 0.0, 4.0, 0.0));
+        store(TARGET,   vec4(0.0, -0.2, 4.0, 0.0));
+        store(VMOUSE,   vec4(0.0, 10.0, 0.0, 0.0));
+        store(TMOUSE,   vec4(0.0));
+        store(PMOUSE,   vec4(0.0));
+        
+        return;
+    }
+
+    vec3 target      = load(TARGET).xyz;   
+    vec3 position    = load(POSITION).xyz;
+    vec2 pm          = load(PMOUSE).xy;
+    vec2 vm          = load(VMOUSE).xy;
+    vec3 tm          = load(TMOUSE).xyz;
+    
+    vec2 resolution  = load(RESOLUTION).xy;
+    
+    if (iTimeDelta > 0.1) return;
+    
+    vm       += (tm.xy - vm) * iTimeDelta * 20.0;
+    target   += CameraDirInput(vm.xy) * iTimeDelta * 5.0;
+    position += (target - position) * iTimeDelta * 5.0;
+    
+    store(TARGET,   vec4(target, 0.0));
+    store(POSITION, vec4(position, 0.0));
+    store(VMOUSE,   vec4(vm, 0.0, 0.0));
+    
+    store(RESOLUTION, vec4(iResolution.xy, 0.0, 0.0));
+    store(SPACE, vec4(key(Key_Space)));
+    store(MOVING, vec4(length(tm.xy - vm),
+                       length(target - position),
+                       float(any(notEqual(resolution, iResolution.xy))), 0.0));
+    
+	if (iMouse.z > 0.0) {
+        store(TMOUSE, vec4(pm + (abs(iMouse.zw) - iMouse.xy), 1.0, 0.0));
+	} else if (tm.z != 0.0) {
+        store(PMOUSE, vec4(tm.xy, 0.0, 0.0));
+    }
+
+}
+void main() {
+    vec2 fragCoord = gl_FragCoord.xy;
+    mainImage(gl_FragColor, fragCoord);
+}
+</script><script id='./pathtrace.glsl' type='x-shader/x-fragment'>
+uniform vec3        iResolution;
+uniform float       iTime;
+uniform float       iTimeDelta;
+uniform int         iFrame;
+uniform vec4        iDate;
+uniform vec3        iChannelResolution[10];
+uniform vec4        iMouse;
+uniform vec4        iMouseButton;
+uniform sampler2D   iChannel0;
+uniform sampler2D   iChannel1;
+uniform samplerCube iChannel2;
+uniform sampler2D   iChannel3;
+uniform sampler2D   iChannel4;
+uniform sampler2D   iChannel5;
+uniform sampler2D   iChannel6;
+uniform sampler2D   iChannel7;
+uniform sampler2D   iChannel8;
+uniform sampler2D   iChannel9;
+uniform sampler2D   iKeyboard;
+uniform float       iSampleRate;
+
+#define iGlobalTime iTime
+#define iGlobalFrame iFrame
+
+#define SHADER_TOY
+uniform float camera_vfov;
+uniform float camera_focus;
+uniform float camera_aperture;
+uniform float camera_exposure;
+uniform float camera_gamma;
+uniform float light_quality;
+uniform float TMIN;
+uniform float TMAX;
+uniform float PRECISION;
+uniform float VISIBILITY;
+uniform int MAX_RAYMARCH;
+uniform int MAX_RAYTRACE;
+uniform float ENV_IOR;
+
+const int Key_Backspace = 8, Key_Tab = 9, Key_Enter = 13, Key_Shift = 16, Key_Ctrl = 17, Key_Alt = 18, Key_Pause = 19, Key_Caps = 20, Key_Escape = 27, Key_PageUp = 33, Key_PageDown = 34, Key_End = 35,
+    Key_Home = 36, Key_LeftArrow = 37, Key_UpArrow = 38, Key_RightArrow = 39, Key_DownArrow = 40, Key_Insert = 45, Key_Delete = 46, Key_0 = 48, Key_1 = 49, Key_2 = 50, Key_3 = 51, Key_4 = 52,
+    Key_5 = 53, Key_6 = 54, Key_7 = 55, Key_8 = 56, Key_9 = 57, Key_A = 65, Key_B = 66, Key_C = 67, Key_D = 68, Key_E = 69, Key_F = 70, Key_G = 71, Key_H = 72,
+    Key_I = 73, Key_J = 74, Key_K = 75, Key_L = 76, Key_M = 77, Key_N = 78, Key_O = 79, Key_P = 80, Key_Q = 81, Key_R = 82, Key_S = 83, Key_T = 84, Key_U = 85,
+    Key_V = 86, Key_W = 87, Key_X = 88, Key_Y = 89, Key_Z = 90, Key_LeftWindow = 91, Key_RightWindows = 92, Key_Select = 93, Key_Numpad0 = 96, Key_Numpad1 = 97, Key_Numpad2 = 98, Key_Numpad3 = 99,
+    Key_Numpad4 = 100, Key_Numpad5 = 101, Key_Numpad6 = 102, Key_Numpad7 = 103, Key_Numpad8 = 104, Key_Numpad9 = 105, Key_NumpadMultiply = 106, Key_NumpadAdd = 107, Key_NumpadSubtract = 109, Key_NumpadPeriod = 110, Key_NumpadDivide = 111, Key_F1 = 112, Key_F2 = 113, Key_F3 = 114, Key_F4 = 115, Key_F5 = 116, Key_F6 = 117, Key_F7 = 118, Key_F8 = 119, Key_F9 = 120, Key_F10 = 121, Key_F11 = 122, Key_F12 = 123, Key_NumLock = 144, Key_ScrollLock = 145,
+    Key_SemiColon = 186, Key_Equal = 187, Key_Comma = 188, Key_Dash = 189, Key_Period = 190, Key_ForwardSlash = 191, Key_GraveAccent = 192, Key_OpenBracket = 219, Key_BackSlash = 220, Key_CloseBraket = 221, Key_SingleQuote = 222;
+
+bool isKeyDown(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.125);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+bool isKeyPressed(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.375);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+bool isKeyToggled(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.625);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+bool isKeyReleased(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.875);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+// Copyright © 2019-2022 HK-SHAO
+// MIT Licensed: https://shao.fun/blog/w/taichi-ray-tracing.html
+
+// 摄像机参数
+                 // 摄像机的纵向视野
+                  // 摄像机的对焦距离
+                  // 摄像机的光圈大小
+                    // 摄像机曝光值
+                   // gamma 矫正值
+               // 间接光质量
+
+// 配置常量
+                      // 光开始传播的起始偏移，避免光线自相交
+                     // 最大单次光线传播距离 (相当于可见范围)
+                     // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+                      // 亮度可见度
+
+                       // 最大光线步进次数
+                        // 最大光线追踪次数
+
+                   // 环境的折射率
+
+// 枚举形状
+const int SHAPE_SPHERE     = 0;
+const int SHAPE_BOX        = 1;
+const int SHAPE_CYLINDER   = 2;
+
+// 数学常量
+const float NONE = 0.0;
+const float PI   = 3.1415926535897932384626;
+const float TAU  = 2.0 * PI;
+
+// 随机发生器
+float seed; // 随机数种子
+
+float rand13(vec3 x) {
+    uvec3 p = floatBitsToUint(x);
+    p = 1103515245U * ((p.xyz >> 1U) ^ (p.yzx));
+    uint h32 = 1103515245U * ((p.x ^ p.z) ^ (p.y >> 3U));
+    uint n = h32 ^ (h32 >> 16U);
+    return float(n) * (1.0 / float(0xffffffffU));
+}
+
+float rand11() {
+    uvec2 n = floatBitsToUint(seed++) * uvec2(1597334673U, 3812015801U);
+    uint q = (n.x ^ n.y) * 1597334673U;
+    return float(q) * (1.0 / float(0xffffffffU));
+}
+
+vec2  rand21() {
+    uvec2 n = floatBitsToUint(seed++) * uvec2(1597334673U, 3812015801U);
+    n = (n.x ^ n.y) * uvec2(1597334673U, 3812015801U);
+    return vec2(n) * (1.0 / float(0xffffffffU));
+}
+
+// 物体材质
+struct material {
+    vec3  albedo;       // 反照率
+    vec3  emission;     // 自发光
+    vec3  normal;       // 切线空间法线
+    float roughness;    // 粗糙度
+    float metallic;     // 金属度
+    float transmission; // 透明度
+    float ior;          // 折射率
+};
+
+// 物体变换
+struct transform {
+    vec3 position;      // 位置
+    vec3 rotation;      // 旋转
+    vec3 scale;         // 缩放
+};
+
+// SDF 物体
+struct object {
+    int       shape;    // 形状
+    float     dis;      // 距离物体表面
+    transform trs;      // 变换
+    material  mtl;      // 材质
+};
+
+// SDF 球体
+float sd_sphere(vec3 p, float s) {
+    return length(p) - s;
+}
+
+// SDF 盒子
+float sd_box(vec3 p, vec3 b) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - 0.02;
+}
+
+// SDF 圆柱
+float sd_cylinder(vec3 p, vec2 rh) {
+    vec2 d = abs(vec2(length(p.xz),p.y)) - rh;
+    return min(max(d.x,d.y), 0.0) + length(max(d, 0.0));
+}
+
+// 地图列表
+const object[] map = object[] (
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0, -100.5, 0),
+                    vec3(0, 0, 0),
+                    vec3(100, 0, 0)
+        ),
+        material(   vec3(1.0, 1.0, 1.0)*0.1,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.9, // 粗糙度
+                    0.0, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0, 0, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.5, 0, 0)
+        ),
+        material(   vec3(1.0, 1.0, 1.0),   // 基础色
+                    vec3(0.1, 1.0, 0.1)*10.0, // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    1.0, // 粗糙度
+                    0.0, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_CYLINDER, NONE,
+        transform(  vec3(-1.0, -0.3, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0.33, 0)
+        ),
+        material(   vec3(1.0, 0.1, 0.1),   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.9, // 粗糙度
+                    0.1, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(1.0, -0.2, 0),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0, 0)
+        ),
+        material(   vec3(0.1, 0.1, 1.0),   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.2, // 粗糙度
+                    1.0, // 金属度
+                    0.0, // 透明度
+                    1.0  // 折射率
+        )
+    ),
+    object(SHAPE_SPHERE, NONE,
+        transform(  vec3(0.0, -0.24, 2),
+                    vec3(0, 0, 0),
+                    vec3(0.3, 0, 0)
+        ),
+        material(   vec3(1.0, 1.0, 1.0)*0.9,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.0, // 粗糙度
+                    0.0, // 金属度
+                    1.0, // 透明度
+                    1.5  // 折射率
+        )
+    ),
+    object(SHAPE_BOX, NONE,
+        transform(  vec3(0, 0, 5),
+                    vec3(0, 0, 0),
+                    vec3(2, 1, 0.2)
+        ),
+        material(   vec3(1.0, 1.0, 0.1)*0.9,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.0,  // 粗糙度
+                    1.0,  // 金属度
+                    0.0,  // 透明度
+                    1.0   // 折射率
+        )
+    ),
+    object(SHAPE_BOX, NONE,
+        transform(  vec3(0, 0, -1),
+                    vec3(0, 0, 0),
+                    vec3(2, 1, 0.2)
+        ),
+        material(vec3(1.0, 1.0, 1.0)*0.9,   // 基础色
+                    vec3(1), // 自发光
+                    vec3(0, 0, 1), // 切线空间法线
+                    0.0,  // 粗糙度
+                    1.0,  // 金属度
+                    0.0,  // 透明度
+                    1.0   // 折射率
+        )
+    )
+);
+
+// Free Camera
+
+const ivec2 MEMORY_BOUNDARY = ivec2(4, 3);
+
+const ivec2 POSITION = ivec2(0, 0);
+const ivec2 MOVING = ivec2(0, 1);
+
+const ivec2 VMOUSE = ivec2(1, 0);
+const ivec2 PMOUSE = ivec2(1, 1);
+
+const ivec2 TARGET = ivec2(2, 0);
+const ivec2 TMOUSE = ivec2(2, 1);
+
+const ivec2 RESOLUTION = ivec2(3, 0);
+const ivec2 SPACE = ivec2(3, 1);
+
+mat3 CameraRotation(vec2 m) {
+    m.y = clamp(-m.y, -PI*0.5+0.01, PI*0.5-0.01);
+    vec2 s = sin(m), c = cos(m);
+    
+    mat3 rotX = mat3(1.0, 0.0, 0.0, 0.0, c.y, s.y, 0.0, -s.y, c.y);
+    mat3 rotY = mat3(c.x, 0.0, -s.x, 0.0, 1.0, 0.0, s.x, 0.0, c.x);
+    
+    return rotY * rotX;
+}
+
+
+
+
+
+
+#define load(P) texelFetch(iChannel1, ivec2(P), 0)
+
+// Copyright © 2019-2022 HK-SHAO
+// MIT Licensed: https://shao.fun/blog/w/taichi-ray-tracing.html
+
+// 光线
+struct ray {
+    vec3 origin;        // 光的起点
+    vec3 direction;     // 光的方向
+    vec3 color;         // 光的颜色
+};
+
+// 光子击中的记录
+struct record {
+    object obj;         // 物体
+    vec3   pos;         // 击中的位置
+    bool   hit;         // 是否击中
+};
+
+// 摄像机
+struct camera {
+    vec3  lookfrom;     // 视点位置
+    vec3  lookat;       // 目标位置
+    vec3  vup;          // 向上的方向
+    float vfov;         // 视野
+    float aspect;       // 传感器长宽比
+    float aperture;     // 光圈大小
+    float focus;        // 对焦距离
+};
+
+// 光子在射线所在的位置
+vec3 at(ray r, float t) {
+    return r.origin + t * r.direction;
+}
+
+// 单位圆内随机取一点
+vec2 random_in_unit_disk() {
+    vec2 r = rand21() * vec2(1.0, TAU);
+    return sqrt(r.x) * vec2(sin(r.y), cos(r.y));
+}
+
+// 从摄像机获取光线
+ray get_ray(camera c, vec2 uv, vec3 color) {
+    // 根据 VFOV 和显示画布长宽比计算传感器长宽
+    float theta = radians(c.vfov);
+    float half_height = tan(theta * 0.5);
+    float half_width = c.aspect * half_height;
+    
+    // 以目标位置到摄像机位置为 Z 轴正方向
+    vec3 z = normalize(c.lookfrom - c.lookat);
+    // 计算出摄像机传感器的 XY 轴正方向
+    vec3 x = normalize(cross(c.vup, z));
+    vec3 y = cross(z, x);
+    
+    vec3 hwfx = half_width  * c.focus * x;
+    vec3 hhfy = half_height * c.focus * y;
+    
+    vec3 lower_left_corner = c.lookfrom - hwfx - hhfy - c.focus * z;
+    
+    vec3 horizontal = 2.0 * hwfx;
+    vec3 vertical   = 2.0 * hhfy;
+    
+    // 模拟光进入镜头光圈
+    float lens_radius = c.aperture * 0.5;
+    vec2 rud = lens_radius * random_in_unit_disk();
+    vec3 offset = x * rud.x + y * rud.y;
+    
+    // 计算光线起点和方向
+    vec3 ro = c.lookfrom + offset;
+    vec3 po = lower_left_corner + uv.x * horizontal
+                                + uv.y * vertical;
+    vec3 rd = normalize(po - ro);
+    
+    return ray(ro, rd, color);
+}
+
+// 欧拉角转旋转矩阵
+mat3 angle(vec3 a) {
+    vec3 s = sin(a), c = cos(a);
+    return mat3(vec3( c.z,  s.z,    0),
+                vec3(-s.z,  c.z,    0),
+                vec3(   0,    0,    1)) *
+           mat3(vec3( c.y,    0, -s.y),
+                vec3(   0,    1,    0),
+                vec3( s.y,    0,  c.y)) *
+           mat3(vec3(   1,    0,    0),
+                vec3(   0,  c.x,  s.x),
+                vec3(   0, -s.x,  c.x));
+}
+
+// 计算有向距离 (物体内部距离为负)
+float signed_distance(object obj, vec3 pos) {
+    vec3 position = obj.trs.position;
+    vec3 rotation = obj.trs.rotation;
+    vec3 scale    = obj.trs.scale;
+    
+    vec3 p = pos - position;
+    
+    // 会重复的将欧拉角转换成旋转矩阵，实际上只用在第一次计算就行了
+    // 也有可能被编译器优化掉了
+    p *= angle(radians(rotation));
+    
+    switch(obj.shape) {
+        case SHAPE_SPHERE:
+            return sd_sphere(p, scale.x);
+        case SHAPE_BOX:
+            return sd_box(p, scale);
+        case SHAPE_CYLINDER:
+            return sd_cylinder(p, scale.xy);
+        default:
+            return sd_sphere(p, scale.x);
+    }
+}
+
+// 找到最近的物体并计算距离
+object nearest_object(vec3 p) {
+    object o; o.dis = TMAX;
+    for (int i = 0; i < map.length(); i++) {
+        object oi = map[i];
+        oi.dis = abs(signed_distance(oi, p));
+        if (oi.dis < o.dis) o = oi;
+    }
+    return o;
+}
+
+// 计算物体法线 from https://iquilezles.org/articles/normalsSDF/
+vec3 calc_normal(object obj, vec3 p) {
+    vec2 e = vec2(1, -1) * 0.5773 * 0.0005;
+    return normalize( e.xyy*signed_distance(obj, p + e.xyy) + 
+                      e.yyx*signed_distance(obj, p + e.yyx) + 
+                      e.yxy*signed_distance(obj, p + e.yxy) + 
+                      e.xxx*signed_distance(obj, p + e.xxx) );
+}
+
+// 用世界坐标下的法线计算 TBN 矩阵 from https://doi.org/10.1080/2165347X.2012.689606
+mat3 TBN(vec3 N) {
+    vec3 T, B;
+    
+    if (N.z < -0.99999) {
+        T = vec3(0, -1, 0);
+        B = vec3(-1, 0, 0);
+    } else {
+        float a = 1.0 / (1.0 + N.z);
+        float b = -N.x*N.y*a;
+        
+        T = vec3(1.0 - N.x*N.x*a, b, -N.x);
+        B = vec3(b, 1.0 - N.y*N.y*a, -N.y);
+    }
+    
+    return mat3(T, B, N);
+}
+
+// 光线步进
+record raycast(ray r) {
+    record rec; rec.hit = false; float t = TMIN;
+    for(int i = 0; i < MAX_RAYMARCH && t < TMAX && !rec.hit; i++) {
+        rec.pos = at(r, t);
+        rec.obj = nearest_object(rec.pos);
+        rec.hit = rec.obj.dis < PRECISION;
+        t += rec.obj.dis;
+    }
+    return rec;
+}
+
+// 采样天空
+vec4 sky(ray r) {
+    // float t = 0.5 + 0.5 * r.direction.y;
+    // vec4 bottom = vec4(1.0, 1.0, 1.0, 1.0);
+    // vec4 top = vec4(0.3, 0.5, 1.0, 3.0);
+    // return mix(bottom, top, t);
+    return texture(iChannel2, r.direction);
+}
+
+// 快速计算五次方
+float pow5(float x) {
+    float t = x*x; t *= t;
+    return t*x;
+}
+
+// 用粗糙度计算菲涅尔近似值
+float fresnel_schlick(float cosine, float F0, float roughness) {
+    return F0 + (max(1.0 - roughness, F0) - F0) * pow5(abs(1.0 - cosine));
+}
+
+// 以 n 为法线进行半球采样
+vec3 hemispheric_sampling(vec3 n) {
+    vec2 r = rand21() * vec2(1.0, TAU);
+    
+    float rz = sqrt(r.x);
+    vec2 v = vec2(cos(r.y), sin(r.y));
+    vec2 rxy = sqrt(1.0 - r.x) * v; 
+    
+    return TBN(n) * vec3(rxy, rz);
+}
+
+// 用粗糙度采样沿向量 n 半球采样
+vec3 hemispheric_sampling(vec3 n, float roughness) {
+    vec2 r = rand21() * vec2(1.0, TAU);
+
+    float shiny = pow5(roughness); // 光感越大高光越锐利
+    
+    float rz = sqrt((1.0 - r.x) / (1.0 + (shiny - 1.0) * r.x));
+    vec2 v = vec2(cos(r.y), sin(r.y));
+    vec2 rxy = sqrt(abs(1.0 - rz*rz)) * v;
+    
+    return TBN(n) * vec3(rxy, rz);
+}
+
+
+// 应用 PBR 材质
+ray PBR(ray r, record rec) {
+    // 材质参数
+    vec3  albedo       = rec.obj.mtl.albedo;
+    float roughness    = rec.obj.mtl.roughness;
+    float metallic     = rec.obj.mtl.metallic;
+    float transmission = rec.obj.mtl.transmission;
+    vec3  normal       = rec.obj.mtl.normal;
+    float ior          = rec.obj.mtl.ior;
+    
+    // 光线和物体表面参数
+    vec3 I  =  r.direction;
+    vec3 V  = -r.direction;
+    vec3 P  =  rec.pos;
+    vec3 N  =  TBN(normal) * calc_normal(rec.obj, P);
+    vec3 C  =  r.color;
+    vec3 L;
+    
+    normal      = N; // 永远朝向物体外的法线
+    float NoV   = dot(N, V);
+    float outer = sign(NoV); // 如果处于 SDF 物体内部就反过来
+    NoV        *= outer;
+    N          *= outer;
+
+    float eta = outer > 0.0 ? ENV_IOR / ior : ior / ENV_IOR; // 计算折射率之比
+    float F0  = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0; // 让透明材质的反射更明显一些
+    float F   = fresnel_schlick(NoV, F0, roughness); // 菲涅尔
+
+    vec2 rand2 = rand21();
+    if (rand2.x < transmission) { // 透射
+        N = hemispheric_sampling(N, roughness);
+        
+        float k = 1.0 - eta * eta * (1.0 - NoV * NoV); // 小于 0 为全反射
+        
+        if (rand2.y < F + metallic || k < 0.0) {
+            L = I + 2.0 * NoV * N; // 菲涅尔反射或全反射
+        } else {
+            L = eta * I - (sqrt(k)- eta * NoV) * N; // 斯涅尔折射
+        }
+    } else { // 反射或者漫反射
+        if (rand2.y < F + metallic) {
+            N = hemispheric_sampling(N, roughness);
+            L = reflect(I, N); // 镜面反射
+        } else {
+            L = hemispheric_sampling(N); // 漫反射
+        }
+        
+        // 如果光穿入表面就直接吸收掉
+        C *= (sign(dot(L, normal)) + 1.0) * 0.5;
+    }
+
+    C *= albedo;
+
+    // 更新光的方向和颜色
+    r.color     = C;
+    r.origin    = P;
+    r.direction = L;
+    
+    return r;
+}
+
+// RGB 亮度
+float brightness(vec3 rgb) {
+    return dot(rgb, vec3(0.299, 0.587, 0.114));
+}
+
+// 光线追踪
+ray raytrace(ray r) {
+    for (int i = 0; i < MAX_RAYTRACE; i++) {
+        // 俄罗斯轮盘赌概率，防止光线过分的反复反射
+        float inv_pdf = exp(float(i) / light_quality);
+        float roulette_prob = 1.0 - (1.0 / inv_pdf);
+    
+        // 光被吸收掉或者光线毙掉就不用继续了
+        float visible = brightness(r.color);
+        if (visible <= VISIBILITY || rand11() < roulette_prob) {
+            r.color *= roulette_prob;
+            break;
+        }
+        
+        // 能量守恒
+        r.color *= inv_pdf;
+        
+        // 与地图求交
+        record rec = raycast(r);
+        
+        // 没击中物体就肯定击中天空
+        if (!rec.hit) {
+            vec4 color = sky(r);
+            r.color *= color.rgb * color.a;
+            break;
+        }
+        
+        // 处理自发光
+        r.color *= rec.obj.mtl.emission;
+        if (brightness(rec.obj.mtl.emission) > 1.0) {
+            break;
+        }
+        
+        // 应用 PBR 材质
+        r = PBR(r, rec);
+    }
+
+    return r;
+}
+
+// ACES 色调映射 from https://64.github.io/tonemapping/
+vec3 aces_approx(vec3 v) {
+    v *= 0.6;
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+    return (v*(a*v + b)) / (v*(c*v + d) + e);
+}
+
+// 片段着色器程序入口
+vec4 fragment(vec2 uv, vec2 SCREEN_PIXEL_SIZE, float TIME) {
+    // 计算摄像机方位和视线
+    vec3 lookfrom  = load(POSITION).xyz;
+    vec3 direction = CameraRotation(load(VMOUSE).xy*SCREEN_PIXEL_SIZE) * vec3(0, 0, -1);
+    vec3 lookat    = lookfrom + direction;
+    
+    // 初始化摄像机
+    camera cam;
+    cam.lookfrom = lookfrom;
+    cam.lookat   = lookat;
+    cam.aspect   = SCREEN_PIXEL_SIZE.y/SCREEN_PIXEL_SIZE.x;
+    cam.vfov     = camera_vfov;
+    cam.vup      = vec3(0, 1, 0);
+    cam.focus    = camera_focus;
+    cam.aperture = camera_aperture;
+    
+    // 用 UV 和时间初始化随机数发生器种子
+    seed = rand13(vec3(uv, TIME));
+
+    // 超采样
+    uv += rand21() * SCREEN_PIXEL_SIZE;
+    
+    // 对每个光子经过的表面采样一次
+    ray r = get_ray(cam, uv, vec3(1));
+    vec3 color = raytrace(r).color;
+
+    // 色调映射
+    color *= camera_exposure;
+    color = aces_approx(color);
+    
+    // 伽马矫正
+    color = pow(color, vec3(1.0 / camera_gamma));
+
+    return vec4(color, 1.0);
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 SCREEN_PIXEL_SIZE = 1.0 / iResolution.xy;
+    vec2 uv = fragCoord * SCREEN_PIXEL_SIZE;
+    
+    fragColor = fragment(uv, SCREEN_PIXEL_SIZE, iTime);
+    
+    // 积累帧进行降噪
+    vec4 moving = load(MOVING);
+    if (load(SPACE).x < 0.5 && moving.x < 1.0 && moving.y < 0.01 && moving.z < 0.5) {
+        vec4 prev = texture(iChannel0, uv);
+        fragColor += prev;
+    }
+}
+void main() {
+    vec2 fragCoord = gl_FragCoord.xy;
+    mainImage(gl_FragColor, fragCoord);
+}
+</script><script id='./main.glsl' type='x-shader/x-fragment'>
+uniform vec3        iResolution;
+uniform float       iTime;
+uniform float       iTimeDelta;
+uniform int         iFrame;
+uniform vec4        iDate;
+uniform vec3        iChannelResolution[10];
+uniform vec4        iMouse;
+uniform vec4        iMouseButton;
+uniform sampler2D   iChannel0;
+uniform sampler2D   iChannel1;
+uniform sampler2D   iChannel2;
+uniform sampler2D   iChannel3;
+uniform sampler2D   iChannel4;
+uniform sampler2D   iChannel5;
+uniform sampler2D   iChannel6;
+uniform sampler2D   iChannel7;
+uniform sampler2D   iChannel8;
+uniform sampler2D   iChannel9;
+uniform sampler2D   iKeyboard;
+uniform float       iSampleRate;
+
+#define iGlobalTime iTime
+#define iGlobalFrame iFrame
+
+#define SHADER_TOY
+uniform float camera_vfov;
+uniform float camera_focus;
+uniform float camera_aperture;
+uniform float camera_exposure;
+uniform float camera_gamma;
+uniform float light_quality;
+uniform float TMIN;
+uniform float TMAX;
+uniform float PRECISION;
+uniform float VISIBILITY;
+uniform int MAX_RAYMARCH;
+uniform int MAX_RAYTRACE;
+uniform float ENV_IOR;
+
+const int Key_Backspace = 8, Key_Tab = 9, Key_Enter = 13, Key_Shift = 16, Key_Ctrl = 17, Key_Alt = 18, Key_Pause = 19, Key_Caps = 20, Key_Escape = 27, Key_PageUp = 33, Key_PageDown = 34, Key_End = 35,
+    Key_Home = 36, Key_LeftArrow = 37, Key_UpArrow = 38, Key_RightArrow = 39, Key_DownArrow = 40, Key_Insert = 45, Key_Delete = 46, Key_0 = 48, Key_1 = 49, Key_2 = 50, Key_3 = 51, Key_4 = 52,
+    Key_5 = 53, Key_6 = 54, Key_7 = 55, Key_8 = 56, Key_9 = 57, Key_A = 65, Key_B = 66, Key_C = 67, Key_D = 68, Key_E = 69, Key_F = 70, Key_G = 71, Key_H = 72,
+    Key_I = 73, Key_J = 74, Key_K = 75, Key_L = 76, Key_M = 77, Key_N = 78, Key_O = 79, Key_P = 80, Key_Q = 81, Key_R = 82, Key_S = 83, Key_T = 84, Key_U = 85,
+    Key_V = 86, Key_W = 87, Key_X = 88, Key_Y = 89, Key_Z = 90, Key_LeftWindow = 91, Key_RightWindows = 92, Key_Select = 93, Key_Numpad0 = 96, Key_Numpad1 = 97, Key_Numpad2 = 98, Key_Numpad3 = 99,
+    Key_Numpad4 = 100, Key_Numpad5 = 101, Key_Numpad6 = 102, Key_Numpad7 = 103, Key_Numpad8 = 104, Key_Numpad9 = 105, Key_NumpadMultiply = 106, Key_NumpadAdd = 107, Key_NumpadSubtract = 109, Key_NumpadPeriod = 110, Key_NumpadDivide = 111, Key_F1 = 112, Key_F2 = 113, Key_F3 = 114, Key_F4 = 115, Key_F5 = 116, Key_F6 = 117, Key_F7 = 118, Key_F8 = 119, Key_F9 = 120, Key_F10 = 121, Key_F11 = 122, Key_F12 = 123, Key_NumLock = 144, Key_ScrollLock = 145,
+    Key_SemiColon = 186, Key_Equal = 187, Key_Comma = 188, Key_Dash = 189, Key_Period = 190, Key_ForwardSlash = 191, Key_GraveAccent = 192, Key_OpenBracket = 219, Key_BackSlash = 220, Key_CloseBraket = 221, Key_SingleQuote = 222;
+
+bool isKeyDown(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.125);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+bool isKeyPressed(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.375);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+bool isKeyToggled(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.625);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+bool isKeyReleased(int key) {
+    vec2 uv = vec2(float(key) / 255.0, 0.875);
+    return texture2D(iKeyboard, uv).r > 0.0;
+}
+
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 uv = fragCoord / iResolution.xy;
+    vec4 color = texture(iChannel0, uv);
+    fragColor = vec4(color.rgb/color.a, 1.0);
+}
+void main() {
+    vec2 fragCoord = gl_FragCoord.xy;
+    mainImage(gl_FragColor, fragCoord);
+}
+</script>
+
+<script type="text/javascript">
+    let vscode = undefined;
+    if (typeof acquireVsCodeApi === 'function') {
+        vscode = acquireVsCodeApi();
+    }
+    var compileTimePanel;
+
+    let revealError = function(line, file) {
+        if (vscode) {
+            vscode.postMessage({
+                command: 'showGlslsError',
+                line: line,
+                file: file
+            });
+        }
+    };
+
+    let currentShader = {};
+    // Error Callback
+    console.error = function () {
+        if('7' in arguments) {
+            let errorRegex = /ERROR: \d+:(\d+):\W(.*)\n/g;
+            let rawErrors = arguments[7];
+            let match;
+            
+            let diagnostics = [];
+            let message = '';
+            while(match = errorRegex.exec(rawErrors)) {
+                let lineNumber = Number(match[1]) - currentShader.LineOffset;
+                let error = match[2];
+                diagnostics.push({
+                    line: lineNumber,
+                    message: error
+                });
+                let lineHighlight = `<a class='error' unselectable onclick='revealError(${lineNumber}, "${currentShader.File}")'>Line ${lineNumber}</a>`;
+                message += `<li>${lineHighlight}: ${error}</li>`;
+            }
+            console.log(message);
+            let diagnosticBatch = {
+                filename: currentShader.File,
+                diagnostics: diagnostics
+            };
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'showGlslDiagnostic',
+                    type: 'error',
+                    diagnosticBatch: diagnosticBatch
+                });
+            }
+    
+            $('#message').append(`<h3>Shader failed to compile - ${currentShader.Name} </h3>`);
+            $('#message').append('<ul>');
+            $('#message').append(message);
+            $('#message').append('</ul>');
+        }
+    };
+
+    // Development feature: Output warnings from third-party libraries
+    // console.warn = function (message) {
+    //     $("#message").append(message + '<br>');
+    // };
+
+    let clock = new THREE.Clock();
+    let pausedTime = 0.0;
+    let deltaTime = 0.0;
+    let startingTime = 0;
+    let time = startingTime;
+
+    let date = new THREE.Vector4();
+
+    let updateDate = function() {
+        let today = new Date();
+        date.x = today.getFullYear();
+        date.y = today.getMonth();
+        date.z = today.getDate();
+        date.w = today.getHours() * 60 * 60 
+            + today.getMinutes() * 60
+            + today.getSeconds()
+            + today.getMilliseconds() * 0.001;
+    };
+    updateDate();
+
+    let paused = false;
+    let pauseButton = document.getElementById('pause-button');
+    if (pauseButton) {
+        pauseButton.onclick = function(){
+            paused = pauseButton.checked;
+            if (!paused) {
+                // Audio Resume
+                pausedTime += clock.getDelta();
+            }
+            else {
+                // Audio Pause
+            }
+        };
+    }
+    
+    {
+        let screenshotButton = document.getElementById("screenshot");
+        if (screenshotButton) {
+            screenshotButton.addEventListener('click', saveScreenshot);
+        }
+    }
+    
+    {
+        let reloadButton = document.getElementById("reload");
+        if (reloadButton) {
+            reloadButton.addEventListener('click', reloadWebview);
+        }
+    }
+    
+    window.addEventListener('message', event => {
+        const message = event.data; // The JSON data our extension sent
+        switch (message.command) {
+            case 'pause':
+                if (pauseButton) {
+                    pauseButton.checked = !pauseButton.checked;
+                }
+                paused = !paused;
+                if (!paused) {
+                    // Audio Resume
+                    pausedTime += clock.getDelta();
+                }
+                else {
+                    // Audio Pause
+                }
+                break;
+            case 'screenshot':
+                saveScreenshot();
+                break;
+        }
+    });
+
+    let canvas = document.getElementById('canvas');
+    let gl = canvas.getContext('webgl2');
+    let isWebGL2 = gl != null;
+    if (gl == null) gl = canvas.getContext('webgl');
+    let supportsFloatFramebuffer = (gl.getExtension('EXT_color_buffer_float') != null) || (gl.getExtension('WEBGL_color_buffer_float') != null);
+    let supportsHalfFloatFramebuffer = (gl.getExtension('EXT_color_buffer_half_float') != null);
+    let framebufferType = THREE.UnsignedByteType;
+    if (supportsFloatFramebuffer) framebufferType = THREE.FloatType;
+    else if (supportsHalfFloatFramebuffer) framebufferType = THREE.HalfFloatType;
+
+    let renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, context: gl, preserveDrawingBuffer: true });
+    let resolution = new THREE.Vector3();
+    let mouse = new THREE.Vector4(398, 315, -356, -305);
+    let mouseButton = new THREE.Vector4(0, 0, 0, 0);
+    let normalizedMouse = new THREE.Vector2(0.009198423127463863, 0.5727411944869831);
+    let frameCounter = 0;
+
+    // Audio Init
+    const audioContext = {
+        sampleRate: 0
+    };
+    // Audio Resume
+
+    let buffers = [];
+    // Buffers
+    buffers.push({
+        Name: './camera.glsl',
+        File: './camera.glsl',
+        LineOffset: 394,
+        Target: new THREE.WebGLRenderTarget(resolution.x, resolution.y, { type: framebufferType }),
+        ChannelResolution: Array(10).fill(new THREE.Vector3(0,0,0)),
+        PingPongTarget: new THREE.WebGLRenderTarget(resolution.x, resolution.y, { type: framebufferType }),
+        PingPongChannel: 0,
+        Dependents: [{"Index":1,"Channel":1}],
+        Shader: new THREE.ShaderMaterial({
+            fragmentShader: document.getElementById('./camera.glsl').textContent,
+            depthWrite: false,
+            depthTest: false,
+            uniforms: {
+                iResolution: { type: 'v3', value: resolution },
+                iTime: { type: 'f', value: 0.0 },
+                iTimeDelta: { type: 'f', value: 0.0 },
+                iFrame: { type: 'i', value: 0 },
+                iMouse: { type: 'v4', value: mouse },
+                iMouseButton: { type: 'v2', value: mouseButton },
+    
+                iChannelResolution: { type: 'v3v', value: Array(10).fill(new THREE.Vector3(0,0,0)) },
+    
+                iDate: { type: 'v4', value: date },
+                iSampleRate: { type: 'f', value: audioContext.sampleRate },
+    
+                iChannel0: { type: 't' },
+                iChannel1: { type: 't' },
+                iChannel2: { type: 't' },
+                iChannel3: { type: 't' },
+                iChannel4: { type: 't' },
+                iChannel5: { type: 't' },
+                iChannel6: { type: 't' },
+                iChannel7: { type: 't' },
+                iChannel8: { type: 't' },
+                iChannel9: { type: 't' },
+    
+                resolution: { type: 'v2', value: resolution },
+                time: { type: 'f', value: 0.0 },
+                mouse: { type: 'v2', value: normalizedMouse },
+            }
+        })
+    });buffers.push({
+        Name: './pathtrace.glsl',
+        File: './pathtrace.glsl',
+        LineOffset: 370,
+        Target: new THREE.WebGLRenderTarget(resolution.x, resolution.y, { type: framebufferType }),
+        ChannelResolution: Array(10).fill(new THREE.Vector3(0,0,0)),
+        PingPongTarget: new THREE.WebGLRenderTarget(resolution.x, resolution.y, { type: framebufferType }),
+        PingPongChannel: 0,
+        Dependents: [{"Index":2,"Channel":0}],
+        Shader: new THREE.ShaderMaterial({
+            fragmentShader: document.getElementById('./pathtrace.glsl').textContent,
+            depthWrite: false,
+            depthTest: false,
+            uniforms: {
+                iResolution: { type: 'v3', value: resolution },
+                iTime: { type: 'f', value: 0.0 },
+                iTimeDelta: { type: 'f', value: 0.0 },
+                iFrame: { type: 'i', value: 0 },
+                iMouse: { type: 'v4', value: mouse },
+                iMouseButton: { type: 'v2', value: mouseButton },
+    
+                iChannelResolution: { type: 'v3v', value: Array(10).fill(new THREE.Vector3(0,0,0)) },
+    
+                iDate: { type: 'v4', value: date },
+                iSampleRate: { type: 'f', value: audioContext.sampleRate },
+    
+                iChannel0: { type: 't' },
+                iChannel1: { type: 't' },
+                iChannel2: { type: 't' },
+                iChannel3: { type: 't' },
+                iChannel4: { type: 't' },
+                iChannel5: { type: 't' },
+                iChannel6: { type: 't' },
+                iChannel7: { type: 't' },
+                iChannel8: { type: 't' },
+                iChannel9: { type: 't' },
+    
+                resolution: { type: 'v2', value: resolution },
+                time: { type: 'f', value: 0.0 },
+                mouse: { type: 'v2', value: normalizedMouse },
+            }
+        })
+    });buffers.push({
+        Name: './main.glsl',
+        File: './main.glsl',
+        LineOffset: 146,
+        Target: null,
+        ChannelResolution: Array(10).fill(new THREE.Vector3(0,0,0)),
+        PingPongTarget: null,
+        PingPongChannel: 0,
+        Dependents: [],
+        Shader: new THREE.ShaderMaterial({
+            fragmentShader: document.getElementById('./main.glsl').textContent,
+            depthWrite: false,
+            depthTest: false,
+            uniforms: {
+                iResolution: { type: 'v3', value: resolution },
+                iTime: { type: 'f', value: 0.0 },
+                iTimeDelta: { type: 'f', value: 0.0 },
+                iFrame: { type: 'i', value: 0 },
+                iMouse: { type: 'v4', value: mouse },
+                iMouseButton: { type: 'v2', value: mouseButton },
+    
+                iChannelResolution: { type: 'v3v', value: Array(10).fill(new THREE.Vector3(0,0,0)) },
+    
+                iDate: { type: 'v4', value: date },
+                iSampleRate: { type: 'f', value: audioContext.sampleRate },
+    
+                iChannel0: { type: 't' },
+                iChannel1: { type: 't' },
+                iChannel2: { type: 't' },
+                iChannel3: { type: 't' },
+                iChannel4: { type: 't' },
+                iChannel5: { type: 't' },
+                iChannel6: { type: 't' },
+                iChannel7: { type: 't' },
+                iChannel8: { type: 't' },
+                iChannel9: { type: 't' },
+    
+                resolution: { type: 'v2', value: resolution },
+                time: { type: 'f', value: 0.0 },
+                mouse: { type: 'v2', value: normalizedMouse },
+            }
+        })
+    });
+    let commonIncludes = [];
+    // Includes
+    commonIncludes.push({
+        Name: './common.glsl',
+        File: './common.glsl'
+    });
+
+    // WebGL2 inserts more lines into the shader
+    if (isWebGL2) {
+        for (let buffer of buffers) {
+            buffer.LineOffset += 16;
+        }
+    }
+
+    // Keyboard Init
+    const numKeys = 256;
+    const numStates = 4;
+    let keyBoardData = new Uint8Array(numKeys * numStates);
+    let keyBoardTexture = new THREE.DataTexture(keyBoardData, numKeys, numStates, THREE.LuminanceFormat, THREE.UnsignedByteType);
+    keyBoardTexture.magFilter = THREE.NearestFilter;
+    keyBoardTexture.needsUpdate = true;
+    let pressedKeys = [];
+    let releasedKeys = [];
+    let toggledKeys = [81,69,65,83];
+    for (let key of toggledKeys) {
+        keyBoardData[key + 512] = 255; // Toggled
+    }
+    
+    // Uniforms Init
+    
+    let dat_gui = new dat.GUI({ autoPlace: false, closed: true });
+    var dat_gui_container = document.getElementById('dat_gui_container');
+    dat_gui_container.appendChild(dat_gui.domElement);
+    buffers[1].UniformValues = {};
+    buffers[1].UniformValues.camera_vfov = 30;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'camera_vfov').min(0).max(180);
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'camera_vfov',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.camera_focus = 2;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'camera_focus').min(0).max(100);
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'camera_focus',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.camera_aperture = 0.002;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'camera_aperture').min(0).max(1);
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'camera_aperture',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.camera_exposure = 0.5;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'camera_exposure').min(0).max(1);
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'camera_exposure',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.camera_gamma = 2.2;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'camera_gamma').min(0).max(10);
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'camera_gamma',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.light_quality = 100;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'light_quality').min(0.01).max(256);
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'light_quality',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.TMIN = 0.001;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'TMIN');
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'TMIN',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.TMAX = 2000;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'TMAX');
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'TMAX',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.PRECISION = 0.0001;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'PRECISION');
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'PRECISION',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.VISIBILITY = 0.001;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'VISIBILITY');
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'VISIBILITY',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.MAX_RAYMARCH = 1024;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'MAX_RAYMARCH').step(1);
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'MAX_RAYMARCH',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.MAX_RAYTRACE = 256;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'MAX_RAYTRACE').step(1);
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'MAX_RAYTRACE',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    buffers[1].UniformValues.ENV_IOR = 1.000277;
+    {
+        let controller = dat_gui.add(buffers[1].UniformValues, 'ENV_IOR');
+        controller.onFinishChange((value) => {
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'updateUniformsGuiValue',
+                    name: 'ENV_IOR',
+                    value: [ value ]
+                });
+            }
+        });
+    }
+    
+    
+    // Uniforms Update
+    buffers[1].Shader.uniforms.camera_vfov = { type: 'f', value: buffers[1].UniformValues.camera_vfov };
+    buffers[1].Shader.uniforms.camera_focus = { type: 'f', value: buffers[1].UniformValues.camera_focus };
+    buffers[1].Shader.uniforms.camera_aperture = { type: 'f', value: buffers[1].UniformValues.camera_aperture };
+    buffers[1].Shader.uniforms.camera_exposure = { type: 'f', value: buffers[1].UniformValues.camera_exposure };
+    buffers[1].Shader.uniforms.camera_gamma = { type: 'f', value: buffers[1].UniformValues.camera_gamma };
+    buffers[1].Shader.uniforms.light_quality = { type: 'f', value: buffers[1].UniformValues.light_quality };
+    buffers[1].Shader.uniforms.TMIN = { type: 'f', value: buffers[1].UniformValues.TMIN };
+    buffers[1].Shader.uniforms.TMAX = { type: 'f', value: buffers[1].UniformValues.TMAX };
+    buffers[1].Shader.uniforms.PRECISION = { type: 'f', value: buffers[1].UniformValues.PRECISION };
+    buffers[1].Shader.uniforms.VISIBILITY = { type: 'f', value: buffers[1].UniformValues.VISIBILITY };
+    buffers[1].Shader.uniforms.MAX_RAYMARCH = { type: 'f', value: buffers[1].UniformValues.MAX_RAYMARCH };
+    buffers[1].Shader.uniforms.MAX_RAYTRACE = { type: 'f', value: buffers[1].UniformValues.MAX_RAYTRACE };
+    buffers[1].Shader.uniforms.ENV_IOR = { type: 'f', value: buffers[1].UniformValues.ENV_IOR };
+    if (vscode !== undefined) {
+        vscode.postMessage({
+            command: 'updateUniformsGuiOpen',
+            value: !dat_gui.closed
+        });
+    }
+    
+
+    let texLoader = new THREE.TextureLoader();
+    // Texture Init
+    buffers[0].ChannelResolution[0] = new THREE.Vector3(buffers[0].Target.width, buffers[0].Target.height, 1);
+    buffers[0].Shader.uniforms.iChannelResolution.value = buffers[0].ChannelResolution;
+    buffers[0].Shader.uniforms.iChannel0 = { type: 't', value: (() => {
+        let texture = buffers[0].Target.texture;
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearFilter;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    })() };
+    buffers[0].Shader.uniforms.iChannel0 = { type: 't', value: buffers[0].PingPongTarget.texture };
+    
+    buffers[0].Shader.uniforms.iKeyboard = { type: 't', value: keyBoardTexture };
+    buffers[1].ChannelResolution[0] = new THREE.Vector3(buffers[1].Target.width, buffers[1].Target.height, 1);
+    buffers[1].Shader.uniforms.iChannelResolution.value = buffers[1].ChannelResolution;
+    buffers[1].Shader.uniforms.iChannel0 = { type: 't', value: (() => {
+        let texture = buffers[1].Target.texture;
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearFilter;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    })() };buffers[1].ChannelResolution[1] = new THREE.Vector3(buffers[0].Target.width, buffers[0].Target.height, 1);
+    buffers[1].Shader.uniforms.iChannelResolution.value = buffers[1].ChannelResolution;
+    buffers[1].Shader.uniforms.iChannel1 = { type: 't', value: (() => {
+        let texture = buffers[0].Target.texture;
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearFilter;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    })() };
+    
+    buffers[1].Shader.uniforms.iChannel2 = { type: 't', value: new THREE.CubeTextureLoader().load([ "./cubemaps/yokohama_e.jpg", "./cubemaps/yokohama_w.jpg", "./cubemaps/yokohama_u.jpg", "./cubemaps/yokohama_d.jpg", "./cubemaps/yokohama_n.jpg", "./cubemaps/yokohama_s.jpg" ], function(texture) {
+        function isPowerOfTwo(n) {
+        return n && (n & (n - 1)) === 0;
+    };
+
+    if (!isPowerOfTwo(texture.image.width) || !isPowerOfTwo(texture.image.height)) {
+        let diagnostics = [];
+        
+        
+        
+        let diagnosticBatch = {
+            filename: './pathtrace.glsl',
+            diagnostics: diagnostics
+        };
+        if (vscode !== undefined) {
+            vscode.postMessage({
+                command: 'showGlslDiagnostic',
+                type: 'warning',
+                diagnosticBatch: diagnosticBatch
+            });
+        }
+    };
+    buffers[1].ChannelResolution[2] = new THREE.Vector3(texture.image.width, texture.image.height, 1);
+    buffers[1].Shader.uniforms.iChannelResolution.value = buffers[1].ChannelResolution;
+    
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearFilter;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+    }, undefined, function(err) {
+        console.log(err);
+        if (vscode !== undefined) {
+            vscode.postMessage({
+                command: 'errorMessage',
+                message: 'Failed loading texture file ./cubemaps/yokohama_{}.jpg'
+            });
+        }
+    }) };
+    buffers[1].Shader.uniforms.iChannel0 = { type: 't', value: buffers[1].PingPongTarget.texture };
+    buffers[2].ChannelResolution[0] = new THREE.Vector3(buffers[1].Target.width, buffers[1].Target.height, 1);
+    buffers[2].Shader.uniforms.iChannelResolution.value = buffers[2].ChannelResolution;
+    buffers[2].Shader.uniforms.iChannel0 = { type: 't', value: (() => {
+        let texture = buffers[1].Target.texture;
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearFilter;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    })() };
+
+    let scene = new THREE.Scene();
+    let quad = new THREE.Mesh(
+        new THREE.PlaneGeometry(resolution.x, resolution.y),
+        null
+    );
+    scene.add(quad);
+    
+    let camera = new THREE.OrthographicCamera(-resolution.x / 2.0, resolution.x / 2.0, resolution.y / 2.0, -resolution.y / 2.0, 1, 1000);
+    camera.position.set(0, 0, 10);
+
+    // Run every shader once to check for compile errors
+    let compileTimeStart = performance.now();
+    let failed=0;
+    for (let include of commonIncludes) {
+        currentShader = {
+            Name: include.Name,
+            File: include.File,
+            // add two for version and precision lines
+            LineOffset: 39 + 2
+        };
+        // bail if there is an error found in the include script
+        if(compileFragShader(gl, document.getElementById(include.Name).textContent) == false) {
+            throw Error(`Failed to compile ${include.Name}`);
+        }
+    }
+
+    for (let buffer of buffers) {
+        currentShader = {
+            Name: buffer.Name,
+            File: buffer.File,
+            LineOffset: buffer.LineOffset
+        };
+        quad.material = buffer.Shader;
+        renderer.setRenderTarget(buffer.Target);
+        renderer.render(scene, camera);
+    }
+    currentShader = {};
+    let compileTimeEnd = performance.now();
+    let compileTime = compileTimeEnd - compileTimeStart;
+    if (compileTimePanel !== undefined) {
+        for (let i = 0; i < 200; i++) {
+            compileTimePanel.update(compileTime, 200);
+        }
+    }
+
+    computeSize();
+    render();
+
+    function addLineNumbers( string ) {
+        let lines = string.split( '\\n' );
+        for ( let i = 0; i < lines.length; i ++ ) {
+            lines[ i ] = ( i + 1 ) + ': ' + lines[ i ];
+        }
+        return lines.join( '\\n' );
+    }
+
+    function compileFragShader(gl, fsSource) {
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, fsSource);
+        gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+            const fragmentLog = gl.getShaderInfoLog(fs);
+            console.error( 'THREE.WebGLProgram: shader error: ', gl.getError(), 'gl.COMPILE_STATUS', null, null, null, null, fragmentLog );
+            return false;
+        }
+        return true;
+    }
+
+    function render() {
+        requestAnimationFrame(render);
+        // Pause Whole Render
+        if (paused) return;
+
+        // Advance Time
+        deltaTime = clock.getDelta();
+        time = startingTime + clock.getElapsedTime() - pausedTime;
+        updateDate();
+
+        // Audio Update
+
+        for (let buffer of buffers) {
+            buffer.Shader.uniforms['iResolution'].value = resolution;
+            buffer.Shader.uniforms['iTimeDelta'].value = deltaTime;
+            buffer.Shader.uniforms['iTime'].value = time;
+            buffer.Shader.uniforms['iFrame'].value = frameCounter;
+            buffer.Shader.uniforms['iMouse'].value = mouse;
+            buffer.Shader.uniforms['iMouseButton'].value = mouseButton;
+
+            buffer.Shader.uniforms['resolution'].value = resolution;
+            buffer.Shader.uniforms['time'].value = time;
+            buffer.Shader.uniforms['mouse'].value = normalizedMouse;
+
+            quad.material = buffer.Shader;
+            renderer.setRenderTarget(buffer.Target);
+            renderer.render(scene, camera);
+        }
+        
+        // Uniforms Update
+        buffers[1].Shader.uniforms.camera_vfov = { type: 'f', value: buffers[1].UniformValues.camera_vfov };
+        buffers[1].Shader.uniforms.camera_focus = { type: 'f', value: buffers[1].UniformValues.camera_focus };
+        buffers[1].Shader.uniforms.camera_aperture = { type: 'f', value: buffers[1].UniformValues.camera_aperture };
+        buffers[1].Shader.uniforms.camera_exposure = { type: 'f', value: buffers[1].UniformValues.camera_exposure };
+        buffers[1].Shader.uniforms.camera_gamma = { type: 'f', value: buffers[1].UniformValues.camera_gamma };
+        buffers[1].Shader.uniforms.light_quality = { type: 'f', value: buffers[1].UniformValues.light_quality };
+        buffers[1].Shader.uniforms.TMIN = { type: 'f', value: buffers[1].UniformValues.TMIN };
+        buffers[1].Shader.uniforms.TMAX = { type: 'f', value: buffers[1].UniformValues.TMAX };
+        buffers[1].Shader.uniforms.PRECISION = { type: 'f', value: buffers[1].UniformValues.PRECISION };
+        buffers[1].Shader.uniforms.VISIBILITY = { type: 'f', value: buffers[1].UniformValues.VISIBILITY };
+        buffers[1].Shader.uniforms.MAX_RAYMARCH = { type: 'f', value: buffers[1].UniformValues.MAX_RAYMARCH };
+        buffers[1].Shader.uniforms.MAX_RAYTRACE = { type: 'f', value: buffers[1].UniformValues.MAX_RAYTRACE };
+        buffers[1].Shader.uniforms.ENV_IOR = { type: 'f', value: buffers[1].UniformValues.ENV_IOR };
+        if (vscode !== undefined) {
+            vscode.postMessage({
+                command: 'updateUniformsGuiOpen',
+                value: !dat_gui.closed
+            });
+        }
+        
+
+        // Keyboard Update
+        if (pressedKeys.length > 0 || releasedKeys.length > 0) {
+            for (let key of pressedKeys) {
+                keyBoardData[key + 256] = 0;
+            }
+            for (let key of releasedKeys) {
+                keyBoardData[key + 768] = 0;
+            }
+        
+            if (pressedKeys.length > 0) {
+                if (vscode !== undefined) {
+                    vscode.postMessage({
+                        command: 'updateKeyboard',
+                        keys: toggledKeys
+                    });
+                }
+            }
+            
+            keyBoardTexture.needsUpdate = true;
+            pressedKeys = [];
+            releasedKeys = [];
+        }
+
+        for (let buffer of buffers) {
+            if (buffer.PingPongTarget) {
+                [buffer.PingPongTarget, buffer.Target] = [buffer.Target, buffer.PingPongTarget];
+                buffer.Shader.uniforms[`iChannel${buffer.PingPongChannel}`].value = buffer.PingPongTarget.texture;
+                for (let dependent of buffer.Dependents) {
+                    const dependentBuffer = buffers[dependent.Index];
+                    dependentBuffer.Shader.uniforms[`iChannel${dependent.Channel}`].value = buffer.Target.texture;
+                }
+            }
+        }
+
+        frameCounter++;
+    }
+    function computeSize() {
+        let forceAspectRatio = (width, height) => {
+            // Forced aspect ratio
+            let forcedAspects = [0,0];
+            let forcedAspectRatio = forcedAspects[0] / forcedAspects[1];
+            let aspectRatio = width / height;
+
+            if (forcedAspectRatio <= 0 || !isFinite(forcedAspectRatio)) {
+                let resolution = new THREE.Vector3(width, height, 1.0);
+                return resolution;
+            }
+            else if (aspectRatio < forcedAspectRatio) {
+                let resolution = new THREE.Vector3(width, Math.floor(width / forcedAspectRatio), 1);
+                return resolution;
+            }
+            else {
+                let resolution = new THREE.Vector3(Math.floor(height * forcedAspectRatio), height, 1);
+                return resolution;
+            }
+        };
+        
+        // Compute forced aspect ratio and align canvas
+        resolution = forceAspectRatio(window.innerWidth, window.innerHeight);
+        canvas.style.left = `${(window.innerWidth - resolution.x) / 2}px`;
+        canvas.style.top = `${(window.innerHeight - resolution.y) / 2}px`;
+
+        for (let buffer of buffers) {
+            if (buffer.Target) {
+                buffer.Target.setSize(resolution.x, resolution.y);
+            }
+            if (buffer.PingPongTarget) {
+                buffer.PingPongTarget.setSize(resolution.x, resolution.y);
+            }
+        }
+        renderer.setSize(resolution.x, resolution.y, false);
+        
+        // Update Camera and Mesh
+        quad.geometry = new THREE.PlaneGeometry(resolution.x, resolution.y);
+        camera.left = -resolution.x / 2.0;
+        camera.right = resolution.x / 2.0;
+        camera.top = resolution.y / 2.0;
+        camera.bottom = -resolution.y / 2.0;
+        camera.updateProjectionMatrix();
+
+        // Reset iFrame on resize for shaders that rely on first-frame setups
+        frameCounter = 0;
+    }
+    function saveScreenshot() {
+        let doSaveScreenshot = () => {
+            renderer.domElement.toBlob(function(blob){
+                let a = document.createElement('a');
+                let url = URL.createObjectURL(blob);
+                a.href = url;
+                a.download = 'shadertoy.png';
+                a.click();
+            }, 'image/png', 1.0);
+        };
+
+        let forcedScreenshotResolution = [0,0];
+        if (forcedScreenshotResolution[0] <= 0 || forcedScreenshotResolution[1] <= 0) {
+            renderer.render(scene, camera);
+            doSaveScreenshot();
+        }
+        else {
+            renderer.setSize(forcedScreenshotResolution[0], forcedScreenshotResolution[1], false);
+            
+            for (let buffer of buffers) {
+                buffer.Shader.uniforms['iResolution'].value = new THREE.Vector3(forcedScreenshotResolution[0], forcedScreenshotResolution[1], 1);
+                buffer.Shader.uniforms['resolution'].value = new THREE.Vector3(forcedScreenshotResolution[0], forcedScreenshotResolution[1], 1);
+
+                quad.material = buffer.Shader;
+                renderer.setRenderTarget(buffer.Target);
+                renderer.render(scene, camera);
+            }
+
+            doSaveScreenshot();
+            renderer.setSize(resolution.x, resolution.y, false);
+        }
+    }
+    function reloadWebview() {
+        if (vscode !== undefined) {
+            vscode.postMessage({ command: 'reloadWebview' });
+        }
+    }
+    function updateMouse() {
+        if (vscode !== undefined) {
+            vscode.postMessage({
+                command: 'updateMouse',
+                mouse: {
+                    x: mouse.x,
+                    y: mouse.y,
+                    z: mouse.z,
+                    w: mouse.w
+                },
+                normalizedMouse: {
+                    x: normalizedMouse.x,
+                    y: normalizedMouse.y
+                }
+            });
+        }
+    }
+    let dragging = false;
+    function updateNormalizedMouseCoordinates(clientX, clientY) {
+        let rect = canvas.getBoundingClientRect();
+        let mouseX = clientX - rect.left;
+        let mouseY = resolution.y - clientY - rect.top;
+
+        if (mouseButton.x + mouseButton.y != 0) {
+            mouse.x = mouseX;
+            mouse.y = mouseY;
+        }
+
+        normalizedMouse.x = mouseX / resolution.x;
+        normalizedMouse.y = mouseY / resolution.y;
+    }
+    canvas.addEventListener('mousemove', function(evt) {
+        updateNormalizedMouseCoordinates(evt.clientX, evt.clientY);
+        updateMouse();
+    }, false);
+    canvas.addEventListener('mousedown', function(evt) {
+        if (evt.button == 0)
+            mouseButton.x = 1;
+        if (evt.button == 2)
+            mouseButton.y = 1;
+
+        if (!dragging) {
+            updateNormalizedMouseCoordinates(evt.clientX, evt.clientY);
+            mouse.z = mouse.x;
+            mouse.w = mouse.y;
+            dragging = true
+        }
+
+        updateMouse();
+    }, false);
+    canvas.addEventListener('mouseup', function(evt) {
+        if (evt.button == 0)
+            mouseButton.x = 0;
+        if (evt.button == 2)
+            mouseButton.y = 0;
+
+        dragging = false;
+        mouse.z = -mouse.z;
+        mouse.w = -mouse.w;
+
+        updateMouse();
+    }, false);
+    window.addEventListener('resize', function() {
+        computeSize();
+    });
+
+    // Keyboard Callbacks
+    document.addEventListener('keydown', function(evt) {
+        const i = evt.keyCode;
+        if (i >= 0 && i <= 255) {
+            // Key is being held, don't register input
+            if (keyBoardData[i] == 0) {
+                keyBoardData[i] = 255; // Held
+                keyBoardData[i + 256] = 255; // Pressed
+                keyBoardData[i + 512] = (keyBoardData[i + 512] == 255 ? 0 : 255); // Toggled
+    
+                if (keyBoardData[i + 512] > 0) {
+                    toggledKeys.push(i);
+                }
+                else {
+                    toggledKeys = toggledKeys.filter(function(value, index, arr){
+                        return value != i;
+                    });
+                }
+    
+                pressedKeys.push(i);
+                keyBoardTexture.needsUpdate = true;
+            }
+        }
+    });
+    document.addEventListener('keyup', function(evt) {
+        const i = evt.keyCode;
+        if (i >= 0 && i <= 255) {
+            keyBoardData[i] = 0; // Not held
+            keyBoardData[i + 768] = 255; // Released
+            releasedKeys.push(i);
+            keyBoardTexture.needsUpdate = true;
+        }
+    });
+</script>
