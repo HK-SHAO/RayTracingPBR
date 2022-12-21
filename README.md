@@ -14,8 +14,9 @@
 [Taichi] version 1.3.0, llvm 10.0.0, commit bc087737, win, python 3.10.6
 ```
 
-- Live Demo: 
+- Live Demo: https://shao.fun/RayTracingPBR/
 - ShaderToy: https://www.shadertoy.com/view/ddSSWy
+- Godot: https://github.com/HK-SHAO/Godot-RayTracing-Demo
 
 ## 简介
 
