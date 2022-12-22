@@ -17,16 +17,16 @@
 #iUniform float camera_aperture   = 0.002 in {0, 1}                  // 摄像机的光圈大小
 #iUniform float camera_exposure   = 0.5 in {0, 1}                    // 摄像机曝光值
 #iUniform float camera_gamma      = 2.2 in {0, 10}                   // gamma 矫正值
-#iUniform float light_quality     = 100 in {0.01, 256}               // 间接光质量
+#iUniform float light_quality     = 128 in {0.01, 256}               // 间接光质量
 
 // 配置常量
-#iUniform float TMIN       = 0.001                      // 光开始传播的起始偏移，避免光线自相交
+#iUniform float TMIN       = 0.005                      // 光开始传播的起始偏移，避免光线自相交
 #iUniform float TMAX       = 2000.0                     // 最大单次光线传播距离 (相当于可见范围)
-#iUniform float PRECISION  = 0.0001                     // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
-#iUniform float VISIBILITY = 0.001                      // 亮度可见度
+#iUniform float PRECISION  = 0.0005                     // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
+#iUniform float VISIBILITY = 0.003                      // 亮度可见度
 
-#iUniform int MAX_RAYMARCH = 1024                       // 最大光线步进次数
-#iUniform int MAX_RAYTRACE = 256                        // 最大光线追踪次数
+#iUniform int MAX_RAYMARCH = 512                       // 最大光线步进次数
+#iUniform int MAX_RAYTRACE = 128                        // 最大光线追踪次数
 
 #iUniform float ENV_IOR    = 1.000277                   // 环境的折射率
 

@@ -1449,7 +1449,7 @@ void main() {
         });
     }
     
-    buffers[1].UniformValues.light_quality = 100;
+    buffers[1].UniformValues.light_quality = 128;
     {
         let controller = dat_gui.add(buffers[1].UniformValues, 'light_quality').min(0.01).max(256);
         controller.onFinishChange((value) => {
@@ -1463,7 +1463,7 @@ void main() {
         });
     }
     
-    buffers[1].UniformValues.TMIN = 0.001;
+    buffers[1].UniformValues.TMIN = 0.005;
     {
         let controller = dat_gui.add(buffers[1].UniformValues, 'TMIN');
         controller.onFinishChange((value) => {
@@ -1491,7 +1491,7 @@ void main() {
         });
     }
     
-    buffers[1].UniformValues.PRECISION = 0.0001;
+    buffers[1].UniformValues.PRECISION = 0.0005;
     {
         let controller = dat_gui.add(buffers[1].UniformValues, 'PRECISION');
         controller.onFinishChange((value) => {
@@ -1519,7 +1519,7 @@ void main() {
         });
     }
     
-    buffers[1].UniformValues.MAX_RAYMARCH = 1024;
+    buffers[1].UniformValues.MAX_RAYMARCH = 512;
     {
         let controller = dat_gui.add(buffers[1].UniformValues, 'MAX_RAYMARCH').step(1);
         controller.onFinishChange((value) => {
@@ -1533,7 +1533,7 @@ void main() {
         });
     }
     
-    buffers[1].UniformValues.MAX_RAYTRACE = 256;
+    buffers[1].UniformValues.MAX_RAYTRACE = 128;
     {
         let controller = dat_gui.add(buffers[1].UniformValues, 'MAX_RAYTRACE').step(1);
         controller.onFinishChange((value) => {
