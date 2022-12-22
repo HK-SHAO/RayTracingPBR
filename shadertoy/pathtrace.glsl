@@ -25,7 +25,7 @@
 #iUniform float PRECISION  = 0.0005                     // 必须要小于 TMIN，否则光线会自相交产生阴影痤疮
 #iUniform float VISIBILITY = 0.003                      // 亮度可见度
 
-#iUniform int MAX_RAYMARCH = 512                       // 最大光线步进次数
+#iUniform int MAX_RAYMARCH = 512                        // 最大光线步进次数
 #iUniform int MAX_RAYTRACE = 128                        // 最大光线追踪次数
 
 #iUniform float ENV_IOR    = 1.000277                   // 环境的折射率
