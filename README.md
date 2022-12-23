@@ -14,13 +14,13 @@
 [Taichi] version 1.3.0, llvm 10.0.0, commit bc087737, win, python 3.10.6
 ```
 
+- ShaderToy (Recommend): https://www.shadertoy.com/view/ddSSWy
 - Live Demo: https://shao.fun/RayTracingPBR/
-- ShaderToy: https://www.shadertoy.com/view/ddSSWy
 - Godot: https://github.com/HK-SHAO/Godot-RayTracing-Demo
 - Tutorial: https://shao.fun/blog/w/taichi-ray-tracing.html
 
 ## TODO
-
+- [ ] Bloom
 - [ ] Checkerboard Rendering
 - [ ] Reprojection
 - [ ] Light Sources
@@ -29,6 +29,7 @@
 - [ ] Mesh Rendering
 - [ ] Voxel Rendering
 - [ ] Volume Rendering
+- [ ] Bouding Volume Hierarchy
 - [ ] Further noise reduction
 
 ## 简介
