@@ -21,7 +21,7 @@
 
 ## TODO
 - [ ] Bloom
-- [ ] Checkerboard Rendering
+- [ ] Checkerboard Rendering: https://www.shadertoy.com/view/tlcSzs
 - [ ] Reprojection
 - [ ] Light Sources
 - [ ] Importance Sampling
@@ -30,6 +30,7 @@
 - [ ] Voxel Rendering
 - [ ] Volume Rendering
 - [ ] Bouding Volume Hierarchy
+- [ ] Offline: Partition Rendering
 - [ ] Further noise reduction
 
 ## 简介
