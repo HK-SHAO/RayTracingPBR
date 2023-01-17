@@ -42,7 +42,6 @@ class Ray:
 class Material:
     albedo: vec3
     emission: vec3
-    normal: vec3
     roughness: float
     metallic: float
     transmission: float
@@ -165,27 +164,27 @@ objects = SDFObject.field(shape=objects_num)
 
 objects[0] = SDFObject(type=SHAPE_SPHERE,
                     transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
-                    material=Material(vec3(1, 1, 1)*0.6, vec3(1), vec3(0, 0, 1), 1, 1, 0, 1))
+                    material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1))
 
 objects[1] = SDFObject(type=SHAPE_BOX,
                     transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
-                    material=Material(vec3(1, 1, 1), vec3(1), vec3(0, 0, 1), 0, 1, 0, 1))
+                    material=Material(vec3(1, 1, 1), vec3(1), 0, 1, 0, 1))
 
 objects[2] = SDFObject(type=SHAPE_SPHERE,
                     transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
-                    material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, vec3(0, 0, 1), 1, 0, 0, 1))
+                    material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, 1, 0, 0, 1))
 
 objects[3] = SDFObject(type=SHAPE_SPHERE,
                     transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
-                    material=Material(vec3(0.1, 0.1, 1), vec3(1), vec3(0, 0, 1), 0.2, 1, 0, 1))
+                    material=Material(vec3(0.1, 0.1, 1), vec3(1), 0.2, 1, 0, 1))
 
 objects[4] = SDFObject(type=SHAPE_SPHERE,
                     transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
-                    material=Material(vec3(1, 1, 1)*0.9, vec3(1), vec3(0, 0, 1), 0, 0, 1, 1.5))
+                    material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5))
 
 objects[5] = SDFObject(type=SHAPE_CYLINDER,
                     transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
-                    material=Material(vec3(1.0, 0.2, 0.2), vec3(1), vec3(0, 0, 1), 0, 0, 0, 1))
+                    material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1))
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
@@ -245,7 +244,6 @@ def BSDF(ray, rec) -> Ray:
     roughness = rec.object.material.roughness
     metallic = rec.object.material.metallic
     transmission = rec.object.material.transmission
-    # normal = rec.object.material.normal
     ior = rec.object.material.ior
     
     normal = rec.normal
