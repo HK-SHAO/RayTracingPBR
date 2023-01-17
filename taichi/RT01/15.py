@@ -1,6 +1,5 @@
 from taichi.math import *
 import taichi as ti
-import time
 
 ti.init(arch=ti.gpu)
 
@@ -12,7 +11,7 @@ aspect_ratio = image_resolution[0] / image_resolution[1]
 
 TMIN        = 0.005
 TMAX        = 2000.0
-PRECISION   = 0.0005
+PRECISION   = 0.0001
 VISIBILITY  = 0.000001
 
 MAX_RAYMARCH = 512
@@ -161,32 +160,32 @@ def signed_distance(obj, pos: vec3) -> float:
 
     return obj.distance
 
-objects_num = 6
+objects_num = 7
 objects = SDFObject.field(shape=objects_num)
 
 objects[0] = SDFObject(type=SHAPE_SPHERE,
-                    transform=Transform(vec3(0, -100.5, 0), vec3(0), vec3(100)),
-                    material=Material(vec3(1, 1, 1), vec3(0), vec3(0, 0, 1), 1, 1, 0, 1))
+                    transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
+                    material=Material(vec3(1, 1, 1)*0.6, vec3(1), vec3(0, 0, 1), 1, 1, 0, 1))
 
 objects[1] = SDFObject(type=SHAPE_BOX,
                     transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
-                    material=Material(vec3(1, 1, 1), vec3(0), vec3(0, 0, 1), 0, 1, 0, 1))
+                    material=Material(vec3(1, 1, 1), vec3(1), vec3(0, 0, 1), 0, 1, 0, 1))
 
 objects[2] = SDFObject(type=SHAPE_SPHERE,
                     transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
                     material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, vec3(0, 0, 1), 1, 0, 0, 1))
 
 objects[3] = SDFObject(type=SHAPE_SPHERE,
-                    transform=Transform(vec3(-1, -0.2, 0), vec3(0), vec3(0.3)),
-                    material=Material(vec3(1, 0.1, 0.1), vec3(0), vec3(0, 0, 1), 0.9, 0.1, 0, 1))
+                    transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
+                    material=Material(vec3(0.1, 0.1, 1), vec3(1), vec3(0, 0, 1), 0.2, 1, 0, 1))
 
 objects[4] = SDFObject(type=SHAPE_SPHERE,
-                    transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
-                    material=Material(vec3(0.1, 0.1, 1), vec3(0), vec3(0, 0, 1), 0.2, 1, 0, 1))
+                    transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
+                    material=Material(vec3(1, 1, 1)*0.9, vec3(1), vec3(0, 0, 1), 0, 0, 1, 1.5))
 
-objects[5] = SDFObject(type=SHAPE_SPHERE,
-                    transform=Transform(vec3(0.5, -0.2, -1), vec3(0), vec3(0.3)),
-                    material=Material(vec3(0.9, 0.9, 1), vec3(0), vec3(0, 0, 1), 0, 0, 1, 1.5))
+objects[5] = SDFObject(type=SHAPE_CYLINDER,
+                    transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
+                    material=Material(vec3(1.0, 0.2, 0.2), vec3(1), vec3(0, 0, 1), 0, 0, 0, 1))
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
@@ -204,17 +203,6 @@ def calc_normal(obj, p: vec3) -> vec3:
                         e.yyx*signed_distance(obj, p + e.yyx) + \
                         e.yxy*signed_distance(obj, p + e.yxy) + \
                         e.xxx*signed_distance(obj, p + e.xxx)   )
-
-@ti.func
-def TBN(N: vec3) -> mat3:
-    s = 1 if N.z >= 0 else -1
-    a = -1 / (s + N.z)
-    b = N.x * N.y * a
-    
-    T = vec3(1 + s * N.x * N.x * a, s * b, s * -N.x)
-    B = vec3(b, s + N.y * N.y * a, -N.y)
-    
-    return mat3(T, B, N)
 
 @ti.func
 def raycast(ray) -> HitRecord:
@@ -257,10 +245,9 @@ def BSDF(ray, rec) -> Ray:
     roughness = rec.object.material.roughness
     metallic = rec.object.material.metallic
     transmission = rec.object.material.transmission
-    normal = rec.object.material.normal
+    # normal = rec.object.material.normal
     ior = rec.object.material.ior
     
-    # normal = TBN(rec.normal) @ normal
     normal = rec.normal
     outer = dot(normal, ray.direction) < 0
     normal *= 1 if outer else -1
@@ -323,13 +310,11 @@ def raytrace(ray) -> Ray:
 
         ray = BSDF(ray, record)
 
-        if brightness(ray.color) < VISIBILITY: break
-
-        # intensity = brightness(ray.color)
-        # ray.color  *= record.object.material.emission
-        # visible   = brightness(ray.color)
+        intensity = brightness(ray.color)
+        ray.color  *= record.object.material.emission
+        visible   = brightness(ray.color)
         
-        # if intensity < visible or visible < VISIBILITY: break
+        if intensity < visible or visible < VISIBILITY: break
 
     return ray
 
@@ -400,7 +385,7 @@ def render(
 window = ti.ui.Window("Taichi Renderer", image_resolution)
 canvas = window.get_canvas()
 camera = ti.ui.Camera()
-camera.position(0, 0, 4)
+camera.position(0, -0.2, 4)
 
 while window.running:
     camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.LMB)
