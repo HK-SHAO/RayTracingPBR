@@ -1,18 +1,18 @@
 from taichi.math import *
 import taichi as ti
 
-ti.init(arch=ti.gpu)
+ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
 image_resolution = (1920 // 2, 1080 // 2)
+
 image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)
 
-aspect_ratio = image_resolution[0] / image_resolution[1]
 
-TMIN        = 0.005
-TMAX        = 2000.0
-PRECISION   = 0.0001
-VISIBILITY  = 0.000001
+TMIN         = 0.005
+TMAX         = 2000.0
+PRECISION    = 0.0001
+VISIBILITY   = 0.000001
 
 MAX_RAYMARCH = 512
 MAX_RAYTRACE = 128
@@ -24,9 +24,12 @@ SHAPE_CYLINDER  = 3
 
 ENV_IOR = 1.000277
 
+aspect_ratio = image_resolution[0] / image_resolution[1]
 light_quality = 128.0
 camera_exposure = 0.6
 gamma = 2.2
+
+SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
 
 @ti.dataclass
 class Ray:
@@ -64,7 +67,6 @@ class SDFObject:
 class HitRecord:
     object: SDFObject
     position: vec3
-    normal: vec3
     hit: bool
     
 
@@ -192,7 +194,7 @@ def nearest_object(p: vec3) -> SDFObject:
     for i in range(objects_num):
         oi = objects[i]
         oi.distance = abs(signed_distance(oi, p))
-        if abs(oi.distance) < abs(o.distance): o = oi
+        if oi.distance < o.distance: o = oi
     return o
 
 @ti.func
@@ -208,11 +210,13 @@ def raycast(ray) -> HitRecord:
     record = HitRecord()
     t = TMIN
     for _ in range(MAX_RAYMARCH):
-        if t > TMAX or record.hit: break
         record.position = ray.at(t)
         record.object = nearest_object(record.position)
         record.hit = record.object.distance < PRECISION
         t += record.object.distance
+        if t > TMAX or record.hit:
+            break
+
     return record
 
 @ti.func
@@ -221,15 +225,15 @@ def sky_color(ray) -> vec3:
     return mix(vec3(1.0, 1.0, 0.5), vec3(0.5, 0.7, 2.0), t)
 
 @ti.func
-def fresnel_schlick(cosine: float, F0: float, roughness: float) -> float:
-    return mix(mix(pow(abs(1.0 - cosine), 5.0), 1.0, F0), F0, roughness)
+def fresnel_schlick(NoI: float, F0: float, roughness: float) -> float:
+    return mix(mix(pow(abs(1.0 + NoI), 5.0), 1.0, F0), F0, roughness)
 
 @ti.func
 def hemispheric_sampling(normal: vec3) -> vec3:
-    rx = 2.0 * ti.random() - 1.0
-    ry = ti.random() * 2.0 * pi
-    xy = sqrt(1.0 - rx*rx) * vec2(sin(ry), cos(ry));
-    z = rx
+    z = 2.0 * ti.random() - 1.0
+    a = ti.random() * 2.0 * pi
+    
+    xy = sqrt(1.0 - z*z) * vec2(sin(a), cos(a))
     
     return normalize(normal + vec3(xy, z))
 
@@ -239,46 +243,39 @@ def roughness_sampling(hemispheric_sample: vec3, normal: vec3, roughness: float)
     return normalize(mix(normal, hemispheric_sample, alpha))
 
 @ti.func
-def BSDF(ray, rec) -> Ray:
-    albedo = rec.object.material.albedo
-    roughness = rec.object.material.roughness
-    metallic = rec.object.material.metallic
-    transmission = rec.object.material.transmission
-    ior = rec.object.material.ior
+def light_and_surface_interaction(ray, record) -> Ray:
+    albedo = record.object.material.albedo
+    roughness = record.object.material.roughness
+    metallic = record.object.material.metallic
+    transmission = record.object.material.transmission
+    ior = record.object.material.ior
     
-    normal = rec.normal
-    outer = dot(normal, ray.direction) < 0
+    normal = calc_normal(record.object, record.position)
+    outer = dot(ray.direction, normal) < 0
     normal *= 1 if outer else -1
-    
-    I = ray.direction
-    N = normal
-    C = ray.color
-    L = vec3(0)
     
     hemispheric_sample = hemispheric_sampling(normal)
     roughness_sample = roughness_sampling(hemispheric_sample, normal, roughness)
     
     N = roughness_sample
+    I = ray.direction
     NoI = dot(N, I)
-    NoV = -NoI
 
     eta = ENV_IOR / ior if outer else ior / ENV_IOR
-    k   = 1.0 - eta * eta * (1.0 - NoV * NoV)
+    k   = 1.0 - eta * eta * (1.0 - NoI * NoI)
     F0  = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0
-    F   = fresnel_schlick(NoV, F0, roughness)
+    F   = fresnel_schlick(NoI, F0, roughness)
 
     if ti.random() < F + metallic or k < 0.0:
-        L = I - 2.0 * NoI * N
-        C *= float(dot(L, normal) > 0.0)
+        ray.direction = I - 2.0 * NoI * N
+        ray.color *= float(dot(ray.direction, normal) > 0.0)
     elif ti.random() < transmission:
-        L = eta * I - (sqrt(k) + eta * NoI) * N
+        ray.direction = eta * I - (sqrt(k) + eta * NoI) * N
     else:
-        L = hemispheric_sample
+        ray.direction = hemispheric_sample
 
-    C *= albedo
-
-    ray.color     = C
-    ray.direction = L
+    ray.color *= albedo
+    ray.origin = record.position
     
     return ray
 
@@ -301,18 +298,15 @@ def raytrace(ray) -> Ray:
         if not record.hit:
             ray.color *= sky_color(ray)
             break
-    
-        record.normal = calc_normal(record.object, record.position)
 
-        ray.origin = record.position
-
-        ray = BSDF(ray, record)
+        ray = light_and_surface_interaction(ray, record)
 
         intensity = brightness(ray.color)
         ray.color  *= record.object.material.emission
         visible   = brightness(ray.color)
         
-        if intensity < visible or visible < VISIBILITY: break
+        if intensity < visible or visible < VISIBILITY:
+            break
 
     return ray
 
@@ -322,7 +316,6 @@ ACESInputMat = mat3(
     vec3(0.02840, 0.13383, 0.83777)
 )
 
-# ODT_SAT => XYZ => D60_2_D65 => sRGB
 ACESOutputMat = mat3(
     vec3( 1.60475, -0.53108, -0.07367),
     vec3(-0.10208,  1.10813, -0.00605),
@@ -350,7 +343,6 @@ def render(
     moving: bool):
 
     for i, j in image_pixels:
-        SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
         coord = vec2(i, j) + vec2(ti.random(), ti.random())
         uv = coord * SCREEN_PIXEL_SIZE
 
@@ -372,10 +364,10 @@ def render(
             image_buffer[i, j] += vec4(ray_color, 1.0)
 
         buffer = image_buffer[i, j]
+
         color = buffer.rgb / buffer.a
         color *= camera_exposure
         color = ACESFitted(color)
-    
         color = pow(color, vec3(1.0 / gamma))
 
         image_pixels[i, j] = color
