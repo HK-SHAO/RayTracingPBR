@@ -9,8 +9,8 @@ image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)
 
 
-TMIN         = 0.005
-TMAX         = 2000.0
+MIN_DIS      = 0.005
+MAX_DIS      = 2000.0
 PRECISION    = 0.0001
 VISIBILITY   = 0.000001
 
@@ -27,7 +27,10 @@ ENV_IOR = 1.000277
 aspect_ratio = image_resolution[0] / image_resolution[1]
 light_quality = 128.0
 camera_exposure = 0.6
-gamma = 2.2
+camera_vfov = 30
+camera_aperture = 0.01
+camera_focus = 4
+camera_gamma = 2.2
 
 SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
 
@@ -67,6 +70,7 @@ class SDFObject:
 class HitRecord:
     object: SDFObject
     position: vec3
+    distance: float
     hit: bool
     
 
@@ -194,7 +198,7 @@ objects[6] = SDFObject(type=SHAPE_BOX,
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
-    o = SDFObject(distance=TMAX)
+    o = SDFObject(distance=MAX_DIS)
     for i in range(objects_num):
         oi = objects[i]
         oi.distance = abs(signed_distance(oi, p))
@@ -211,14 +215,13 @@ def calc_normal(obj, p: vec3) -> vec3:
 
 @ti.func
 def raycast(ray) -> HitRecord:
-    record = HitRecord()
-    t = TMIN
+    record = HitRecord(distance=MIN_DIS)
     for _ in range(MAX_RAYMARCH):
-        record.position = ray.at(t)
+        record.position = ray.at(record.distance)
         record.object = nearest_object(record.position)
+        record.distance += record.object.distance
         record.hit = record.object.distance < PRECISION
-        t += record.object.distance
-        if t > TMAX or record.hit:
+        if record.distance > MAX_DIS or record.hit:
             break
 
     return record
@@ -248,21 +251,21 @@ def roughness_sampling(hemispheric_sample: vec3, normal: vec3, roughness: float)
 
 @ti.func
 def light_and_surface_interaction(ray, record) -> Ray:
-    albedo = record.object.material.albedo
-    roughness = record.object.material.roughness
-    metallic = record.object.material.metallic
-    transmission = record.object.material.transmission
-    ior = record.object.material.ior
+    albedo          = record.object.material.albedo
+    roughness       = record.object.material.roughness
+    metallic        = record.object.material.metallic
+    transmission    = record.object.material.transmission
+    ior             = record.object.material.ior
     
-    normal = calc_normal(record.object, record.position)
-    outer = dot(ray.direction, normal) < 0
+    normal  = calc_normal(record.object, record.position)
+    outer   = dot(ray.direction, normal) < 0
     normal *= 1 if outer else -1
     
-    hemispheric_sample = hemispheric_sampling(normal)
-    roughness_sample = roughness_sampling(hemispheric_sample, normal, roughness)
+    hemispheric_sample  = hemispheric_sampling(normal)
+    roughness_sample    = roughness_sampling(hemispheric_sample, normal, roughness)
     
-    N = roughness_sample
-    I = ray.direction
+    N   = roughness_sample
+    I   = ray.direction
     NoI = dot(N, I)
 
     eta = ENV_IOR / ior if outer else ior / ENV_IOR
@@ -308,7 +311,7 @@ def raytrace(ray) -> Ray:
         intensity = brightness(ray.color)
         ray.color  *= record.object.material.emission
         visible   = brightness(ray.color)
-        
+
         if intensity < visible or visible < VISIBILITY:
             break
 
@@ -352,12 +355,12 @@ def render(
 
         camera = Camera()
         camera.lookfrom = camera_position
-        camera.lookat = camera_lookat
-        camera.vup = camera_up
-        camera.aspect = aspect_ratio
-        camera.vfov = 30
-        camera.aperture = 0.01
-        camera.focus = 4
+        camera.lookat   = camera_lookat
+        camera.vup      = camera_up
+        camera.aspect   = aspect_ratio
+        camera.vfov     = camera_vfov
+        camera.aperture = camera_aperture
+        camera.focus    = camera_focus
 
         ray = camera.get_ray(uv, vec3(1))
         ray_color = raytrace(ray).color
@@ -369,10 +372,10 @@ def render(
 
         buffer = image_buffer[i, j]
 
-        color = buffer.rgb / buffer.a
+        color  = buffer.rgb / buffer.a
         color *= camera_exposure
-        color = ACESFitted(color)
-        color = pow(color, vec3(1.0 / gamma))
+        color  = ACESFitted(color)
+        color  = pow(color, vec3(1.0 / camera_gamma))
 
         image_pixels[i, j] = color
 
