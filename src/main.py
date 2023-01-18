@@ -56,8 +56,8 @@ class Ray:
     color: vec3
 
     @ti.func
-    def at(ray, t: float) -> vec3:
-        return ray.origin + t * ray.direction
+    def at(r, t: float) -> vec3:
+        return r.origin + t * r.direction
 
 @ti.dataclass
 class Material:
@@ -159,7 +159,7 @@ def sd_cylinder(p: vec3, rh: vec2) -> float:
     return min(max(d.x, d.y), 0) + length(max(d, 0))
 
 @ti.func
-def signed_distance(obj, pos: vec3) -> float:
+def signed_distance(obj: SDFObject, pos: vec3) -> float:
     position = obj.transform.position
     rotation = obj.transform.rotation
     scale    = obj.transform.scale
@@ -173,7 +173,7 @@ def signed_distance(obj, pos: vec3) -> float:
 
     return obj.distance
 
-WORLD_LIST =[
+WORLD_LIST = [
     SDFObject(type=SHAPE_SPHERE,
                 transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
                 material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635)),
@@ -211,15 +211,15 @@ def nearest_object(p: vec3) -> SDFObject:
     return o
 
 @ti.func
-def calc_normal(obj, p: vec3) -> vec3:
-    e = vec2(1, -1) * 0.5773 * 0.0005
-    return normalize(e.xyy*signed_distance(obj, p + e.xyy) + \
-                     e.yyx*signed_distance(obj, p + e.yyx) + \
-                     e.yxy*signed_distance(obj, p + e.yxy) + \
-                     e.xxx*signed_distance(obj, p + e.xxx)   )
+def calc_normal(obj: SDFObject, p: vec3) -> vec3:
+    e = vec2(1, -1) * PRECISION
+    return normalize(e.xyy * signed_distance(obj, p + e.xyy) + \
+                     e.yyx * signed_distance(obj, p + e.yyx) + \
+                     e.yxy * signed_distance(obj, p + e.yxy) + \
+                     e.xxx * signed_distance(obj, p + e.xxx) )
 
 @ti.func
-def raycast(ray) -> HitRecord:
+def raycast(ray: Ray) -> HitRecord:
     record = HitRecord(distance=MIN_DIS)
     for _ in range(MAX_RAYMARCH):
         record.position  = ray.at(record.distance)
@@ -238,7 +238,7 @@ def sample_spherical_map(v: vec3) -> vec2:
     return uv
 
 @ti.func
-def sky_color(ray) -> vec3:
+def sky_color(ray: Ray) -> vec3:
     uv = sample_spherical_map(ray.direction)
     color = hdr_map.texture(uv) * 1.8
     color = pow(color, vec3(camera_gamma))
@@ -263,7 +263,7 @@ def roughness_sampling(hemispheric_sample: vec3, normal: vec3, roughness: float)
     return normalize(mix(normal, hemispheric_sample, alpha))
 
 @ti.func
-def light_and_surface_interaction(ray, record) -> Ray:
+def ray_surface_interaction(ray: Ray, record: HitRecord) -> Ray:
     albedo          = record.object.material.albedo
     roughness       = record.object.material.roughness
     metallic        = record.object.material.metallic
@@ -304,7 +304,7 @@ def brightness(rgb: vec3) -> float:
     return dot(rgb, vec3(0.299, 0.587, 0.114))
 
 @ti.func
-def raytrace(ray) -> Ray:
+def raytrace(ray: Ray) -> Ray:
     for i in range(MAX_RAYTRACE):
         inv_pdf = exp(float(i) / light_quality)
         roulette_prob = 1.0 - (1.0 / inv_pdf)
@@ -319,7 +319,7 @@ def raytrace(ray) -> Ray:
             ray.color *= sky_color(ray)
             break
 
-        ray = light_and_surface_interaction(ray, record)
+        ray = ray_surface_interaction(ray, record)
 
         intensity = brightness(ray.color)
         ray.color  *= record.object.material.emission
@@ -336,9 +336,9 @@ ACESInputMat = mat3(
 )
 
 ACESOutputMat = mat3(
-     1.60475, -0.53108, -0.07367,
-    -0.10208,  1.10813, -0.00605,
-    -0.00327, -0.07276,  1.07602
+    +1.60475, -0.53108, -0.07367,
+    -0.10208, +1.10813, -0.00605,
+    -0.00327, -0.07276, +1.07602
 )
 
 @ti.func
