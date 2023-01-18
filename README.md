@@ -1,4 +1,4 @@
-# Taichi PBRT (WIP)
+# Taichi PBRT
 
 <div align=center><img src="./icon.png" width=100></img></div>
 
@@ -13,3 +13,9 @@ pip install -U taichi
 ```shell
 ti index.py
 ```
+
+## More
+
+- https://github.com/HK-SHAO/RayTracingPBR/tree/taichi
+- https://github.com/HK-SHAO/RayTracingPBR/tree/shadertoy
+- https://github.com/HK-SHAO/RayTracingPBR/tree/main
