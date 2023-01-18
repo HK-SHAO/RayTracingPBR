@@ -8,6 +8,7 @@ image_resolution = (1920 // 2, 1080 // 2)
 image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)
 
+SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
 
 MIN_DIS      = 0.005
 MAX_DIS      = 2000.0
@@ -32,7 +33,20 @@ camera_aperture = 0.01
 camera_focus = 4
 camera_gamma = 2.2
 
-SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
+@ti.data_oriented
+class Image:
+    def __init__(self, path: str):
+        img = ti.tools.imread(path) / 256
+        self.img = vec3.field(shape=img.shape[:2])
+        self.img.from_numpy(img)
+
+    @ti.func
+    def texture(self, uv: vec2) -> vec3:
+        x = int(uv.x * self.img.shape[0])
+        y = int(uv.y * self.img.shape[1])
+        return self.img[x, y]
+
+sky_image = Image('taichi/RT01/assets/Tokyo_BigSight_3k.hdr')
 
 @ti.dataclass
 class Ray:
@@ -169,32 +183,32 @@ objects_num = 7
 objects = SDFObject.field(shape=objects_num)
 
 objects[0] = SDFObject(type=SHAPE_SPHERE,
-                    transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
-                    material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635))
+                       transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
+                       material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635))
 
 objects[1] = SDFObject(type=SHAPE_SPHERE,
-                    transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
-                    material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, 1, 0, 0, 1))
+                       transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
+                       material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, 1, 0, 0, 1))
 
 objects[2] = SDFObject(type=SHAPE_SPHERE,
-                    transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
-                    material=Material(vec3(0.2, 0.2, 1), vec3(1), 0.2, 1, 0, 1.100))
+                       transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
+                       material=Material(vec3(0.2, 0.2, 1), vec3(1), 0.2, 1, 0, 1.100))
 
 objects[3] = SDFObject(type=SHAPE_SPHERE,
-                    transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
-                    material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5))
+                       transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
+                       material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5))
 
 objects[4] = SDFObject(type=SHAPE_CYLINDER,
-                    transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
-                    material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1.460))
+                       transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
+                       material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1.460))
 
 objects[5] = SDFObject(type=SHAPE_BOX,
-                    transform=Transform(vec3(0, 0, 5), vec3(0), vec3(2, 1, 0.2)),
-                    material=Material(vec3(1, 1, 0.2)*0.9, vec3(1), 0, 1, 0, 0.470))
+                       transform=Transform(vec3(0, 0, 5), vec3(0), vec3(2, 1, 0.2)),
+                       material=Material(vec3(1, 1, 0.2)*0.9, vec3(1), 0, 1, 0, 0.470))
 
 objects[6] = SDFObject(type=SHAPE_BOX,
-                    transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
-                    material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
+                       transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
+                       material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
@@ -221,15 +235,25 @@ def raycast(ray) -> HitRecord:
         record.object = nearest_object(record.position)
         record.distance += record.object.distance
         record.hit = record.object.distance < PRECISION
-        if record.distance > MAX_DIS or record.hit:
-            break
+        if record.distance > MAX_DIS or record.hit: break
 
     return record
 
 @ti.func
+def sample_spherical_map(v: vec3) -> vec2:
+    uv = vec2(atan2(v.z, v.x), asin(v.y))
+    uv *= vec2(0.5 / pi, 1 / pi)
+    uv += 0.5
+    return uv
+
+@ti.func
 def sky_color(ray) -> vec3:
-    t = 0.5 * ray.direction.y + 0.5
-    return mix(vec3(1.0, 1.0, 0.5), vec3(0.5, 0.7, 2.0), t)
+    uv = sample_spherical_map(ray.direction)
+    color = sky_image.texture(uv) * 1.8
+    color = pow(color, vec3(camera_gamma))
+    return color
+    # t = 0.5 * ray.direction.y + 0.5
+    # return mix(vec3(1.0, 1.0, 0.5), vec3(0.5, 0.7, 2.0), t)
 
 @ti.func
 def fresnel_schlick(NoI: float, F0: float, roughness: float) -> float:
@@ -312,8 +336,7 @@ def raytrace(ray) -> Ray:
         ray.color  *= record.object.material.emission
         visible   = brightness(ray.color)
 
-        if intensity < visible or visible < VISIBILITY:
-            break
+        if intensity < visible or visible < VISIBILITY: break
 
     return ray
 
@@ -366,7 +389,7 @@ def render(
         ray_color = raytrace(ray).color
 
         if moving:
-            image_buffer[i, j] = vec4(ray_color, 1.0)
+            image_buffer[i, j]  = vec4(ray_color, 1.0)
         else:
             image_buffer[i, j] += vec4(ray_color, 1.0)
 
