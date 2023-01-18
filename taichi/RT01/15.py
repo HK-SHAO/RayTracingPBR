@@ -1,9 +1,9 @@
-from taichi.math import *
 import taichi as ti
+from taichi.math import *
 
 ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
-image_resolution = (1920 // 2, 1080 // 2)
+image_resolution = (1920, 1080)
 
 image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)
@@ -18,25 +18,25 @@ VISIBILITY   = 0.000001
 MAX_RAYMARCH = 512
 MAX_RAYTRACE = 128
 
-SHAPE_NONE      = 0
-SHAPE_SPHERE    = 1
-SHAPE_BOX       = 2
-SHAPE_CYLINDER  = 3
+SHAPE_NONE     = 0
+SHAPE_SPHERE   = 1
+SHAPE_BOX      = 2
+SHAPE_CYLINDER = 3
 
 ENV_IOR = 1.000277
 
-aspect_ratio = image_resolution[0] / image_resolution[1]
-light_quality = 128.0
+aspect_ratio    = image_resolution[0] / image_resolution[1]
+light_quality   = 128.0
 camera_exposure = 0.6
-camera_vfov = 30
+camera_vfov     = 30
 camera_aperture = 0.01
-camera_focus = 4
-camera_gamma = 2.2
+camera_focus    = 4
+camera_gamma    = 2.2
 
 @ti.data_oriented
 class Image:
     def __init__(self, path: str):
-        img = ti.tools.imread(path) / 256
+        img = ti.tools.imread(path) / 255
         self.img = vec3.field(shape=img.shape[:2])
         self.img.from_numpy(img)
 
