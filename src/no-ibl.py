@@ -41,8 +41,8 @@ class Ray:
     color: vec3
 
     @ti.func
-    def at(ray, t: float) -> vec3:
-        return ray.origin + t * ray.direction
+    def at(r, t: float) -> vec3:
+        return r.origin + t * r.direction
 
 @ti.dataclass
 class Material:
@@ -72,7 +72,6 @@ class HitRecord:
     position: vec3
     distance: float
     hit: bool
-    
 
 @ti.func
 def random_in_unit_disk():
@@ -119,17 +118,16 @@ class Camera:
 
 @ti.func
 def angle(a: vec3) -> mat3:
-    s = sin(a)
-    c = cos(a)
-    return  mat3( c.z,  s.z,    0,
-                 -s.z,  c.z,    0,
-                    0,    0,    1) * \
-            mat3( c.y,    0, -s.y,
-                    0,    1,    0,
-                  s.y,    0,  c.y) * \
-            mat3(   1,    0,    0,
-                    0,  c.x,  s.x,
-                    0, -s.x,  c.x)
+    s, c = sin(a), cos(a)
+    return mat3(vec3( c.z,  s.z,    0),
+                vec3(-s.z,  c.z,    0),
+                vec3(   0,    0,    1)) * \
+           mat3(vec3( c.y,    0, -s.y),
+                vec3(   0,    1,    0),
+                vec3( s.y,    0,  c.y)) * \
+           mat3(vec3(   1,    0,    0),
+                vec3(   0,  c.x,  s.x),
+                vec3(   0, -s.x,  c.x))
 
 @ti.func
 def sd_sphere(p: vec3, r: float) -> float:
@@ -146,84 +144,83 @@ def sd_cylinder(p: vec3, rh: vec2) -> float:
     return min(max(d.x, d.y), 0) + length(max(d, 0))
 
 @ti.func
-def signed_distance(obj, pos: vec3) -> float:
+def signed_distance(obj: SDFObject, pos: vec3) -> float:
     position = obj.transform.position
     rotation = obj.transform.rotation
-    scale = obj.transform.scale
+    scale    = obj.transform.scale
 
-    p = pos - position
-    p = angle(radians(rotation)) @ p
+    p = angle(radians(rotation)) @ (pos - position)
 
-    if obj.type == SHAPE_SPHERE:
-        obj.distance = sd_sphere(p, scale.x)
-    elif obj.type == SHAPE_BOX:
-        obj.distance = sd_box(p, scale)
-    elif obj.type == SHAPE_CYLINDER:
-        obj.distance = sd_cylinder(p, scale.xy)
-    else:
-        obj.distance = sd_sphere(p, scale.x)
+    if    obj.type == SHAPE_SPHERE:   obj.distance = sd_sphere(p, scale.x)
+    elif  obj.type == SHAPE_BOX:      obj.distance = sd_box(p, scale)
+    elif  obj.type == SHAPE_CYLINDER: obj.distance = sd_cylinder(p, scale.xy)
+    else: obj.distance = sd_sphere(p, scale.x)
 
     return obj.distance
 
-objects_num = 7
+WORLD_LIST = [
+    SDFObject(type=SHAPE_SPHERE,
+                transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
+                material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635)),
+    SDFObject(type=SHAPE_SPHERE,
+                transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
+                material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, 1, 0, 0, 1)),
+    SDFObject(type=SHAPE_SPHERE,
+                transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
+                material=Material(vec3(0.2, 0.2, 1), vec3(1), 0.2, 1, 0, 1.100)),
+    SDFObject(type=SHAPE_SPHERE,
+                transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
+                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5)),
+    SDFObject(type=SHAPE_CYLINDER,
+                transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
+                material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1.460)),
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(0, 0, 5), vec3(0), vec3(2, 1, 0.2)),
+                material=Material(vec3(1, 1, 0.2)*0.9, vec3(1), 0, 1, 0, 0.470)),
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
+                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
+]
+
+objects_num = len(WORLD_LIST)
 objects = SDFObject.field(shape=objects_num)
-
-objects[0] = SDFObject(type=SHAPE_SPHERE,
-                       transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
-                       material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635))
-
-objects[1] = SDFObject(type=SHAPE_SPHERE,
-                       transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
-                       material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, 1, 0, 0, 1))
-
-objects[2] = SDFObject(type=SHAPE_SPHERE,
-                       transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
-                       material=Material(vec3(0.2, 0.2, 1), vec3(1), 0.2, 1, 0, 1.100))
-
-objects[3] = SDFObject(type=SHAPE_SPHERE,
-                       transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
-                       material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5))
-
-objects[4] = SDFObject(type=SHAPE_CYLINDER,
-                       transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
-                       material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1.460))
-
-objects[5] = SDFObject(type=SHAPE_BOX,
-                       transform=Transform(vec3(0, 0, 5), vec3(0), vec3(2, 1, 0.2)),
-                       material=Material(vec3(1, 1, 0.2)*0.9, vec3(1), 0, 1, 0, 0.470))
-
-objects[6] = SDFObject(type=SHAPE_BOX,
-                       transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
-                       material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
+for i in range(objects_num): objects[i] = WORLD_LIST[i]
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
-    o = SDFObject(distance=MAX_DIS)
-    for i in range(objects_num):
+    o = objects[0]; o.distance=abs(signed_distance(o, p))
+    for i in range(1, objects_num):
         oi = objects[i]
         oi.distance = abs(signed_distance(oi, p))
         if oi.distance < o.distance: o = oi
     return o
 
 @ti.func
-def calc_normal(obj, p: vec3) -> vec3:
-    e = vec2(1, -1) * 0.5773 * 0.0005
-    return normalize(   e.xyy*signed_distance(obj, p + e.xyy) + \
-                        e.yyx*signed_distance(obj, p + e.yyx) + \
-                        e.yxy*signed_distance(obj, p + e.yxy) + \
-                        e.xxx*signed_distance(obj, p + e.xxx)   )
+def calc_normal(obj: SDFObject, p: vec3) -> vec3:
+    e = vec2(1, -1) * PRECISION
+    return normalize(e.xyy * signed_distance(obj, p + e.xyy) + \
+                     e.yyx * signed_distance(obj, p + e.yyx) + \
+                     e.yxy * signed_distance(obj, p + e.yxy) + \
+                     e.xxx * signed_distance(obj, p + e.xxx) )
 
 @ti.func
-def raycast(ray) -> HitRecord:
+def raycast(ray: Ray) -> HitRecord:
     record = HitRecord(distance=MIN_DIS)
     for _ in range(MAX_RAYMARCH):
-        record.position = ray.at(record.distance)
-        record.object = nearest_object(record.position)
+        record.position  = ray.at(record.distance)
+        record.object    = nearest_object(record.position)
         record.distance += record.object.distance
-        record.hit = record.object.distance < PRECISION
+        record.hit       = record.object.distance < PRECISION
         if record.distance > MAX_DIS or record.hit: break
 
     return record
+
+@ti.func
+def sample_spherical_map(v: vec3) -> vec2:
+    uv  = vec2(atan2(v.z, v.x), asin(v.y))
+    uv *= vec2(0.5 / pi, 1 / pi)
+    uv += 0.5
+    return uv
 
 @ti.func
 def sky_color(ray) -> vec3:
@@ -249,7 +246,7 @@ def roughness_sampling(hemispheric_sample: vec3, normal: vec3, roughness: float)
     return normalize(mix(normal, hemispheric_sample, alpha))
 
 @ti.func
-def light_and_surface_interaction(ray, record) -> Ray:
+def ray_surface_interaction(ray: Ray, record: HitRecord) -> Ray:
     albedo          = record.object.material.albedo
     roughness       = record.object.material.roughness
     metallic        = record.object.material.metallic
@@ -290,7 +287,7 @@ def brightness(rgb: vec3) -> float:
     return dot(rgb, vec3(0.299, 0.587, 0.114))
 
 @ti.func
-def raytrace(ray) -> Ray:
+def raytrace(ray: Ray) -> Ray:
     for i in range(MAX_RAYTRACE):
         inv_pdf = exp(float(i) / light_quality)
         roulette_prob = 1.0 - (1.0 / inv_pdf)
@@ -305,7 +302,7 @@ def raytrace(ray) -> Ray:
             ray.color *= sky_color(ray)
             break
 
-        ray = light_and_surface_interaction(ray, record)
+        ray = ray_surface_interaction(ray, record)
 
         intensity = brightness(ray.color)
         ray.color  *= record.object.material.emission
@@ -322,9 +319,9 @@ ACESInputMat = mat3(
 )
 
 ACESOutputMat = mat3(
-     1.60475, -0.53108, -0.07367,
-    -0.10208,  1.10813, -0.00605,
-    -0.00327, -0.07276,  1.07602
+    +1.60475, -0.53108, -0.07367,
+    -0.10208, +1.10813, -0.00605,
+    -0.00327, -0.07276, +1.07602
 )
 
 @ti.func
@@ -335,7 +332,7 @@ def RRTAndODTFit(v: vec3) -> vec3:
 
 @ti.func
 def ACESFitted(color: vec3) -> vec3:
-    color = ACESInputMat @ color
+    color = ACESInputMat  @ color
     color = RRTAndODTFit(color)
     color = ACESOutputMat @ color
     return color
