@@ -3,7 +3,8 @@ from taichi.math import *
 
 ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
-image_resolution = (1920, 1080)
+image_resolution = (1920 // 4, 1080 // 4)
+SAMPLE_TIMES = 1
 
 image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)
@@ -372,26 +373,25 @@ def render(
     camera_up: vec3,
     moving: bool):
 
+    camera = Camera()
+    camera.lookfrom = camera_position
+    camera.lookat   = camera_lookat
+    camera.vup      = camera_up
+    camera.aspect   = aspect_ratio
+    camera.vfov     = camera_vfov
+    camera.aperture = camera_aperture
+    camera.focus    = camera_focus
+
     for i, j in image_pixels:
-        coord = vec2(i, j) + vec2(ti.random(), ti.random())
-        uv = coord * SCREEN_PIXEL_SIZE
-
-        camera = Camera()
-        camera.lookfrom = camera_position
-        camera.lookat   = camera_lookat
-        camera.vup      = camera_up
-        camera.aspect   = aspect_ratio
-        camera.vfov     = camera_vfov
-        camera.aperture = camera_aperture
-        camera.focus    = camera_focus
-
-        ray = camera.get_ray(uv, vec3(1))
-        ray_color = raytrace(ray).color
-
         if moving:
-            image_buffer[i, j]  = vec4(ray_color, 1.0)
-        else:
-            image_buffer[i, j] += vec4(ray_color, 1.0)
+            image_buffer[i, j] = vec4(0)
+
+        for _ in range(SAMPLE_TIMES):
+            coord = vec2(i, j) + vec2(ti.random(), ti.random())
+            uv = coord * SCREEN_PIXEL_SIZE
+
+            ray = raytrace(camera.get_ray(uv, vec3(1)))
+            image_buffer[i, j] += vec4(ray.color, 1.0)
 
         buffer = image_buffer[i, j]
 
