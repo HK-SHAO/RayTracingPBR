@@ -228,8 +228,8 @@ def sky_color(ray) -> vec3:
     return mix(vec3(1.0, 1.0, 0.5), vec3(0.5, 0.7, 2.0), t)
 
 @ti.func
-def fresnel_schlick(NoI: float, F0: float, roughness: float) -> float:
-    return mix(mix(pow(abs(1.0 + NoI), 5.0), 1.0, F0), F0, roughness)
+def fresnel_schlick(NoI: float, F0: float) -> float:
+    return mix(pow(abs(1.0 + NoI), 5.0), 1.0, F0)
 
 @ti.func
 def hemispheric_sampling(normal: vec3) -> vec3:
@@ -247,18 +247,18 @@ def roughness_sampling(hemispheric_sample: vec3, normal: vec3, roughness: float)
 
 @ti.func
 def ray_surface_interaction(ray: Ray, record: HitRecord) -> Ray:
-    albedo          = record.object.material.albedo
-    roughness       = record.object.material.roughness
-    metallic        = record.object.material.metallic
-    transmission    = record.object.material.transmission
-    ior             = record.object.material.ior
+    albedo       = record.object.material.albedo
+    roughness    = record.object.material.roughness
+    metallic     = record.object.material.metallic
+    transmission = record.object.material.transmission
+    ior          = record.object.material.ior
     
     normal  = calc_normal(record.object, record.position)
     outer   = dot(ray.direction, normal) < 0
     normal *= 1 if outer else -1
     
-    hemispheric_sample  = hemispheric_sampling(normal)
-    roughness_sample    = roughness_sampling(hemispheric_sample, normal, roughness)
+    hemispheric_sample = hemispheric_sampling(normal)
+    roughness_sample   = roughness_sampling(hemispheric_sample, normal, roughness)
     
     N   = roughness_sample
     I   = ray.direction
@@ -267,7 +267,7 @@ def ray_surface_interaction(ray: Ray, record: HitRecord) -> Ray:
     eta = ENV_IOR / ior if outer else ior / ENV_IOR
     k   = 1.0 - eta * eta * (1.0 - NoI * NoI)
     F0  = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0
-    F   = fresnel_schlick(NoI, F0, roughness)
+    F   = fresnel_schlick(NoI, F0)
 
     if ti.random() < F + metallic or k < 0.0:
         ray.direction = I - 2.0 * NoI * N
@@ -304,9 +304,9 @@ def raytrace(ray: Ray) -> Ray:
 
         ray = ray_surface_interaction(ray, record)
 
-        intensity = brightness(ray.color)
-        ray.color  *= record.object.material.emission
-        visible   = brightness(ray.color)
+        intensity  = brightness(ray.color)
+        ray.color *= record.object.material.emission
+        visible    = brightness(ray.color)
 
         if intensity < visible or visible < VISIBILITY: break
 
@@ -354,7 +354,7 @@ def render(
     camera.focus    = camera_focus
 
     for i, j in image_pixels:
-        if moving: image_buffer[i, j] = vec4(0)
+        if moving: image_buffer[i, j] = vec4(0) # ToDo: Reprojection
 
         for _ in range(SAMPLE_PER_PIXEL):
             coord = vec2(i, j) + vec2(ti.random(), ti.random())
