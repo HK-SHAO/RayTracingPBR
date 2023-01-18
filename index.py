@@ -1,3 +1,1 @@
-from src.main import main
-
-print("Running: ", main)
+from src.main import *
