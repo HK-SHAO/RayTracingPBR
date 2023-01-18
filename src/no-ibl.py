@@ -34,21 +34,6 @@ camera_aperture = 0.01
 camera_focus    = 4
 camera_gamma    = 2.2
 
-@ti.data_oriented
-class Image:
-    def __init__(self, path: str):
-        img = ti.tools.imread(path) / 255
-        self.img = vec3.field(shape=img.shape[:2])
-        self.img.from_numpy(img)
-
-    @ti.func
-    def texture(self, uv: vec2) -> vec3:
-        x = int(uv.x * self.img.shape[0])
-        y = int(uv.y * self.img.shape[1])
-        return self.img[x, y]
-
-sky_image = Image('src/assets/Tokyo_BigSight_3k.hdr')
-
 @ti.dataclass
 class Ray:
     origin: vec3
@@ -241,18 +226,9 @@ def raycast(ray) -> HitRecord:
     return record
 
 @ti.func
-def sample_spherical_map(v: vec3) -> vec2:
-    uv = vec2(atan2(v.z, v.x), asin(v.y))
-    uv *= vec2(0.5 / pi, 1 / pi)
-    uv += 0.5
-    return uv
-
-@ti.func
 def sky_color(ray) -> vec3:
-    uv = sample_spherical_map(ray.direction)
-    color = sky_image.texture(uv) * 1.8
-    color = pow(color, vec3(camera_gamma))
-    return color
+    t = 0.5 * ray.direction.y + 0.5
+    return mix(vec3(1.0, 1.0, 0.5), vec3(0.5, 0.7, 2.0), t)
 
 @ti.func
 def fresnel_schlick(NoI: float, F0: float, roughness: float) -> float:
