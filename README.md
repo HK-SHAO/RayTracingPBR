@@ -2,4 +2,14 @@
 
 <div align=center><img src="./icon.png" width=100></img></div>
 
-WIP 2023/1/9
+## Install
+
+```shell
+pip install -U taichi
+```
+
+## Run
+
+```shell
+ti index.py
+```

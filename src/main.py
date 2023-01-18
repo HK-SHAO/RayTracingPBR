@@ -47,7 +47,7 @@ class Image:
         y = int(uv.y * self.img.shape[1])
         return self.img[x, y]
 
-sky_image = Image('taichi/RT01/assets/Tokyo_BigSight_3k.hdr')
+sky_image = Image('src/assets/Tokyo_BigSight_3k.hdr')
 
 @ti.dataclass
 class Ray:
@@ -158,7 +158,7 @@ def sd_box(p: vec3, b: vec3) -> float:
 @ti.func
 def sd_cylinder(p: vec3, rh: vec2) -> float:
     d = abs(vec2(length(p.xz), p.y)) - rh
-    return min(max(d.x, d.y), 0.0) + length(max(d, 0.0))
+    return min(max(d.x, d.y), 0) + length(max(d, 0))
 
 @ti.func
 def signed_distance(obj, pos: vec3) -> float:
@@ -409,7 +409,7 @@ camera.position(0, -0.2, 4)
 
 while window.running:
     camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.LMB)
-    moving = not window.is_pressed(' ')
+    moving = any([window.is_pressed(key) for key in ('w', 'a', 's', 'd', 'q', 'e', 'LMB', ' ')])
     render(
         camera.curr_position, 
         camera.curr_lookat, 
