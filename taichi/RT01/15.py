@@ -117,15 +117,15 @@ class Camera:
 def angle(a: vec3) -> mat3:
     s = sin(a)
     c = cos(a)
-    return  mat3(vec3( c.z,  s.z,    0),
-                vec3(-s.z,  c.z,    0),
-                vec3(   0,    0,    1)) *\
-            mat3(vec3( c.y,    0, -s.y),
-                vec3(   0,    1,    0),
-                vec3( s.y,    0,  c.y)) *\
-            mat3(vec3(   1,    0,    0),
-                vec3(   0,  c.x,  s.x),
-                vec3(   0, -s.x,  c.x))
+    return  mat3(c.z,  s.z,    0,
+                -s.z,  c.z,    0,
+                   0,    0,    1) *\
+            mat3(c.y,    0, -s.y,
+                   0,    1,    0,
+                 s.y,    0,  c.y) *\
+            mat3(  1,    0,    0,
+                   0,  c.x,  s.x,
+                   0, -s.x,  c.x)
 
 @ti.func
 def sd_sphere(p: vec3, r: float) -> float:
@@ -166,27 +166,31 @@ objects = SDFObject.field(shape=objects_num)
 
 objects[0] = SDFObject(type=SHAPE_SPHERE,
                     transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
-                    material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1))
+                    material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635))
 
-objects[1] = SDFObject(type=SHAPE_BOX,
-                    transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
-                    material=Material(vec3(1, 1, 1), vec3(1), 0, 1, 0, 1))
-
-objects[2] = SDFObject(type=SHAPE_SPHERE,
+objects[1] = SDFObject(type=SHAPE_SPHERE,
                     transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
                     material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, 1, 0, 0, 1))
 
-objects[3] = SDFObject(type=SHAPE_SPHERE,
+objects[2] = SDFObject(type=SHAPE_SPHERE,
                     transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
-                    material=Material(vec3(0.1, 0.1, 1), vec3(1), 0.2, 1, 0, 1))
+                    material=Material(vec3(0.2, 0.2, 1), vec3(1), 0.2, 1, 0, 1.100))
 
-objects[4] = SDFObject(type=SHAPE_SPHERE,
+objects[3] = SDFObject(type=SHAPE_SPHERE,
                     transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
                     material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5))
 
-objects[5] = SDFObject(type=SHAPE_CYLINDER,
+objects[4] = SDFObject(type=SHAPE_CYLINDER,
                     transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
-                    material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1))
+                    material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1.460))
+
+objects[5] = SDFObject(type=SHAPE_BOX,
+                    transform=Transform(vec3(0, 0, 5), vec3(0), vec3(2, 1, 0.2)),
+                    material=Material(vec3(1, 1, 0.2)*0.9, vec3(1), 0, 1, 0, 0.470))
+
+objects[6] = SDFObject(type=SHAPE_BOX,
+                    transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
+                    material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
@@ -311,15 +315,15 @@ def raytrace(ray) -> Ray:
     return ray
 
 ACESInputMat = mat3(
-    vec3(0.59719, 0.35458, 0.04823),
-    vec3(0.07600, 0.90834, 0.01566),
-    vec3(0.02840, 0.13383, 0.83777)
+    0.59719, 0.35458, 0.04823,
+    0.07600, 0.90834, 0.01566,
+    0.02840, 0.13383, 0.83777
 )
 
 ACESOutputMat = mat3(
-    vec3( 1.60475, -0.53108, -0.07367),
-    vec3(-0.10208,  1.10813, -0.00605),
-    vec3(-0.00327, -0.07276,  1.07602)
+     1.60475, -0.53108, -0.07367,
+    -0.10208,  1.10813, -0.00605,
+    -0.00327, -0.07276,  1.07602
 )
 
 @ti.func
