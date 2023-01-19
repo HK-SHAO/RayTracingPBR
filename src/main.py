@@ -37,9 +37,9 @@ camera_gamma    = 2.2
 @ti.data_oriented
 class Image:
     def __init__(self, path: str):
-        img = ti.tools.imread(path) / 255
+        img = ti.tools.imread(path).astype('float32')
         self.img = vec3.field(shape=img.shape[:2])
-        self.img.from_numpy(img)
+        self.img.from_numpy(img / 255)
 
     @ti.func
     def texture(self, uv: vec2) -> vec3:
