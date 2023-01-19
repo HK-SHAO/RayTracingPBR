@@ -11,7 +11,7 @@ pip install -U taichi
 ## Run
 
 ```shell
-ti index.py
+ti index.py -ibl
 ```
 
 ## More
