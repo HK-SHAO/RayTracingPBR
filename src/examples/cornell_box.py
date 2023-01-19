@@ -3,7 +3,7 @@ from taichi.math import *
 
 ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
-image_resolution = (1920 // 4, 1080 // 4)
+image_resolution = (1920 // 4, 1920 // 4)
 SAMPLE_PER_PIXEL = 1
 
 image_buffer = ti.Vector.field(4, float, image_resolution)
@@ -29,7 +29,7 @@ ENV_IOR = 1.000277
 aspect_ratio    = image_resolution[0] / image_resolution[1]
 light_quality   = 128.0
 camera_exposure = 0.6
-camera_vfov     = 30
+camera_vfov     = 43.6
 camera_aperture = 0.01
 camera_focus    = 4
 camera_gamma    = 2.2
@@ -136,7 +136,7 @@ def sd_sphere(p: vec3, r: float) -> float:
 @ti.func
 def sd_box(p: vec3, b: vec3) -> float:
     q = abs(p) - b
-    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - 0.03
+    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0)
 
 @ti.func
 def sd_cylinder(p: vec3, rh: vec2) -> float:
@@ -159,27 +159,34 @@ def signed_distance(obj: SDFObject, pos: vec3) -> float:
     return obj.distance
 
 WORLD_LIST = [
-    SDFObject(type=SHAPE_SPHERE,
-                transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
-                material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635)),
-    SDFObject(type=SHAPE_SPHERE,
-                transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
-                material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, 1, 0, 0, 1)),
-    SDFObject(type=SHAPE_SPHERE,
-                transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
-                material=Material(vec3(0.2, 0.2, 1), vec3(1), 0.2, 1, 0, 1.100)),
-    SDFObject(type=SHAPE_SPHERE,
-                transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
-                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5)),
-    SDFObject(type=SHAPE_CYLINDER,
-                transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
-                material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1.460)),
     SDFObject(type=SHAPE_BOX,
-                transform=Transform(vec3(0, 0, 5), vec3(0), vec3(2, 1, 0.2)),
-                material=Material(vec3(1, 1, 0.2)*0.9, vec3(1), 0, 1, 0, 0.470)),
+                transform=Transform(vec3(0, 0, -1), vec3(0, 0, 0), vec3(1, 1, 0.2)),
+                material=Material(vec3(1, 1, 1)*0.4, vec3(1), 1, 0, 0, 1.530)),
+
     SDFObject(type=SHAPE_BOX,
-                transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
-                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
+                transform=Transform(vec3(0, 1, 0), vec3(90, 0, 0), vec3(1, 1, 0.2)),
+                material=Material(vec3(1, 1, 1)*0.4, vec3(1), 1, 0, 0, 1.530)),
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(0, -1, 0), vec3(90, 0, 0), vec3(1, 1, 0.2)),
+                material=Material(vec3(1, 1, 1)*0.4, vec3(1), 1, 0, 0, 1.530)),
+
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(-1, 0, 0), vec3(0, 90, 0), vec3(1, 1, 0.2)),
+                material=Material(vec3(1, 0, 0)*0.5, vec3(1), 1, 0, 0, 1.530)),
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(1, 0, 0), vec3(0, 90, 0), vec3(1, 1, 0.2)),
+                material=Material(vec3(0, 1, 0)*0.5, vec3(1), 1, 0, 0, 1.530)),
+
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(-0.275, -0.3, -0.2), vec3(0, -253, 0), vec3(0.25, 0.5, 0.25)),
+                material=Material(vec3(1, 1, 1)*0.4, vec3(1), 1, 0, 0, 1.530)),
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(0.275, -0.55, 0.2), vec3(0, -197, 0), vec3(0.25, 0.25, 0.25)),
+                material=Material(vec3(1, 1, 1)*0.4, vec3(1), 1, 0, 0, 1.530)),
+
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(0, 0.809, 0), vec3(90, 0, 0), vec3(0.2, 0.2, 0.01)),
+                material=Material(vec3(1, 1, 1), vec3(100), 1, 0, 0, 1)),
 ]
 
 objects_num = len(WORLD_LIST)
@@ -224,8 +231,7 @@ def sample_spherical_map(v: vec3) -> vec2:
 
 @ti.func
 def sky_color(ray) -> vec3:
-    t = 0.5 * ray.direction.y + 0.5
-    return mix(vec3(1.0, 1.0, 0.5), vec3(0.5, 0.7, 2.0), t)
+    return vec3(0)
 
 @ti.func
 def fresnel_schlick(NoI: float, F0: float, roughness) -> float:
@@ -375,7 +381,7 @@ def render(
 window = ti.ui.Window("Taichi Renderer", image_resolution)
 canvas = window.get_canvas()
 camera = ti.ui.Camera()
-camera.position(0, -0.2, 4)
+camera.position(0, 0, 3)
 
 while window.running:
     camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.LMB)

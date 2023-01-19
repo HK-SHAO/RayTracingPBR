@@ -136,10 +136,10 @@ def angle(a: vec3) -> mat3:
     s, c = sin(a), cos(a)
     return mat3(vec3( c.z,  s.z,    0),
                 vec3(-s.z,  c.z,    0),
-                vec3(   0,    0,    1)) * \
+                vec3(   0,    0,    1)) @ \
            mat3(vec3( c.y,    0, -s.y),
                 vec3(   0,    1,    0),
-                vec3( s.y,    0,  c.y)) * \
+                vec3( s.y,    0,  c.y)) @ \
            mat3(vec3(   1,    0,    0),
                 vec3(   0,  c.x,  s.x),
                 vec3(   0, -s.x,  c.x))
@@ -245,8 +245,8 @@ def sky_color(ray: Ray) -> vec3:
     return color
 
 @ti.func
-def fresnel_schlick(NoI: float, F0: float) -> float:
-    return mix(pow(abs(1.0 + NoI), 5.0), 1.0, F0)
+def fresnel_schlick(NoI: float, F0: float, roughness) -> float:
+    return mix(mix(pow(abs(1.0 + NoI), 5.0), 1.0, F0), F0, roughness)
 
 @ti.func
 def hemispheric_sampling(normal: vec3) -> vec3:
@@ -284,7 +284,7 @@ def ray_surface_interaction(ray: Ray, record: HitRecord) -> Ray:
     eta = ENV_IOR / ior if outer else ior / ENV_IOR
     k   = 1.0 - eta * eta * (1.0 - NoI * NoI)
     F0  = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0
-    F   = fresnel_schlick(NoI, F0)
+    F   = fresnel_schlick(NoI, F0, roughness)
 
     if ti.random() < F + metallic or k < 0.0:
         ray.direction = I - 2.0 * NoI * N
