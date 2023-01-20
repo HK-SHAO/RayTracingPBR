@@ -347,22 +347,22 @@ def render(
     camera.focus    = camera_focus
 
     for i, j in image_pixels:
-        if moving: image_buffer[i, j] = vec4(0) # ToDo: Reprojection
+        buffer = vec4(0)
+        if not moving: buffer = image_buffer[i, j] # ToDo: Reprojection
 
         for _ in range(SAMPLE_PER_PIXEL):
             coord = vec2(i, j) + vec2(ti.random(), ti.random())
             uv = coord * SCREEN_PIXEL_SIZE
 
             ray = raytrace(camera.get_ray(uv, vec3(1)))
-            image_buffer[i, j] += vec4(ray.color, 1.0)
-
-        buffer = image_buffer[i, j]
+            buffer += vec4(ray.color, 1.0)
 
         color  = buffer.rgb / buffer.a
         color *= camera_exposure
         color  = ACESFitted(color)
         color  = pow(color, vec3(1.0 / camera_gamma))
 
+        image_buffer[i, j] = buffer
         image_pixels[i, j] = color
 
 window = ti.ui.Window("Taichi Renderer", image_resolution)

@@ -7,7 +7,7 @@
 ## Install
 
 ```shell
-pip install -U taichi
+pip install taichi -U
 ```
 
 ## Run

@@ -19,12 +19,9 @@ aspect_ratio    = image_resolution[0] / image_resolution[1]
 light_quality   = 128.0
 camera_exposure = 1
 camera_vfov     = 35
-camera_aperture = 0.01
-camera_focus    = 4
 camera_gamma    = 2.2
 
 Ray = ti.types.struct(origin=vec3, direction=vec3, color=vec3)
-Camera = ti.types.struct(lookfrom=vec3, lookat=vec3, vup=vec3, vfov=float, aspect=float, aperture=float, focus=float)
 Material = ti.types.struct(albedo=vec3, emission=vec3)
 Transform = ti.types.struct(position=vec3, rotation=vec3, scale=vec3)
 SDFObject = ti.types.struct(distance=float, transform=Transform, material=Material)
@@ -130,9 +127,9 @@ def raytrace(ray: Ray) -> Ray:
     return ray
 
 @ti.kernel
-def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3, moving: bool):
+def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3):
     for i, j in image_pixels:
-        if moving: image_buffer[i, j] = vec4(0) # ToDo: Reprojection
+        buffer = image_buffer[i, j]
 
         for _ in range(SAMPLE_PER_PIXEL):
             coord = vec2(i, j) + vec2(ti.random(), ti.random())
@@ -145,46 +142,39 @@ def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3, moving: 
             z = normalize(camera_position - camera_lookat)
             x = normalize(cross(camera_up, z))
             y = cross(z, x)
-
-            lens_radius = camera_aperture * 0.5
-            a = ti.random() * 2 * pi
-            rud = lens_radius * (sqrt(ti.random()) * vec2(sin(a), cos(a)))
-            offset = x * rud.x + y * rud.y
             
-            hwfx = half_width  * camera_focus * x
-            hhfy = half_height * camera_focus * y
+            hwfx = half_width  * x
+            hhfy = half_height * y
 
-            lower_left_corner = camera_position - hwfx - hhfy - camera_focus * z
+            lower_left_corner = camera_position - hwfx - hhfy - z
             horizontal = 2.0 * hwfx
             vertical   = 2.0 * hhfy
 
-            ro = camera_position + offset
+            ro = camera_position
             po = lower_left_corner + uv.x * horizontal + uv.y * vertical
             rd = normalize(po - ro)
 
             ray = raytrace(Ray(ro, rd, vec3(1)))
-            image_buffer[i, j] += vec4(ray.color, 1.0)
-
-        buffer = image_buffer[i, j]
+            buffer += vec4(ray.color, 1.0)
 
         color  = buffer.rgb / buffer.a
         color *= camera_exposure
         color = mat3(0.59719, 0.35458, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777)  @ color
         color = (color * (color + 0.0245786) - 0.000090537) / (color * (0.983729 * color + 0.4329510) + 0.238081)
         color = mat3(1.60475, -0.53108, -0.07367, -0.10208, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602) @ color
-        color  = pow(color, vec3(1.0 / camera_gamma))
+        color = pow(color, vec3(1.0 / camera_gamma))
 
+        image_buffer[i, j] = buffer
         image_pixels[i, j] = color
 
-window = ti.ui.Window("Taichi Renderer", image_resolution)
+window = ti.ui.Window("Cornell Box", image_resolution)
 canvas = window.get_canvas()
 camera = ti.ui.Camera()
 camera.position(0, 0, 3.5*10)
 
 while window.running:
     camera.track_user_inputs(window, movement_speed=0.3, hold_key=ti.ui.LMB)
-    moving = any([window.is_pressed(key) for key in ('w', 'a', 's', 'd', 'q', 'e', 'LMB', ' ')])
-    render(camera.curr_position, camera.curr_lookat, camera.curr_up, moving)
+    render(camera.curr_position, camera.curr_lookat, camera.curr_up)
     canvas.set_image(image_pixels)
 
     window.show()
