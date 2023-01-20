@@ -24,7 +24,7 @@ ENV_IOR = 1.000277
 
 aspect_ratio    = image_resolution[0] / image_resolution[1]
 light_quality   = 128.0
-camera_exposure = 0.6
+camera_exposure = 1
 camera_vfov     = 35
 camera_aperture = 0.01
 camera_focus    = 4
@@ -168,7 +168,7 @@ for i in range(objects_num): objects[i] = WORLD_LIST[i]
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
-    o = objects[0]; o.distance=abs(signed_distance(o, p))
+    o = objects[0]; o.distance = abs(signed_distance(o, p))
     for i in range(1, objects_num):
         oi = objects[i]
         oi.distance = abs(signed_distance(oi, p))

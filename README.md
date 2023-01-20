@@ -1,6 +1,8 @@
-# Taichi PBRT
+# Taichi Simple PBR Path Tracer
 
-<div align=center><img src="./icon.png" width=100></img></div>
+|![Cornell Box Blender](./others/cornell_box_blender.png)|![Cornell Box Taichi](./others/cornell_box_taichi.png)|
+|:-:|:-:|
+|Cornell Box Blender|Cornell Box Taichi|
 
 ## Install
 

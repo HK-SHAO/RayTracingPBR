@@ -203,7 +203,7 @@ for i in range(objects_num): objects[i] = WORLD_LIST[i]
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
-    o = objects[0]; o.distance=abs(signed_distance(o, p))
+    o = objects[0]; o.distance = abs(signed_distance(o, p))
     for i in range(1, objects_num):
         oi = objects[i]
         oi.distance = abs(signed_distance(oi, p))
