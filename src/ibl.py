@@ -1,3 +1,6 @@
+# Copyright © 2019-2023 HK-SHAO
+# GPL-3.0 Licensed: https://github.com/HK-SHAO/RayTracingPBR
+
 import taichi as ti
 from taichi.math import *
 
