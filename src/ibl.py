@@ -50,7 +50,7 @@ class Image:
         y = int(uv.y * self.img.shape[1])
         return self.img[x, y]
 
-hdr_map = Image('src/assets/Tokyo_BigSight_3k.hdr')
+hdr_map = Image('assets/Tokyo_BigSight_3k.hdr')
 
 @ti.dataclass
 class Ray:
