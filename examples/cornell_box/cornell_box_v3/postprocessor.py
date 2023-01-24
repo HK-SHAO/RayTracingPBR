@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import vec3, vec4, mat3
+from taichi.math import vec3, vec4, mat3, clamp
 from config import camera_exposure, camera_gamma
 
 ACESInputMat = mat3(
@@ -27,7 +27,7 @@ def ACESFitted(color: vec3) -> vec3:
     color = ACESInputMat  @ color
     color = RRTAndODTFit(color)
     color = ACESOutputMat @ color
-    return color
+    return clamp(color, 0, 1)
 
 
 @ti.func

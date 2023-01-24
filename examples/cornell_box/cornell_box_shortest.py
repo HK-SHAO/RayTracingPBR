@@ -127,7 +127,7 @@ def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3):
         color = mat3(0.5971, 0.354, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777)  @ color
         color = (color * (color + 0.0245) - 0.000090537) / (color * (0.983 * color + 0.4329510) + 0.238081)
         color = mat3(1.604, -0.531, -0.073, -0.102, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602) @ color
-        color = pow(color, vec3(1.0 / 2.2))                                                       # 伽马校正
+        color = pow(clamp(color, 0, 1), vec3(1.0 / 2.2))                                          # 伽马校正
         image_pixels[i, j] = color                                                                # 写入像素
 
 window = ti.ui.Window("Cornell Box", image_resolution)                                            # 创建窗口

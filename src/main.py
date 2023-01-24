@@ -328,7 +328,7 @@ def ACESFitted(color: vec3) -> vec3:
     color = ACESInputMat  @ color
     color = RRTAndODTFit(color)
     color = ACESOutputMat @ color
-    return color
+    return clamp(color, 0, 1)
 
 @ti.kernel
 def render(

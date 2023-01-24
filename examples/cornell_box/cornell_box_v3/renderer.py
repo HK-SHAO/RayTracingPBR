@@ -1,8 +1,8 @@
 import taichi as ti
 from taichi.math import vec2, vec3, vec4
 from dataclass import Camera
-from config import (aspect_ratio, camera_vfov, camera_aperture, camera_focus,
-                    camera_gamma, camera_exposure, SAMPLE_PER_PIXEL, SCREEN_PIXEL_SIZE)
+from config import (aspect_ratio, camera_vfov, camera_aperture,
+                    camera_focus, SAMPLE_PER_PIXEL, SCREEN_PIXEL_SIZE)
 from scene import image_pixels, image_buffer
 from pathtracer import raytrace, get_ray
 from postprocessor import post_process
