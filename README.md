@@ -1,8 +1,8 @@
 # Taichi Simple PBR Path Tracer
 
-|![Cornell Box Blender](./others/cornell_box_blender.png)|![Cornell Box Taichi](./others/cornell_box_taichi.png)|
-|:-:|:-:|
-|Cornell Box Blender|Cornell Box Taichi|
+|![SDF Bunny](./others/sdf_bunny_43.png)|![Cornell Box](./others/cornell_box_taichi.png)|![Scene Demo](./others/scene_demo.png)|
+|:-:|:-:|:-:|
+|SDF Bunny|Cornell Box|Scene Demo|
 
 ## Install
 
