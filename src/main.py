@@ -12,6 +12,7 @@ image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)
 
 SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
+PIXEL_RADIUS      = 0.5 * min(SCREEN_PIXEL_SIZE.x, SCREEN_PIXEL_SIZE.y)
 
 MIN_DIS      = 0.005
 MAX_DIS      = 2000.0
@@ -73,7 +74,6 @@ class SDFObject:
 class HitRecord:
     object: SDFObject
     position: vec3
-    distance: float
     hit: bool
 
 @ti.func
@@ -191,10 +191,10 @@ for i in range(objects_num): objects[i] = WORLD_LIST[i]
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
-    o = objects[0]; o.distance = abs(signed_distance(o, p))
+    o = objects[0]; o.distance = signed_distance(o, p)
     for i in range(1, objects_num):
         oi = objects[i]
-        oi.distance = abs(signed_distance(oi, p))
+        oi.distance = signed_distance(oi, p)
         if oi.distance < o.distance: o = oi
     return o
 
@@ -208,13 +208,22 @@ def calc_normal(obj: SDFObject, p: vec3) -> vec3:
 
 @ti.func
 def raycast(ray: Ray) -> HitRecord:
-    record = HitRecord(distance=MIN_DIS)
+    record = HitRecord(); t = MIN_DIS
+    w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
     for _ in range(MAX_RAYMARCH):
-        record.position  = ray.at(record.distance)
+        record.position  = ray.at(t)
         record.object    = nearest_object(record.position)
-        record.distance += record.object.distance
-        record.hit       = record.object.distance < PRECISION
-        if record.distance > MAX_DIS or record.hit: break
+
+        ld = d; d = abs(record.object.distance)
+        if w > 1.0 and ld + d < s:
+            s -= w * s; t += s; w = 1.0
+            continue
+        err = d / t
+        if err < cerr: cerr = err
+
+        s = w * d; t += s
+        record.hit = err < PIXEL_RADIUS
+        if t > MAX_DIS or record.hit: break
 
     return record
 
