@@ -349,7 +349,7 @@ def raytrace(ray: Ray) -> Ray:
         record = raycast(ray)
 
         if not record.hit:
-            ray.color *= sign(float(i)); # 纯黑色背景
+            ray.color *= sign(float(i)) # 纯黑色背景
             ray.color *= sky_color(ray)
             break
 
