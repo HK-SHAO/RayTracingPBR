@@ -4,6 +4,7 @@ image_resolution = (512, 512)
 SAMPLE_PER_PIXEL = 1
 
 SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
+PIXEL_RADIUS      = 0.5 * min(SCREEN_PIXEL_SIZE.x, SCREEN_PIXEL_SIZE.y)
 
 MIN_DIS = 0.05
 MAX_DIS = 2000.0

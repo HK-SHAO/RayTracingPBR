@@ -89,7 +89,6 @@ class SDFObject:
 class HitRecord:
     object: SDFObject
     position: vec3
-    distance: float
     hit: bool
 
 @ti.func

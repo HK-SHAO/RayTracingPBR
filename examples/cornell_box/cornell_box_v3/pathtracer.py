@@ -4,7 +4,7 @@ from scene import objects, objects_num
 from sdf import signed_distance
 from taichi.math import vec2, vec3, exp, radians, normalize, cross, tan
 from dataclass import Ray, HitRecord, Camera
-from config import MIN_DIS, MAX_DIS, MAX_RAYTRACE, MAX_RAYMARCH, VISIBILITY, PRECISION, light_quality
+from config import MIN_DIS, MAX_DIS, MAX_RAYTRACE, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS, light_quality
 from util import at, random_in_unit_disk, brightness
 from pbr import ray_surface_interaction
 
@@ -51,13 +51,28 @@ def nearest_object(p: vec3) -> SDFObject:
 
 @ti.func
 def raycast(ray: Ray) -> HitRecord:
-    record = HitRecord(distance=MIN_DIS)
+    record = HitRecord()
+    t = MIN_DIS
+    w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
     for _ in range(MAX_RAYMARCH):
-        record.position = at(ray, record.distance)
+        record.position = at(ray, t)
         record.object = nearest_object(record.position)
-        record.distance += record.object.distance
-        record.hit = record.object.distance < PRECISION
-        if record.distance > MAX_DIS or record.hit:
+
+        ld = d
+        d = abs(record.object.distance)
+        if w > 1.0 and ld + d < s:
+            s -= w * s
+            t += s
+            w = 1.0
+            continue
+        err = d / t
+        if err < cerr:
+            cerr = err
+
+        s = w * d
+        t += s
+        record.hit = err < PIXEL_RADIUS
+        if t > MAX_DIS or record.hit:
             break
 
     return record
