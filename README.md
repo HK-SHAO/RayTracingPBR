@@ -21,3 +21,10 @@ ti index.py -ibl
 - https://github.com/HK-SHAO/RayTracingPBR/tree/taichi
 - https://github.com/HK-SHAO/RayTracingPBR/tree/shadertoy
 - https://github.com/HK-SHAO/RayTracingPBR/tree/main
+
+## Reference
+
+- https://erleuchtet.org/~cupe/permanent/enhanced_sphere_tracing.pdf
+- https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+- https://hal.science/hal-02507361/document
+- https://iquilezles.org/articles/
