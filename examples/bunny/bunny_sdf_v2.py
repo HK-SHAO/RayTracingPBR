@@ -431,7 +431,7 @@ def render(
         image_buffer[i, j] = buffer
         image_pixels[i, j] = color
 
-window = ti.ui.Window("Taichi Renderer", image_resolution)
+window = ti.ui.Window("Taichi Renderer", image_resolution, show_window=False)
 canvas = window.get_canvas()
 camera = ti.ui.Camera()
 camera.position(0, 0, 4)
@@ -447,8 +447,8 @@ while window.running:
         moving,
         frame)
     frame += 1
+    print(frame)
     canvas.set_image(image_pixels)
-    window.save_image('out/sdf_bunny_' + str(frame) + '.out.png')
+    window.save_image('out/sdf_bunny_4k_' + str(frame) + '.out.png')
     if frame > 240:
         break
-    window.show()
