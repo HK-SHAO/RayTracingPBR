@@ -3,3 +3,4 @@ __pycache__
 imgui.ini
 *.out.*
 *.blend1
+out/

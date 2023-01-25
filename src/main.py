@@ -211,8 +211,8 @@ def raycast(ray: Ray) -> HitRecord:
     record = HitRecord(); t = MIN_DIS
     w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
     for _ in range(MAX_RAYMARCH):
-        record.position  = ray.at(t)
-        record.object    = nearest_object(record.position)
+        record.position = ray.at(t)
+        record.object   = nearest_object(record.position)
 
         ld = d; d = abs(record.object.distance)
         if w > 1.0 and ld + d < s:
