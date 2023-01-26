@@ -444,6 +444,6 @@ while True:
         frame)
     frame += 1
     print(frame)
-    ti.tools.imwrite(image_pixels, 'out/sdf_bunny_glass_4k_hdr_' + str(frame) + '.out.png')
+    ti.tools.imwrite(image_pixels, 'out/sdf_bunny_4k_hdr_' + str(frame) + '.out.png')
     if frame > 240:
         break
