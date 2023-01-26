@@ -229,7 +229,7 @@ def raycast(ray: Ray) -> HitRecord:
         record.position = ray.at(t)
         record.object   = nearest_object(record.position)
 
-        ld = d; d = abs(record.object.distance)
+        ld = d; d = record.object.distance
         if w > 1.0 and ld + d < s:
             s -= w * s; t += s; w = 1.0
             continue

@@ -191,10 +191,10 @@ for i in range(objects_num): objects[i] = WORLD_LIST[i]
 
 @ti.func
 def nearest_object(p: vec3) -> SDFObject:
-    o = objects[0]; o.distance = signed_distance(o, p)
+    o = objects[0]; o.distance = abs(signed_distance(o, p))
     for i in range(1, objects_num):
         oi = objects[i]
-        oi.distance = signed_distance(oi, p)
+        oi.distance = abs(signed_distance(oi, p))
         if oi.distance < o.distance: o = oi
     return o
 
@@ -214,7 +214,7 @@ def raycast(ray: Ray) -> HitRecord:
         record.position = ray.at(t)
         record.object   = nearest_object(record.position)
 
-        ld = d; d = abs(record.object.distance)
+        ld = d; d = record.object.distance
         if w > 1.0 and ld + d < s:
             s -= w * s; t += s; w = 1.0
             continue

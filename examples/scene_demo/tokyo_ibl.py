@@ -51,7 +51,7 @@ class Image:
         y = int(uv.y * self.img.shape[1])
         return self.img[x, y]
 
-hdr_map = Image('assets/Tokyo_BigSight_3k.hdr')
+hdr_map = Image('assets/limpopo_golf_course_3k.hdr')
 
 @ti.dataclass
 class Ray:
@@ -229,7 +229,7 @@ def raycast(ray: Ray) -> HitRecord:
         record.position = ray.at(t)
         record.object   = nearest_object(record.position)
 
-        ld = d; d = abs(record.object.distance)
+        ld = d; d = record.object.distance
         if w > 1.0 and ld + d < s:
             s -= w * s; t += s; w = 1.0
             continue
