@@ -6,7 +6,7 @@ from taichi.math import *
 
 ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
-image_resolution = (1920 // 4, 1080 // 4)
+image_resolution = (1920, 1080)
 
 image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)
@@ -371,8 +371,8 @@ def render(
 
         color  = buffer.rgb / buffer.a
         color *= camera_exposure
-        color  = ACESFitted(color)
         color  = pow(color, vec3(1.0 / camera_gamma))
+        color  = ACESFitted(color)
 
         image_buffer[i, j] = buffer
         image_pixels[i, j] = color

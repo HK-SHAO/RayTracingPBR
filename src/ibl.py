@@ -395,8 +395,8 @@ def render(
 
         color  = buffer.rgb / buffer.a
         color *= camera_exposure
-        color  = ACESFitted(color)
         color  = pow(color, vec3(1.0 / camera_gamma))
+        color  = ACESFitted(color)
 
         image_buffer[i, j] = buffer
         image_pixels[i, j] = color
