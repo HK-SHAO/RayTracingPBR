@@ -51,7 +51,7 @@ class Image:
         y = int(uv.y * self.img.shape[1])
         return self.img[x, y]
 
-hdr_map = Image('assets/limpopo_golf_course_3k.hdr')
+hdr_map = Image('assets/Tokyo_BigSight_3k.hdr')
 
 @ti.dataclass
 class Ray:
@@ -395,8 +395,8 @@ def render(
 
         color  = buffer.rgb / buffer.a
         color *= camera_exposure
-        color  = ACESFitted(color)
         color  = pow(color, vec3(1.0 / camera_gamma))
+        color  = ACESFitted(color)
 
         image_buffer[i, j] = buffer
         image_pixels[i, j] = color
@@ -406,7 +406,6 @@ canvas = window.get_canvas()
 camera = ti.ui.Camera()
 camera.position(0, -0.2, 4)
 
-frame = 0
 while window.running:
     camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.LMB)
     moving = any([window.is_pressed(key) for key in ('w', 'a', 's', 'd', 'q', 'e', 'LMB', ' ')])
@@ -415,9 +414,7 @@ while window.running:
         camera.curr_lookat, 
         camera.curr_up,
         moving)
+    if window.is_pressed('g'):
+        ti.tools.imwrite(image_pixels, 'out/tokyo_ibl.out.png')
     canvas.set_image(image_pixels)
-    frame += 1
-    if frame > 1024:
-        window.save_image('scene_demo.out.png')
-        break
     window.show()
