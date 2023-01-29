@@ -1,7 +1,7 @@
 import taichi as ti                                                                # of course, we need taichi
 from taichi.math import *                                                # need common mathematical operations
 
-ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)        # Initialize, use GPU, set default ip and fp
+ti.init(arch=ti.cpu, default_ip=ti.i32, default_fp=ti.f32)        # initialize, use GPU, set default ip and fp
 
 image_resolution = (512, 512)                                         # resolution of the image, not too large
 image_buffer = ti.Vector.field(4, float, image_resolution)    # image buffer field for recording sample counts
@@ -14,22 +14,22 @@ Transform = ti.types.struct(position=vec3, rotation=vec3, scale=vec3)          #
 SDFObject = ti.types.struct(distance=float, transform=Transform, material=Material)              # SDF objects
 HitRecord = ti.types.struct(object=SDFObject, position=vec3, distance=float, hit=bool)   # for ray-hit-surface
 
-objects  = SDFObject.field(shape=8)                             # field for storing SDF objects with 8 objects
-objects[0]=SDFObject(transform=Transform(vec3(0, 0, -1), vec3(0, 0, 0), vec3(1, 1, 0.2)),
+objects    = SDFObject.field(shape=8)                           # field for storing SDF objects with 8 objects
+objects[0] = SDFObject(transform=Transform(vec3(0, 0, -1), vec3(0, 0, 0), vec3(1, 1, 0.2)),
                 material=Material(vec3(1, 1, 1)*0.4, vec3(1)))                                        # wall 1
-objects[1]=SDFObject(transform=Transform(vec3(0, 1, 0), vec3(90, 0, 0), vec3(1, 1, 0.2)),
+objects[1] = SDFObject(transform=Transform(vec3(0, 1, 0), vec3(90, 0, 0), vec3(1, 1, 0.2)),
                 material=Material(vec3(1, 1, 1)*0.4, vec3(1)))                                        # wall 2
-objects[2]=SDFObject(transform=Transform(vec3(0, -1, 0), vec3(90, 0, 0), vec3(1, 1, 0.2)),
+objects[2] = SDFObject(transform=Transform(vec3(0, -1, 0), vec3(90, 0, 0), vec3(1, 1, 0.2)),
                 material=Material(vec3(1, 1, 1)*0.4, vec3(1)))                                        # wall 3
-objects[3]=SDFObject(transform=Transform(vec3(-1, 0, 0), vec3(0, 90, 0), vec3(1, 1, 0.2)),
+objects[3] = SDFObject(transform=Transform(vec3(-1, 0, 0), vec3(0, 90, 0), vec3(1, 1, 0.2)),
                 material=Material(vec3(1, 0, 0)*0.5, vec3(1)))                                        # wall 4
-objects[4]=SDFObject(transform=Transform(vec3(1, 0, 0), vec3(0, 90, 0), vec3(1, 1, 0.2)),
+objects[4] = SDFObject(transform=Transform(vec3(1, 0, 0), vec3(0, 90, 0), vec3(1, 1, 0.2)),
                 material=Material(vec3(0, 1, 0)*0.5, vec3(1)))                                        # wall 5
-objects[5]=SDFObject(transform=Transform(vec3(-0.275, -0.3, -0.2), vec3(0, 112, 0), vec3(0.25, 0.5, 0.25)),
+objects[5] = SDFObject(transform=Transform(vec3(-0.275, -0.3, -0.2), vec3(0, 112, 0), vec3(0.25, 0.5, 0.25)),
                 material=Material(vec3(1, 1, 1)*0.4, vec3(1)))                                    # taller box
-objects[6]=SDFObject(transform=Transform(vec3(0.275,-0.55, 0.2), vec3(0, -197, 0), vec3(0.25, 0.25, 0.25)),
+objects[6] = SDFObject(transform=Transform(vec3(0.275,-0.55, 0.2), vec3(0, -197, 0), vec3(0.25, 0.25, 0.25)),
                 material=Material(vec3(1, 1, 1)*0.4, vec3(1)))                                           # box
-objects[7]=SDFObject(transform=Transform(vec3(0, 0.809, 0), vec3(90, 0, 0), vec3(0.2, 0.2, 0.01)),
+objects[7] = SDFObject(transform=Transform(vec3(0, 0.809, 0), vec3(90, 0, 0), vec3(0.2, 0.2, 0.01)),
                 material=Material(vec3(1, 1, 1), vec3(100)))                                           # light
 
 @ti.func
@@ -124,10 +124,10 @@ def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3):
         image_buffer[i, j] = buffer                                                      # updating the buffer
 
         color = buffer.rgb / buffer.a                                  # calculate the average value of colors
-        color = pow(color, vec3(1.0 / 2.2))        # Gamma correction, then use ACES tone mapping
-        color = mat3(0.5971, 0.354, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777)  @ color
+        color = pow(color, vec3(1.0 / 2.2))                     # Gamma correction, then use ACES tone mapping
+        color = mat3(0.59719, 0.35458, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777)  @ color
         color = (color * (color + 0.0245) - 0.000090537) / (color * (0.983 * color + 0.4329510) + 0.238081)
-        color = mat3(1.604, -0.531, -0.073, -0.102, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602) @ color
+        color = mat3(1.60475, -0.531, -0.0736, -0.102, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602) @ color
         image_pixels[i, j] = clamp(color, 0, 1)  # write pixels, clamp the brightness that cannot be displayed
 
 window = ti.ui.Window("Cornell Box", image_resolution)                                         # create window
