@@ -32,7 +32,7 @@ ENV_IOR = 1.000277
 
 aspect_ratio    = image_resolution[0] / image_resolution[1]
 light_quality   = 128.0
-camera_exposure = 0.6
+camera_exposure = 1.0
 camera_vfov     = 30
 camera_aperture = 0.01
 camera_focus    = 4

@@ -6,7 +6,7 @@ from taichi.math import *
 
 ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
-image_resolution = (1920, 1080)
+image_resolution = (1920 // 4, 1080 // 4)
 
 image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)
@@ -32,7 +32,7 @@ ENV_IOR = 1.000277
 
 aspect_ratio    = image_resolution[0] / image_resolution[1]
 light_quality   = 128.0
-camera_exposure = 0.6
+camera_exposure = 3.0
 camera_vfov     = 30
 camera_aperture = 0.01
 camera_focus    = 4
@@ -230,7 +230,7 @@ def raycast(ray: Ray) -> HitRecord:
 @ti.func
 def sky_color(ray) -> vec3:
     t = 0.5 * ray.direction.y + 0.5
-    return mix(vec3(1.0, 1.0, 0.5), vec3(0.5, 0.7, 2.0), t)
+    return mix(vec3(1.0, 1.0, 0.5), vec3(0.5, 0.7, 2.0)*0.5, t)
 
 @ti.func
 def fresnel_schlick(NoI: float, F0: float, roughness) -> float:
