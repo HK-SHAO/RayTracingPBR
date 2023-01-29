@@ -1,7 +1,7 @@
 import taichi as ti                                                                # of course, we need taichi
 from taichi.math import *                                                # need common mathematical operations
 
-ti.init(arch=ti.cpu, default_ip=ti.i32, default_fp=ti.f32)        # initialize, use GPU, set default ip and fp
+ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)        # initialize, use GPU, set default ip and fp
 
 image_resolution = (512, 512)                                         # resolution of the image, not too large
 image_buffer = ti.Vector.field(4, float, image_resolution)    # image buffer field for recording sample counts
