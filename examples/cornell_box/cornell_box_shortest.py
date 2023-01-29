@@ -6,7 +6,6 @@ ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)        # initialize, 
 image_resolution = (512, 512)                                         # resolution of the image, not too large
 image_buffer = ti.Vector.field(4, float, image_resolution)    # image buffer field for recording sample counts
 image_pixels = ti.Vector.field(3, float, image_resolution)           # for output display pixels to the screen
-aspect_ratio = image_resolution[0] / image_resolution[1]                           # aspect ratio of the image
 
 Ray = ti.types.struct(origin=vec3, direction=vec3, color=vec3)      # the struct representing camera light ray
 Material = ti.types.struct(albedo=vec3, emission=vec3)             # Cornell Box need only albedo and emission
@@ -30,7 +29,7 @@ objects[5] = SDFObject(transform=Transform(vec3(-0.275, -0.3, -0.2), vec3(0, 112
 objects[6] = SDFObject(transform=Transform(vec3(0.275,-0.55, 0.2), vec3(0, -197, 0), vec3(0.25, 0.25, 0.25)),
                 material=Material(vec3(1, 1, 1)*0.4, vec3(1)))                                           # box
 objects[7] = SDFObject(transform=Transform(vec3(0, 0.809, 0), vec3(90, 0, 0), vec3(0.2, 0.2, 0.01)),
-                material=Material(vec3(1, 1, 1), vec3(100)))                                           # light
+                material=Material(vec3(1, 1, 1)*1, vec3(100)))                                         # light
 
 @ti.func
 def angle(a: vec3) -> mat3:                                          # convert Euler angles to rotation matrix
@@ -109,8 +108,7 @@ def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3):
         x = normalize(cross(camera_up, z))                          # calculating the camera coordinate system
         y = cross(z, x)
         
-        half_height = tan(radians(35) * 0.5)                        # calculate camera frame position and size
-        half_width = aspect_ratio * half_height
+        half_width = half_height = tan(radians(35) * 0.5)           # calculate camera frame position and size
         lower_left_corner = camera_position - half_width * x - half_height * y - z
         horizontal = 2.0 * half_width  * x
         vertical   = 2.0 * half_height * y
@@ -121,19 +119,21 @@ def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3):
 
         ray = raytrace(Ray(camera_position, rd, vec3(1)))                                       # Path Tracing
         buffer += vec4(ray.color, 1.0)              # accumulate colors and record the number of accumulations
-        image_buffer[i, j] = buffer                                                      # updating the buffer
 
         color = buffer.rgb / buffer.a                                  # calculate the average value of colors
         color = pow(color, vec3(1.0 / 2.2))                     # Gamma correction, then use ACES tone mapping
         color = mat3(0.597190, 0.35458, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777) @ color
         color = (color * (color + 0.024578) - 0.0000905) / (color * (0.983729 * color + 0.4329510) + 0.238081)
         color = mat3(1.60475, -0.531, -0.0736, -0.102, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602) @ color
+        image_buffer[i, j] = buffer                                                      # updating the buffer
         image_pixels[i, j] = clamp(color, 0, 1)  # write pixels, clamp the brightness that cannot be displayed
 
-window = ti.ui.Window("Cornell Box", image_resolution)                                         # create window
-canvas = window.get_canvas()                                                                  # get the canvas
+def main():
+    gui = ti.GUI("Cornell Box", image_resolution, fast_gui=True)                                  # create GUI
+    while gui.running:                                                                  # main loop of the GUI
+        render(vec3(0, 0, 3.5), vec3(0, 0, -1), vec3(0, 1, 0))                                        # render
+        gui.set_image(image_pixels)                                                 # writing pixels to canvas
+        gui.show()                                                                      # continue to show GUI
 
-while window.running:                                                                # main loop of the window
-    render(vec3(0, 0, 3.5), vec3(0, 0, -1), vec3(0, 1, 0))                                            # render
-    canvas.set_image(image_pixels)                                                  # writing pixels to canvas
-    window.show()                                                                    # continue to show window
+if __name__ == '__main__':
+    main()

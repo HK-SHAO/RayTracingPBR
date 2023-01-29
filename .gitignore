@@ -2,5 +2,6 @@ build/
 __pycache__
 imgui.ini
 *.out.*
+*.test.*
 *.blend1
 out/
