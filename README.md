@@ -1,6 +1,6 @@
 # Taichi Simple PBR Path Tracer
 
-|![SDF Bunny](./others/sdf_bunny_43.png)|![Cornell Box](./others/cornell_box_taichi.png)|![Scene Demo](./others/scene_demo.png)|
+|![SDF Bunny](./others/sdf_bunny_glass.jpg)|![Cornell Box](./others/cornell_box_taichi.png)|![Scene Demo](./others/tokyo_ibl.jpg)|
 |:-:|:-:|:-:|
 |SDF Bunny|Cornell Box|Scene Demo|
 
