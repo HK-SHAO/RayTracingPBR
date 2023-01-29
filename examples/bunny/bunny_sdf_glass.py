@@ -6,7 +6,7 @@ from taichi.math import *
 
 ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
-image_resolution = (7680, 4320)
+image_resolution = (1920, 1080)
 
 image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)
@@ -221,7 +221,7 @@ def signed_distance(obj: SDFObject, pos: vec3) -> float:
 WORLD_LIST = [
     SDFObject(type=SHAPE_BUNNY,
                 transform=Transform(vec3(0, 0, 0), vec3(-90, 0, 0), vec3(1, 1, 1)),
-                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
+                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.500))
 ]
 
 objects_num = len(WORLD_LIST)
@@ -441,6 +441,6 @@ while True:
         frame)
     frame += 1
     print(frame)
-    ti.tools.imwrite(image_pixels, 'out/sdf_bunny_4k_hdr_' + str(frame) + '.out.png')
+    ti.tools.imwrite(image_pixels, 'out/sdf_bunny_glass_' + str(frame) + '.out.png')
     if frame > 240:
         break
