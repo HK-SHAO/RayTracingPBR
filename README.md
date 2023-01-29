@@ -1,8 +1,8 @@
 # Taichi Simple PBR Path Tracer
 
-|[![SDF Bunny](./others/sdf_bunny_glass.jpg)](./examples/bunny/bunny_sdf_glass.py)|[![Cornell Box](./others/cornell_box_taichi.png)](./examples/cornell_box/cornell_box_shortest.py)|[![Scene Demo](./others/tokyo_ibl.jpg)](./examples/scene_demo/tokyo_ibl.py)|
+|![SDF Bunny](./others/sdf_bunny_glass.jpg)|![Cornell Box](./others/cornell_box_taichi.png)|![Scene Demo](./others/tokyo_ibl.jpg)|
 |:-:|:-:|:-:|
-|SDF Bunny|Cornell Box|Tokyo IBL|
+|[SDF Bunny](./examples/bunny/bunny_sdf_glass.py)|[Cornell Box](./examples/cornell_box/cornell_box_shortest.py)|[Tokyo IBL](./examples/scene_demo/tokyo_ibl.py)|
 
 ## Install
 
