@@ -34,6 +34,6 @@ def ACESFitted(color: vec3) -> vec3:
 def post_process(buffer: vec4):
     color = buffer.rgb / buffer.a
     color *= camera_exposure
-    color = ACESFitted(color)
     color = pow(color, vec3(1.0 / camera_gamma))
+    color = ACESFitted(color)
     return color

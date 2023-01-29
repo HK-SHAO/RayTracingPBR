@@ -55,7 +55,7 @@ def nearest_object(p: vec3) -> SDFObject:                                       
 
 @ti.func
 def calc_normal(obj: SDFObject, p: vec3) -> vec3:                                      # 计算点的法向量（梯度）
-    e = vec2(1, -1) * 0.001                                 # 用一个小的值，用于计算偏移量，使用了四面体方法近似梯度
+    e = vec2(1, -1) * 0.5773 * 0.005                     # 用一个小的值，用于计算偏移量，使用了四面体方法近似梯度
     return normalize(e.xyy * signed_distance(obj, p + e.xyy) + \
                      e.yyx * signed_distance(obj, p + e.yyx) + \
                      e.yxy * signed_distance(obj, p + e.yxy) + \
@@ -123,11 +123,11 @@ def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3):
         buffer += vec4(ray.color, 1.0)                                     # 积累颜色，用 alpha 通道记录累积次数
         image_buffer[i, j] = buffer                                                             # 更新缓冲区
 
-        color = buffer.rgb / buffer.a                                   # 计算平均值颜色，然后使用 ACES 色调映射
+        color = buffer.rgb / buffer.a                                                        # 计算平均值颜色
+        color = pow(clamp(color, 0, 1), vec3(1.0 / 2.2))                    # 伽马校正，然后使用 ACES 色调映射
         color = mat3(0.5971, 0.354, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777)  @ color
         color = (color * (color + 0.0245) - 0.000090537) / (color * (0.983 * color + 0.4329510) + 0.238081)
         color = mat3(1.604, -0.531, -0.073, -0.102, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602) @ color
-        color = pow(clamp(color, 0, 1), vec3(1.0 / 2.2))                                          # 伽马校正
         image_pixels[i, j] = color                                                                # 写入像素
 
 window = ti.ui.Window("Cornell Box", image_resolution)                                            # 创建窗口

@@ -1,7 +1,7 @@
 import taichi as ti
 from taichi.math import (length, vec2, vec3, radians, normalize, min, max)
 from dataclass import SDFObject
-from config import PRECISION
+from config import NORMAL_PRECISION
 from util import angle
 
 
@@ -24,7 +24,7 @@ def signed_distance(obj: SDFObject, pos: vec3) -> float:
 
 @ti.func
 def calc_normal(obj: SDFObject, p: vec3) -> vec3:
-    e = vec2(1, -1) * PRECISION
+    e = vec2(1, -1) * NORMAL_PRECISION
     return normalize(e.xyy * signed_distance(obj, p + e.xyy) +
                      e.yyx * signed_distance(obj, p + e.yyx) +
                      e.yxy * signed_distance(obj, p + e.yxy) +

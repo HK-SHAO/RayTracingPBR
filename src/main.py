@@ -16,7 +16,6 @@ PIXEL_RADIUS      = 0.5 * min(SCREEN_PIXEL_SIZE.x, SCREEN_PIXEL_SIZE.y)
 
 MIN_DIS      = 0.005
 MAX_DIS      = 2000.0
-PRECISION    = 0.0001
 VISIBILITY   = 0.000001
 
 SAMPLE_PER_PIXEL = 1
@@ -200,7 +199,7 @@ def nearest_object(p: vec3) -> SDFObject:
 
 @ti.func
 def calc_normal(obj: SDFObject, p: vec3) -> vec3:
-    e = vec2(1, -1) * PRECISION
+    e = vec2(1, -1) * 0.5773 * 0.005
     return normalize(e.xyy * signed_distance(obj, p + e.xyy) + \
                      e.yyx * signed_distance(obj, p + e.yyx) + \
                      e.yxy * signed_distance(obj, p + e.yxy) + \
