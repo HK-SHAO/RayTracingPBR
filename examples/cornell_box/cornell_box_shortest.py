@@ -119,13 +119,13 @@ def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3):
 
         ray = raytrace(Ray(camera_position, rd, vec3(1)))                                       # Path Tracing
         buffer += vec4(ray.color, 1.0)              # accumulate colors and record the number of accumulations
+        image_buffer[i, j] = buffer                                                      # updating the buffer
 
         color = buffer.rgb / buffer.a                                  # calculate the average value of colors
         color = pow(color, vec3(1.0 / 2.2))                     # Gamma correction, then use ACES tone mapping
         color = mat3(0.597190, 0.35458, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777) @ color
         color = (color * (color + 0.024578) - 0.0000905) / (color * (0.983729 * color + 0.4329510) + 0.238081)
         color = mat3(1.60475, -0.531, -0.0736, -0.102, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602) @ color
-        image_buffer[i, j] = buffer                                                      # updating the buffer
         image_pixels[i, j] = clamp(color, 0, 1)  # write pixels, clamp the brightness that cannot be displayed
 
 def main():
