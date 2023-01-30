@@ -62,12 +62,12 @@ def calc_normal(obj: SDFObject, p: vec3) -> vec3: # representing the surface nor
 
 @ti.func
 def raycast(ray: Ray) -> HitRecord:                 # ray marching to obtain the intersection with the surface
-    record = HitRecord(distance=0.001)                                   # step a little off the surface first
+    record = HitRecord(distance=0.0005)                                  # step a little off the surface first
     for _ in range(256):                                                      # need a maximum number of steps
         record.position  = ray.origin + record.distance * ray.direction
         record.object    = nearest_object(record.position)    # according to the nearest distance ray marching
         record.distance += record.object.distance                                             # sphere tracing
-        record.hit       = record.object.distance < 0.0001          # less than the surface thickness is a hit
+        record.hit       = record.object.distance < 0.00001         # less than the surface thickness is a hit
         if record.distance > 2000.0 or record.hit: break                        # no need to continue stepping
     return record
 
