@@ -129,12 +129,13 @@ def render(camera_position: vec3, camera_lookat: vec3, camera_up: vec3):
         image_pixels[i, j] = clamp(color, 0, 1)  # write pixels, clamp the brightness that cannot be displayed
 
 def main():
-    gui = ti.GUI("Cornell Box", image_resolution, fast_gui=True)                                  # create GUI
-    while gui.running:                                                                  # main loop of the GUI
-        render(vec3(0, 0, 3.5), vec3(0, 0, -1), vec3(0, 1, 0))                                        # render
-        gui.set_image(image_pixels)                                                 # writing pixels to canvas
-        gui.show()                                                                      # continue to show GUI
+    window = ti.ui.Window("Cornell Box", image_resolution)                                     # create window
+    canvas = window.get_canvas()
+    while window.running:                                                            # main loop of the window
+        render(vec3(0, 0, 3.5), vec3(0, 0, -1), vec3(0, 1, 0))        # set the camera parameters, then render
+        canvas.set_image(image_pixels)                                              # writing pixels to canvas
+        window.show()                                                                # continue to show window
 
 if __name__ == '__main__':
-    main()                                                                             # By HK-SHAO 2023/01/29
+    main()                                                                             # By HK-SHAO 2023/01/30
 # ------------------------------------------------------------------------------------------------------------
