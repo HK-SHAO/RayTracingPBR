@@ -342,11 +342,10 @@ def ACESFitted(color: vec3) -> vec3:
     return clamp(color, 0, 1)
 
 @ti.kernel
-def render(
+def sample(
     camera_position: vec3, 
     camera_lookat: vec3, 
-    camera_up: vec3,
-    moving: bool):
+    camera_up: vec3):
 
     camera = Camera()
     camera.lookfrom = camera_position
@@ -358,22 +357,26 @@ def render(
     camera.focus    = camera_focus
 
     for i, j in image_pixels:
-        buffer = vec4(0)
-        if not moving: buffer = image_buffer[i, j] # ToDo: Reprojection
+        coord = vec2(i, j) + vec2(ti.random(), ti.random())
+        uv = coord * SCREEN_PIXEL_SIZE
 
-        for _ in range(SAMPLE_PER_PIXEL):
-            coord = vec2(i, j) + vec2(ti.random(), ti.random())
-            uv = coord * SCREEN_PIXEL_SIZE
+        ray = raytrace(camera.get_ray(uv, vec3(1)))
+        image_buffer[i, j] += vec4(ray.color, 1.0)
 
-            ray = raytrace(camera.get_ray(uv, vec3(1)))
-            buffer += vec4(ray.color, 1.0)
+@ti.kernel
+def refresh():
+    for i, j in image_buffer:
+        image_buffer[i, j] = vec4(0)
 
+@ti.kernel
+def render():
+    for i, j in image_pixels:
+        buffer = image_buffer[i, j]
         color  = buffer.rgb / buffer.a
         color *= camera_exposure
-        color  = pow(color, vec3(1.0 / camera_gamma))
         color  = ACESFitted(color)
+        color  = pow(color, vec3(1.0 / camera_gamma))
 
-        image_buffer[i, j] = buffer
         image_pixels[i, j] = color
 
 window = ti.ui.Window("Taichi Renderer", image_resolution)
@@ -381,13 +384,20 @@ canvas = window.get_canvas()
 camera = ti.ui.Camera()
 camera.position(0, -0.2, 4)
 
+frame = 0
 while window.running:
     camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.LMB)
     moving = any([window.is_pressed(key) for key in ('w', 'a', 's', 'd', 'q', 'e', 'LMB', ' ')])
-    render(
-        camera.curr_position, 
-        camera.curr_lookat, 
-        camera.curr_up,
-        moving)
+    if moving: refresh()
+
+    for i in range(SAMPLE_PER_PIXEL):
+        sample(
+            camera.curr_position, 
+            camera.curr_lookat, 
+            camera.curr_up)
+        print('frame:', frame, 'sample:', i + 1)
+    frame += 1
+    render()
+    
     canvas.set_image(image_pixels)
     window.show()

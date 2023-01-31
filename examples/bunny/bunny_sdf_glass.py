@@ -20,8 +20,8 @@ MAX_DIS      = 2000.0
 PRECISION    = 0.0001
 VISIBILITY   = 0.000001
 
-SAMPLE_PER_PIXEL = 12
-MAX_RAYMARCH = 512
+SAMPLE_PER_PIXEL = 512
+MAX_RAYMARCH = 2048
 MAX_RAYTRACE = 512
 
 SHAPE_NONE     = 0
@@ -248,14 +248,14 @@ def calc_normal(obj: SDFObject, p: vec3) -> vec3:
 @ti.func
 def raycast(ray: Ray) -> HitRecord:
     record = HitRecord(); t = MIN_DIS
-    w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
+    w, s, d, cerr = 0.5, 0.0, 0.0, 1e32
     for _ in range(MAX_RAYMARCH):
         record.position = ray.at(t)
         record.object   = nearest_object(record.position)
 
         ld = d; d = record.object.distance
         if w > 1.0 and ld + d < s:
-            s -= w * s; t += s; w = 0.7
+            s -= w * s; t += s; w = 0.4
             continue
         err = d / t
         if err < cerr: cerr = err
@@ -391,11 +391,10 @@ def ACESFitted(color: vec3) -> vec3:
     return clamp(color, 0, 1)
 
 @ti.kernel
-def render(
+def sample(
     camera_position: vec3, 
     camera_lookat: vec3, 
     camera_up: vec3,
-    moving: bool,
     frame: int):
 
     camera = Camera()
@@ -410,22 +409,26 @@ def render(
     u_frame[None] = frame
 
     for i, j in image_pixels:
-        buffer = vec4(0)
-        # if not moving: buffer = image_buffer[i, j] # ToDo: Reprojection
+        coord = vec2(i, j) + vec2(ti.random(), ti.random())
+        uv = coord * SCREEN_PIXEL_SIZE
 
-        for _ in range(SAMPLE_PER_PIXEL):
-            coord = vec2(i, j) + vec2(ti.random(), ti.random())
-            uv = coord * SCREEN_PIXEL_SIZE
+        ray = raytrace(camera.get_ray(uv, vec3(1)))
+        image_buffer[i, j] += vec4(ray.color, 1.0)
 
-            ray = raytrace(camera.get_ray(uv, vec3(1)))
-            buffer += vec4(ray.color, 1.0)
+@ti.kernel
+def refresh():
+    for i, j in image_buffer:
+        image_buffer[i, j] = vec4(0)
 
+@ti.kernel
+def render():
+    for i, j in image_pixels:
+        buffer = image_buffer[i, j]
         color  = buffer.rgb / buffer.a
         color *= camera_exposure
         color  = ACESFitted(color)
         color  = pow(color, vec3(1.0 / camera_gamma))
 
-        image_buffer[i, j] = buffer
         image_pixels[i, j] = color
 
 camera = ti.ui.Camera()
@@ -433,14 +436,16 @@ camera.position(0, 0, 4)
 
 frame = 0
 while True:
-    render(
-        camera.curr_position, 
-        camera.curr_lookat, 
-        camera.curr_up,
-        True,
-        frame)
+    refresh()
+    for i in range(SAMPLE_PER_PIXEL):
+        sample(
+            camera.curr_position, 
+            camera.curr_lookat, 
+            camera.curr_up,
+            frame)
+        print('frame:', frame, 'sample:', i)
     frame += 1
-    print(frame)
+    render()
     ti.tools.imwrite(image_pixels, 'out/sdf_bunny_glass_' + str(frame) + '.out.png')
     if frame > 240:
         break
