@@ -174,7 +174,7 @@ def signed_distance(obj: SDFObject, pos: vec3) -> float:
 
     return obj.distance
 
-OBJECTS_LIST = [
+OBJECTS_LIST = sorted([
     SDFObject(type=SHAPE_SPHERE,
                 transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
                 material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635)),
@@ -196,17 +196,37 @@ OBJECTS_LIST = [
     SDFObject(type=SHAPE_BOX,
                 transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
                 material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
-]
+], key=lambda o: o.type)
+
+SHAPE_SPLIT = [0, 0, 0, 0]
+for o in OBJECTS_LIST: SHAPE_SPLIT[o.type] += 1
+for i in range(1, len(SHAPE_SPLIT)): SHAPE_SPLIT[i] += SHAPE_SPLIT[i - 1]
 
 objects = SDFObject.field()
 ti.root.dense(ti.i, len(OBJECTS_LIST)).place(objects)
 for i in range(objects.shape[0]): objects[i] = OBJECTS_LIST[i]
 
 @ti.func
+def get_object_pos_scale(i: int, p: vec3):
+    obj = objects[i]
+    scale = obj.transform.scale
+    pos = transform(obj.transform, p)
+    return pos, scale
+
+@ti.func
 def nearest_object(p: vec3) -> tuple[int, float]:
     index = 0; min_dis = MAX_DIS
-    for i in range(objects.shape[0]):
-        dis = abs(signed_distance(objects[i], p))
+    for i in range(SHAPE_SPLIT[0], SHAPE_SPLIT[1]):
+        pos, scale = get_object_pos_scale(i, p)
+        dis = abs(sd_sphere(pos, scale.x))
+        if dis < min_dis: min_dis = dis; index = i
+    for i in range(SHAPE_SPLIT[1], SHAPE_SPLIT[2]):
+        pos, scale = get_object_pos_scale(i, p)
+        dis = abs(sd_box(pos, scale))
+        if dis < min_dis: min_dis = dis; index = i
+    for i in range(SHAPE_SPLIT[2], SHAPE_SPLIT[3]):
+        pos, scale = get_object_pos_scale(i, p)
+        dis = abs(sd_cylinder(pos, scale.xy))
         if dis < min_dis: min_dis = dis; index = i
     return index, min_dis
 
