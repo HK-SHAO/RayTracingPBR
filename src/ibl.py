@@ -36,6 +36,21 @@ camera_aperture = 0.01
 camera_focus    = 4
 camera_gamma    = 2.2
 
+@ti.data_oriented
+class Image:
+    def __init__(self, path: str):
+        img = ti.tools.imread(path).astype('float32')
+        self.img = vec3.field(shape=img.shape[:2])
+        self.img.from_numpy(img / 255)
+
+    @ti.func
+    def texture(self, uv: vec2) -> vec3:
+        x = int(uv.x * self.img.shape[0])
+        y = int(uv.y * self.img.shape[1])
+        return self.img[x, y]
+
+hdr_map = Image('assets/Tokyo_BigSight_3k.hdr')
+
 @ti.dataclass
 class Ray:
     origin: vec3
@@ -74,21 +89,6 @@ class Camera:
     aspect: float
     aperture: float
     focus: float
-
-@ti.data_oriented
-class Image:
-    def __init__(self, path: str):
-        img = ti.tools.imread(path).astype('float32')
-        self.img = vec3.field(shape=img.shape[:2])
-        self.img.from_numpy(img / 255)
-
-    @ti.func
-    def texture(self, uv: vec2) -> vec3:
-        x = int(uv.x * self.img.shape[0])
-        y = int(uv.y * self.img.shape[1])
-        return self.img[x, y]
-
-hdr_map = Image('assets/Tokyo_BigSight_3k.hdr')
 
 @ti.func
 def random_in_unit_disk():
