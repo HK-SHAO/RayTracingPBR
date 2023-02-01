@@ -22,7 +22,6 @@ SAMPLE_PER_PIXEL = 1
 MAX_RAYMARCH = 512
 MAX_RAYTRACE = 128
 
-SHAPE_NONE     = 0
 SHAPE_SPHERE   = 1
 SHAPE_BOX      = 2
 SHAPE_CYLINDER = 3
@@ -31,7 +30,7 @@ ENV_IOR = 1.000277
 
 aspect_ratio    = image_resolution[0] / image_resolution[1]
 light_quality   = 128.0
-camera_exposure = 3.0
+camera_exposure = 1.0
 camera_vfov     = 30
 camera_aperture = 0.01
 camera_focus    = 4
@@ -42,10 +41,6 @@ class Ray:
     origin: vec3
     direction: vec3
     color: vec3
-
-    @ti.func
-    def at(r, t: float) -> vec3:
-        return r.origin + t * r.direction
 
 @ti.dataclass
 class Material:
@@ -61,6 +56,7 @@ class Transform:
     position: vec3
     rotation: vec3
     scale: vec3
+    matrix: mat3
 
 @ti.dataclass
 class SDFObject:
@@ -68,18 +64,6 @@ class SDFObject:
     distance: float
     transform: Transform
     material: Material
-
-@ti.dataclass
-class HitRecord:
-    object: SDFObject
-    position: vec3
-    hit: bool
-
-@ti.func
-def random_in_unit_disk():
-    x = ti.random()
-    a = ti.random() * 2 * pi
-    return sqrt(x) * vec2(sin(a), cos(a))
 
 @ti.dataclass
 class Camera:
@@ -91,32 +75,42 @@ class Camera:
     aperture: float
     focus: float
 
-    @ti.func
-    def get_ray(c, uv: vec2, color: vec3) -> Ray:
-        theta = radians(c.vfov)
-        half_height = tan(theta * 0.5)
-        half_width = c.aspect * half_height
+@ti.func
+def random_in_unit_disk():
+    x = ti.random()
+    a = ti.random() * 2 * pi
+    return sqrt(x) * vec2(sin(a), cos(a))
 
-        z = normalize(c.lookfrom - c.lookat)
-        x = normalize(cross(c.vup, z))
-        y = cross(z, x)
+@ti.func
+def get_ray(c: Camera, uv: vec2, color: vec3) -> Ray:
+    theta = radians(c.vfov)
+    half_height = tan(theta * 0.5)
+    half_width = c.aspect * half_height
 
-        lens_radius = c.aperture * 0.5
-        rud = lens_radius * random_in_unit_disk()
-        offset = x * rud.x + y * rud.y
-        
-        hwfx = half_width  * c.focus * x
-        hhfy = half_height * c.focus * y
+    z = normalize(c.lookfrom - c.lookat)
+    x = normalize(cross(c.vup, z))
+    y = cross(z, x)
 
-        lower_left_corner = c.lookfrom - hwfx - hhfy - c.focus * z
-        horizontal = 2.0 * hwfx
-        vertical   = 2.0 * hhfy
-
-        ro = c.lookfrom + offset
-        po = lower_left_corner + uv.x * horizontal + uv.y * vertical
-        rd = normalize(po - ro)
+    lens_radius = c.aperture * 0.5
+    rud = lens_radius * random_in_unit_disk()
+    offset = x * rud.x + y * rud.y
     
-        return Ray(ro, rd, color)
+    hwfx = half_width  * c.focus * x
+    hhfy = half_height * c.focus * y
+
+    lower_left_corner = c.lookfrom - hwfx - hhfy - c.focus * z
+    horizontal = 2.0 * hwfx
+    vertical   = 2.0 * hhfy
+
+    ro = c.lookfrom + offset
+    po = lower_left_corner + uv.x * horizontal + uv.y * vertical
+    rd = normalize(po - ro)
+
+    return Ray(ro, rd, color)
+
+@ti.func
+def at(r: Ray, t: float) -> vec3:
+    return r.origin + t * r.direction
 
 @ti.func
 def angle(a: vec3) -> mat3:
@@ -146,21 +140,26 @@ def sd_cylinder(p: vec3, rh: vec2) -> float:
     return min(max(d.x, d.y), 0) + length(max(d, 0))
 
 @ti.func
-def signed_distance(obj: SDFObject, pos: vec3) -> float:
-    position = obj.transform.position
-    rotation = obj.transform.rotation
-    scale    = obj.transform.scale
+def transform(t: Transform, p: vec3) -> vec3:
+    p -= t.position
+    p  = t.matrix @ p
+    return p
 
-    p = angle(radians(rotation)) @ (pos - position)
+@ti.func
+def signed_distance(obj: SDFObject, pos: vec3) -> float:
+    scale = obj.transform.scale
+    p = transform(obj.transform, pos)
+    # Cannot squeeze the Euclidean space of distance field
+    # Otherwise the correct ray marching is not possible
 
     if    obj.type == SHAPE_SPHERE:   obj.distance = sd_sphere(p, scale.x)
     elif  obj.type == SHAPE_BOX:      obj.distance = sd_box(p, scale)
     elif  obj.type == SHAPE_CYLINDER: obj.distance = sd_cylinder(p, scale.xy)
-    else: obj.distance = sd_sphere(p, scale.x)
+    else:                             obj.distance = MAX_DIS
 
     return obj.distance
 
-WORLD_LIST = [
+OBJECTS_LIST = [
     SDFObject(type=SHAPE_SPHERE,
                 transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
                 material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635)),
@@ -184,18 +183,17 @@ WORLD_LIST = [
                 material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
 ]
 
-objects_num = len(WORLD_LIST)
-objects = SDFObject.field(shape=objects_num)
-for i in range(objects_num): objects[i] = WORLD_LIST[i]
+objects = SDFObject.field()
+ti.root.dense(ti.i, len(OBJECTS_LIST)).place(objects)
+for i in range(objects.shape[0]): objects[i] = OBJECTS_LIST[i]
 
 @ti.func
-def nearest_object(p: vec3) -> SDFObject:
-    o = objects[0]; o.distance = abs(signed_distance(o, p))
-    for i in range(1, objects_num):
-        oi = objects[i]
-        oi.distance = abs(signed_distance(oi, p))
-        if oi.distance < o.distance: o = oi
-    return o
+def nearest_object(p: vec3):
+    index = 0; min_dis = MAX_DIS
+    for i in range(objects.shape[0]):
+        dis = abs(signed_distance(objects[i], p))
+        if dis < min_dis: min_dis = dis; index = i
+    return index, min_dis
 
 @ti.func
 def calc_normal(obj: SDFObject, p: vec3) -> vec3:
@@ -206,14 +204,14 @@ def calc_normal(obj: SDFObject, p: vec3) -> vec3:
                      e.xxx * signed_distance(obj, p + e.xxx) )
 
 @ti.func
-def raycast(ray: Ray) -> HitRecord:
-    record = HitRecord(); t = MIN_DIS
-    w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
+def raycast(ray: Ray):
+    t = MIN_DIS; w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
+    index = 0; position = vec3(0); hit = False
     for _ in range(MAX_RAYMARCH):
-        record.position = ray.at(t)
-        record.object   = nearest_object(record.position)
+        position = at(ray, t)
+        index, distance = nearest_object(position)
 
-        ld = d; d = record.object.distance
+        ld = d; d = distance
         if w > 1.0 and ld + d < s:
             s -= w * s; t += s; w = 1.0
             continue
@@ -221,10 +219,10 @@ def raycast(ray: Ray) -> HitRecord:
         if err < cerr: cerr = err
 
         s = w * d; t += s
-        record.hit = err < PIXEL_RADIUS
-        if t > MAX_DIS or record.hit: break
+        hit = err < PIXEL_RADIUS
+        if t > MAX_DIS or hit: break
 
-    return record
+    return index, position, hit
 
 @ti.func
 def sky_color(ray) -> vec3:
@@ -250,14 +248,14 @@ def roughness_sampling(hemispheric_sample: vec3, normal: vec3, roughness: float)
     return normalize(mix(normal, hemispheric_sample, alpha))
 
 @ti.func
-def ray_surface_interaction(ray: Ray, record: HitRecord) -> Ray:
-    albedo       = record.object.material.albedo
-    roughness    = record.object.material.roughness
-    metallic     = record.object.material.metallic
-    transmission = record.object.material.transmission
-    ior          = record.object.material.ior
+def ray_surface_interaction(ray: Ray, object: SDFObject, position: vec3) -> Ray:
+    albedo       = object.material.albedo
+    roughness    = object.material.roughness
+    metallic     = object.material.metallic
+    transmission = object.material.transmission
+    ior          = object.material.ior
     
-    normal  = calc_normal(record.object, record.position)
+    normal  = calc_normal(object, position)
     outer   = dot(ray.direction, normal) < 0
     normal *= 1 if outer else -1
     
@@ -270,7 +268,7 @@ def ray_surface_interaction(ray: Ray, record: HitRecord) -> Ray:
 
     eta = ENV_IOR / ior if outer else ior / ENV_IOR
     k   = 1.0 - eta * eta * (1.0 - NoI * NoI)
-    F0  = (eta - 1.0) / (eta + 1.0); F0 *= 2.0*F0
+    F0  = 2.0 * (eta - 1.0) / (eta + 1.0); F0 *= F0
     F   = fresnel_schlick(NoI, F0, roughness)
 
     if ti.random() < F + metallic or k < 0.0:
@@ -282,7 +280,7 @@ def ray_surface_interaction(ray: Ray, record: HitRecord) -> Ray:
         ray.direction = hemispheric_sample
 
     ray.color *= albedo
-    ray.origin = record.position
+    ray.origin = position
     
     return ray
 
@@ -300,16 +298,17 @@ def raytrace(ray: Ray) -> Ray:
             ray.color *= roulette_prob
             break
 
-        record = raycast(ray)
+        index, position, hit = raycast(ray)
+        object = objects[index]
 
-        if not record.hit:
-            ray.color *= sky_color(ray)
+        if not hit:
+            ray.color *= sky_color(ray) * 1.8
             break
 
-        ray = ray_surface_interaction(ray, record)
+        ray = ray_surface_interaction(ray, object, position)
 
         intensity  = brightness(ray.color)
-        ray.color *= record.object.material.emission
+        ray.color *= object.material.emission
         visible    = brightness(ray.color)
 
         if intensity < visible or visible < VISIBILITY: break
@@ -341,6 +340,20 @@ def ACESFitted(color: vec3) -> vec3:
     color = ACESOutputMat @ color
     return clamp(color, 0, 1)
 
+@ti.func
+def update_transform(i: int):
+    transform = objects[i].transform
+    matrix = angle(radians(transform.rotation))
+    objects[i].transform.matrix = matrix
+
+@ti.func
+def update_all_transform():
+    for i in objects: update_transform(i)
+
+@ti.kernel
+def init_scene():
+    update_all_transform()
+
 @ti.kernel
 def sample(
     camera_position: vec3, 
@@ -360,13 +373,12 @@ def sample(
         coord = vec2(i, j) + vec2(ti.random(), ti.random())
         uv = coord * SCREEN_PIXEL_SIZE
 
-        ray = raytrace(camera.get_ray(uv, vec3(1)))
+        ray = raytrace(get_ray(camera, uv, vec3(1)))
         image_buffer[i, j] += vec4(ray.color, 1.0)
 
 @ti.kernel
 def refresh():
-    for i, j in image_buffer:
-        image_buffer[i, j] = vec4(0)
+    image_buffer.fill(vec4(0))
 
 @ti.kernel
 def render():
@@ -384,7 +396,7 @@ canvas = window.get_canvas()
 camera = ti.ui.Camera()
 camera.position(0, -0.2, 4)
 
-frame = 0
+init_scene(); frame = 0
 while window.running:
     camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.LMB)
     moving = any([window.is_pressed(key) for key in ('w', 'a', 's', 'd', 'q', 'e', 'LMB', ' ')])
