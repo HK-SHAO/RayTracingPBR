@@ -203,7 +203,7 @@ ti.root.dense(ti.i, len(OBJECTS_LIST)).place(objects)
 for i in range(objects.shape[0]): objects[i] = OBJECTS_LIST[i]
 
 @ti.func
-def nearest_object(p: vec3):
+def nearest_object(p: vec3) -> tuple[int, float]:
     index = 0; min_dis = MAX_DIS
     for i in range(objects.shape[0]):
         dis = abs(signed_distance(objects[i], p))
