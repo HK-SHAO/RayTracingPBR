@@ -2,7 +2,7 @@
 
 |![SDF Bunny](./others/sdf_bunny_glass.jpg)|![Cornell Box](./others/cornell_box_taichi.png)|![Scene Demo](./others/tokyo_ibl.jpg)|
 |:-:|:-:|:-:|
-|[SDF Bunny](./examples/bunny/bunny_sdf_glass.py)|[Cornell Box](./examples/cornell_box/cornell_box_shortest.py)|[Tokyo IBL](./examples/scene_demo/tokyo_ibl_v2.py)|
+|[SDF Bunny](./examples/bunny/bunny_sdf_glass.py)|[Cornell Box](./examples/cornell_box/cornell_box_shortest.py)|[Tokyo IBL](./examples/scene_demo/tokyo_ibl.py)|
 
 ## Install
 

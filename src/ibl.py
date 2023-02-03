@@ -90,8 +90,40 @@ class Camera:
     aperture: float
     focus: float
 
+OBJECTS_LIST = sorted([
+    SDFObject(type=SHAPE_SPHERE,
+                transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
+                material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635)),
+    SDFObject(type=SHAPE_SPHERE,
+                transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
+                material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, 1, 0, 0, 1)),
+    SDFObject(type=SHAPE_SPHERE,
+                transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
+                material=Material(vec3(0.2, 0.2, 1), vec3(1), 0.2, 1, 0, 1.100)),
+    SDFObject(type=SHAPE_SPHERE,
+                transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
+                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5)),
+    SDFObject(type=SHAPE_CYLINDER,
+                transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
+                material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1.460)),
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(0, 0, 5), vec3(0), vec3(2, 1, 0.2)),
+                material=Material(vec3(1, 1, 0.2)*0.9, vec3(1), 0, 1, 0, 0.470)),
+    SDFObject(type=SHAPE_BOX,
+                transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
+                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
+], key=lambda o: o.type)
+
+SHAPE_SPLIT = [0, 0, 0, 0]
+for o in OBJECTS_LIST: SHAPE_SPLIT[o.type] += 1
+for i in range(1, len(SHAPE_SPLIT)): SHAPE_SPLIT[i] += SHAPE_SPLIT[i - 1]
+
+objects = SDFObject.field()
+ti.root.dense(ti.i, len(OBJECTS_LIST)).place(objects)
+for i in range(objects.shape[0]): objects[i] = OBJECTS_LIST[i]
+
 @ti.func
-def random_in_unit_disk():
+def random_in_unit_disk() -> vec2:
     x = ti.random()
     a = ti.random() * 2 * pi
     return sqrt(x) * vec2(sin(a), cos(a))
@@ -141,8 +173,8 @@ def angle(a: vec3) -> mat3:
                 vec3(   0, -s.x,  c.x))
 
 @ti.func
-def sd_sphere(p: vec3, r: float) -> float:
-    return length(p) - r
+def sd_sphere(p: vec3, r: vec3) -> float:
+    return length(p) - r.x
 
 @ti.func
 def sd_box(p: vec3, b: vec3) -> float:
@@ -150,75 +182,40 @@ def sd_box(p: vec3, b: vec3) -> float:
     return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0) - 0.03
 
 @ti.func
-def sd_cylinder(p: vec3, rh: vec2) -> float:
-    d = abs(vec2(length(p.xz), p.y)) - rh
+def sd_cylinder(p: vec3, rh: vec3) -> float:
+    d = abs(vec2(length(p.xz), p.y)) - rh.xy
     return min(max(d.x, d.y), 0) + length(max(d, 0))
 
 @ti.func
 def transform(t: Transform, p: vec3) -> vec3:
-    p -= t.position
-    p  = t.matrix @ p
+    p -= t.position # Cannot squeeze the Euclidean space of distance field
+    p  = t.matrix @ p # Otherwise the correct ray marching is not possible
     return p
 
 @ti.func
 def signed_distance(obj: SDFObject, pos: vec3) -> float:
-    scale = obj.transform.scale
-    p = transform(obj.transform, pos)
-    # Cannot squeeze the Euclidean space of distance field
-    # Otherwise the correct ray marching is not possible
+    scale = obj.transform.scale 
+    p = transform(obj.transform, pos) 
 
-    if    obj.type == SHAPE_SPHERE:   obj.distance = sd_sphere(p, scale.x)
+    if    obj.type == SHAPE_SPHERE:   obj.distance = sd_sphere(p, scale)
     elif  obj.type == SHAPE_BOX:      obj.distance = sd_box(p, scale)
-    elif  obj.type == SHAPE_CYLINDER: obj.distance = sd_cylinder(p, scale.xy)
+    elif  obj.type == SHAPE_CYLINDER: obj.distance = sd_cylinder(p, scale)
     else:                             obj.distance = MAX_DIS
 
     return obj.distance
 
-OBJECTS_LIST = sorted([
-    SDFObject(type=SHAPE_SPHERE,
-                transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
-                material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1, 1, 0, 1.635)),
-    SDFObject(type=SHAPE_SPHERE,
-                transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
-                material=Material(vec3(1, 1, 1), vec3(0.1, 1, 0.1)*10, 1, 0, 0, 1)),
-    SDFObject(type=SHAPE_SPHERE,
-                transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
-                material=Material(vec3(0.2, 0.2, 1), vec3(1), 0.2, 1, 0, 1.100)),
-    SDFObject(type=SHAPE_SPHERE,
-                transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
-                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5)),
-    SDFObject(type=SHAPE_CYLINDER,
-                transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
-                material=Material(vec3(1.0, 0.2, 0.2), vec3(1), 0, 0, 0, 1.460)),
-    SDFObject(type=SHAPE_BOX,
-                transform=Transform(vec3(0, 0, 5), vec3(0), vec3(2, 1, 0.2)),
-                material=Material(vec3(1, 1, 0.2)*0.9, vec3(1), 0, 1, 0, 0.470)),
-    SDFObject(type=SHAPE_BOX,
-                transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
-                material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
-], key=lambda o: o.type)
-
-SHAPE_SPLIT = [0, 0, 0, 0]
-for o in OBJECTS_LIST: SHAPE_SPLIT[o.type] += 1
-for i in range(1, len(SHAPE_SPLIT)): SHAPE_SPLIT[i] += SHAPE_SPLIT[i - 1]
-
-objects = SDFObject.field()
-ti.root.dense(ti.i, len(OBJECTS_LIST)).place(objects)
-for i in range(objects.shape[0]): objects[i] = OBJECTS_LIST[i]
-
 @ti.func
-def get_object_pos_scale(i: int, p: vec3):
+def get_object_pos_scale(i: int, p: vec3) -> tuple[vec3, vec3]:
     obj = objects[i]
-    scale = obj.transform.scale
     pos = transform(obj.transform, p)
-    return pos, scale
+    return pos, obj.transform.scale
 
 @ti.func
 def nearest_object(p: vec3) -> tuple[int, float]:
     index = 0; min_dis = MAX_DIS
     for i in range(SHAPE_SPLIT[0], SHAPE_SPLIT[1]):
         pos, scale = get_object_pos_scale(i, p)
-        dis = abs(sd_sphere(pos, scale.x))
+        dis = abs(sd_sphere(pos, scale))
         if dis < min_dis: min_dis = dis; index = i
     for i in range(SHAPE_SPLIT[1], SHAPE_SPLIT[2]):
         pos, scale = get_object_pos_scale(i, p)
@@ -226,7 +223,7 @@ def nearest_object(p: vec3) -> tuple[int, float]:
         if dis < min_dis: min_dis = dis; index = i
     for i in range(SHAPE_SPLIT[2], SHAPE_SPLIT[3]):
         pos, scale = get_object_pos_scale(i, p)
-        dis = abs(sd_cylinder(pos, scale.xy))
+        dis = abs(sd_cylinder(pos, scale))
         if dis < min_dis: min_dis = dis; index = i
     return index, min_dis
 
@@ -239,7 +236,7 @@ def calc_normal(obj: SDFObject, p: vec3) -> vec3:
                      e.xxx * signed_distance(obj, p + e.xxx) )
 
 @ti.func
-def raycast(ray: Ray):
+def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
     t = MIN_DIS; w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
     index = 0; position = vec3(0); hit = False
     for _ in range(MAX_RAYMARCH):
@@ -257,7 +254,7 @@ def raycast(ray: Ray):
         hit = err < PIXEL_RADIUS
         if t > MAX_DIS or hit: break
 
-    return index, position, hit
+    return objects[index], position, hit
 
 @ti.func
 def sample_spherical_map(v: vec3) -> vec2:
@@ -274,7 +271,7 @@ def sky_color(ray: Ray) -> vec3:
     return color
 
 @ti.func
-def fresnel_schlick(NoI: float, F0: float, roughness) -> float:
+def fresnel_schlick(NoI: float, F0: float, roughness: float) -> float:
     return mix(mix(pow(abs(1.0 + NoI), 5.0), 1.0, F0), F0, roughness)
 
 @ti.func
@@ -342,8 +339,7 @@ def raytrace(ray: Ray) -> Ray:
             ray.color *= roulette_prob
             break
 
-        index, position, hit = raycast(ray)
-        object = objects[index]
+        object, position, hit = raycast(ray)
 
         if not hit:
             ray.color *= sky_color(ray)
