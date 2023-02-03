@@ -22,6 +22,7 @@ SAMPLE_PER_PIXEL = 1
 MAX_RAYMARCH = 512
 MAX_RAYTRACE = 128
 
+SHAPE_NONE     = 0
 SHAPE_SPHERE   = 1
 SHAPE_BOX      = 2
 SHAPE_CYLINDER = 3
@@ -35,29 +36,6 @@ camera_vfov     = 30
 camera_aperture = 0.01
 camera_focus    = 4
 camera_gamma    = 2.2
-
-@ti.data_oriented
-class Image:
-    def __init__(self, path: str):
-        img = ti.tools.imread(path).astype('float32')
-        self.img = vec3.field(shape=img.shape[:2])
-        self.img.from_numpy(img / 255)
-
-    @ti.kernel
-    def process(self, exposure: float, gamma: float):
-        for i, j in self.img:
-            color = self.img[i, j] * exposure
-            color = pow(color, vec3(gamma))
-            self.img[i, j] = color
-
-    @ti.func
-    def texture(self, uv: vec2) -> vec3:
-        x = int(uv.x * self.img.shape[0])
-        y = int(uv.y * self.img.shape[1])
-        return self.img[x, y]
-
-hdr_map = Image('assets/Tokyo_BigSight_3k.hdr')
-hdr_map.process(exposure=1.8, gamma=camera_gamma)
 
 @ti.dataclass
 class Ray:
@@ -265,16 +243,9 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
     return objects[index], position, hit
 
 @ti.func
-def sample_spherical_map(v: vec3) -> vec2:
-    uv  = vec2(atan2(v.z, v.x), asin(v.y))
-    uv *= vec2(0.5 / pi, 1 / pi)
-    uv += 0.5
-    return uv
-
-@ti.func
-def sky_color(ray: Ray) -> vec3:
-    uv = sample_spherical_map(ray.direction)
-    return hdr_map.texture(uv)
+def sky_color(ray) -> vec3:
+    t = 0.5 * ray.direction.y + 0.5
+    return mix(vec3(1.0, 1.0, 0.5), vec3(0.5, 0.7, 2.0)*0.5, t)
 
 @ti.func
 def fresnel_schlick(NoI: float, F0: float, roughness: float) -> float:
@@ -348,7 +319,7 @@ def raytrace(ray: Ray) -> Ray:
         object, position, hit = raycast(ray)
 
         if not hit:
-            ray.color *= sky_color(ray)
+            ray.color *= sky_color(ray) * 1.8
             break
 
         ray = ray_surface_interaction(ray, object, position)
@@ -430,7 +401,7 @@ def refresh():
 def render():
     for i, j in image_pixels:
         buffer = image_buffer[i, j]
-        
+
         color  = buffer.rgb / buffer.a
         color *= camera_exposure
         color  = ACESFitted(color)
