@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import *
+from taichi.math import vec3, mat3
 
 
 @ti.dataclass

@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import *
+from taichi.math import vec2
 
 
 ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
