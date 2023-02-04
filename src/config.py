@@ -25,7 +25,7 @@ SHAPE_SPHERE = 1
 SHAPE_BOX = 2
 SHAPE_CYLINDER = 3
 
-aspect_ratio = image_resolution[0] / image_resolution[1]
+aspect_ratio = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x
 light_quality = 128.0
 camera_exposure = 1
 camera_vfov = 35
