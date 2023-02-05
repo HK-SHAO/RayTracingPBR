@@ -105,27 +105,30 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
 
 @ti.func
 def raytrace(ray: Ray) -> Ray:
-    for i in range(MAX_RAYTRACE):
-        inv_pdf = exp(float(i) / light_quality)
-        roulette_prob = 1.0 - (1.0 / inv_pdf)
+    # inv_pdf = exp(float(ray.depth) / light_quality)
+    # roulette_prob = 1.0 - (1.0 / inv_pdf)
 
-        if ti.random() < roulette_prob:
-            ray.color *= roulette_prob
-            break
+    ray.depth += 1
 
-        object, position, hit = raycast(ray)
+    # if ti.random() < roulette_prob:
+    #     ray.color *= roulette_prob
+    #     ray.depth *= -1
 
-        if not hit:
-            ray.color *= sky_color(ray) * 1.8
-            break
+    object, position, hit = raycast(ray)
 
-        ray = ray_surface_interaction(ray, object, position)
+    if not hit:
+        ray.color *= sky_color(ray) * 1.8
+        ray.light = True
 
-        intensity = brightness(ray.color)
-        ray.color *= object.material.emission
-        visible = brightness(ray.color)
+    ray = ray_surface_interaction(ray, object, position)
 
-        if intensity < visible or visible < VISIBILITY:
-            break
+    intensity = brightness(ray.color)
+    ray.color *= object.material.emission
+    visible = brightness(ray.color)
+
+    ray.light = ray.light or intensity < visible
+    
+    if visible < VISIBILITY.x or visible > VISIBILITY.y:
+        ray.depth *= -1
 
     return ray

@@ -4,10 +4,10 @@ from taichi.math import vec2, vec3, vec4
 
 from src.dataclass import Camera
 from src.config import (aspect_ratio, camera_vfov, camera_aperture,
-                    camera_focus, SAMPLE_PER_PIXEL, SCREEN_PIXEL_SIZE)
+                        camera_focus, SAMPLE_PER_PIXEL, SCREEN_PIXEL_SIZE, MAX_RAYTRACE)
 from src.pathtracer import raytrace, get_ray
 from src.postprocessor import post_process
-from src.fileds import image_pixels, image_buffer
+from src.fileds import image_pixels, image_buffer, ray_buffer
 
 
 @ti.kernel
@@ -34,8 +34,18 @@ def sample(
         coord = vec2(i, j) + vec2(ti.random(), ti.random())
         uv = coord * SCREEN_PIXEL_SIZE
 
-        ray = raytrace(get_ray(camera, uv, vec3(1)))
-        image_buffer[i, j] += vec4(ray.color, 1.0)
+        ray = ray_buffer[i, j]
+
+        if ray.light == True:
+            image_buffer[i, j] += vec4(ray.color, 1.0)
+            ray = get_ray(camera, uv, vec3(1.0))
+        elif ray.depth < 1:
+            ray = get_ray(camera, uv, vec3(1.0))
+        elif ray.depth > MAX_RAYTRACE:
+            ray = get_ray(camera, uv, vec3(1.0))
+
+        ray = raytrace(ray)
+        ray_buffer[i, j] = ray
 
 
 def render(

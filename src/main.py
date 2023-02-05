@@ -29,7 +29,7 @@ while window.running:
     canvas.set_image(image_pixels)
 
     if window.is_pressed('c'):
-        ti.tools.imwrite(image_pixels, 'out/' +
+        ti.tools.imwrite(image_pixels, 'out/main_' +
                          str(frame) + '.out.png')
 
     window.show()
