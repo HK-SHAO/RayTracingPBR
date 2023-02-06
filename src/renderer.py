@@ -21,27 +21,24 @@ def sample(
         camera_lookat: vec3,
         camera_up: vec3):
 
-    camera = Camera()
-    camera.lookfrom = camera_position
-    camera.lookat = camera_lookat
-    camera.vup = camera_up
-    camera.aspect = aspect_ratio
-    camera.vfov = camera_vfov
-    camera.aperture = camera_aperture
-    camera.focus = camera_focus
-
     for i, j in image_pixels:
-        coord = vec2(i, j) + vec2(ti.random(), ti.random())
-        uv = coord * SCREEN_PIXEL_SIZE
-
         ray = ray_buffer[i, j]
 
         if ray.light == True:
             image_buffer[i, j] += vec4(ray.color, 1.0)
-            ray = get_ray(camera, uv, vec3(1.0))
-        elif ray.depth < 1:
-            ray = get_ray(camera, uv, vec3(1.0))
-        elif ray.depth > MAX_RAYTRACE:
+        if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
+            coord = vec2(i, j) + vec2(ti.random(), ti.random())
+            uv = coord * SCREEN_PIXEL_SIZE
+
+            camera = Camera()
+            camera.lookfrom = camera_position
+            camera.lookat = camera_lookat
+            camera.vup = camera_up
+            camera.aspect = aspect_ratio
+            camera.vfov = camera_vfov
+            camera.aperture = camera_aperture
+            camera.focus = camera_focus
+
             ray = get_ray(camera, uv, vec3(1.0))
 
         ray = raytrace(ray)
