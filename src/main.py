@@ -13,7 +13,7 @@ window = ti.ui.Window("Taichi Renderer", image_resolution)
 canvas = window.get_canvas()
 camera = ti.ui.Camera()
 camera.position(0, -0.2, 4.0)
-smooth_camera.bind(camera)
+smooth_camera.init(camera)
 
 
 build_scene()
@@ -21,13 +21,12 @@ frame = 0
 prev_time = time.time()
 
 while window.running:
-    camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.LMB)
-
     dt = time.time() - prev_time
     prev_time = time.time()
 
-    smooth_camera.update(dt, camera.curr_position,
-                         camera.curr_lookat, camera.curr_up)
+    camera.track_user_inputs(window, movement_speed=dt*5, hold_key=ti.ui.LMB)
+    smooth_camera.update(dt, camera)
+
     render(frame)
     canvas.set_image(image_pixels)
 

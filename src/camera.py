@@ -50,13 +50,17 @@ class SmoothCamera:
         self.up_velocity[None] = 10
         self.moving[None] = 0
 
-    def bind(self, camera: ti.ui.Camera):
+    def init(self, camera: ti.ui.Camera):
         self.position[None] = camera.curr_position
         self.lookat[None] = camera.curr_lookat
         self.up[None] = camera.curr_up
 
+    def update(self, dt: float, camera: ti.ui.Camera):
+        self._update(dt, camera.curr_position,
+                     camera.curr_lookat, camera.curr_up)
+
     @ti.kernel
-    def update(self, dt: float, curr_position: vec3, curr_lookat: vec3, curr_up: vec3):
+    def _update(self, dt: float, curr_position: vec3, curr_lookat: vec3, curr_up: vec3):
         position = self.position[None]
         lookat = self.lookat[None]
         up = self.up[None]
