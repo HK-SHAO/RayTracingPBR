@@ -1,43 +1,14 @@
 import taichi as ti
-from taichi.math import vec2, vec3, radians, normalize, cross, tan
+from taichi.math import vec3
 
 
-from src.dataclass import SDFObject
+from src.dataclass import SDFObject, Ray
 from src.scene import SHAPE_SPLIT, objects
 from src.sdf import sd_sphere, sd_cylinder, sd_box, transform
-from src.dataclass import Ray, Camera
-from src.config import MIN_DIS, MAX_DIS, MAX_RAYTRACE, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS
-from src.util import at, random_in_unit_disk, brightness
+from src.config import MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS
+from src.util import at, brightness
 from src.pbr import ray_surface_interaction
 from src.ibl import sky_color
-
-
-@ti.func
-def get_ray(c: Camera, uv: vec2, color: vec3) -> Ray:
-    theta = radians(c.vfov)
-    half_height = tan(theta * 0.5)
-    half_width = c.aspect * half_height
-
-    z = normalize(c.lookfrom - c.lookat)
-    x = normalize(cross(c.vup, z))
-    y = cross(z, x)
-
-    lens_radius = c.aperture * 0.5
-    rud = lens_radius * random_in_unit_disk()
-    offset = x * rud.x + y * rud.y
-
-    hwfx = half_width * c.focus * x
-    hhfy = half_height * c.focus * y
-
-    lower_left_corner = c.lookfrom - hwfx - hhfy - c.focus * z
-    horizontal = 2.0 * hwfx
-    vertical = 2.0 * hhfy
-
-    ro = c.lookfrom + offset
-    po = lower_left_corner + uv.x * horizontal + uv.y * vertical
-    rd = normalize(po - ro)
-
-    return Ray(ro, rd, color)
 
 
 @ti.func
@@ -119,7 +90,7 @@ def raytrace(ray: Ray) -> Ray:
     visible = brightness(ray.color)
 
     ray.light = not hit or intensity < visible
-    
+
     if visible < VISIBILITY.x or visible > VISIBILITY.y:
         ray.depth *= -1
 
