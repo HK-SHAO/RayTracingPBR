@@ -12,15 +12,17 @@ def at(r: Ray, t: float) -> vec3:
 
 @ti.func
 def random_in_unit_disk() -> vec2:
-    x = ti.random()
-    a = ti.random() * 2 * pi
+    vec = sample_vec2()
+    x = vec.x
+    a = vec.y * 2 * pi
     return sqrt(x) * vec2(sin(a), cos(a))
 
 
 @ti.func
 def random_in_unit_sphere() -> vec3:
-    z = 2.0 * ti.random() - 1.0
-    a = ti.random() * 2.0 * pi
+    vec = sample_vec2()
+    z = 2.0 * vec.x - 1.0
+    a = vec.y * 2.0 * pi
 
     xy = sqrt(1.0 - z*z) * vec2(sin(a), cos(a))
     return vec3(xy, z)
@@ -46,3 +48,13 @@ def sample_spherical_map(v: vec3) -> vec2:
     uv *= vec2(0.5 / pi, 1 / pi)
     uv += 0.5
     return uv
+
+
+@ti.func
+def sample_float() -> float:
+    return ti.random()
+
+
+@ti.func
+def sample_vec2() -> vec2:
+    return vec2(ti.random(), ti.random())

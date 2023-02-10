@@ -8,6 +8,7 @@ from src.config import (aspect_ratio, camera_vfov, camera_aperture,
 from src.pathtracer import raytrace, get_ray
 from src.postprocessor import post_process
 from src.fileds import image_pixels, image_buffer, ray_buffer
+from src.util import sample_vec2
 
 
 @ti.kernel
@@ -27,7 +28,7 @@ def sample(
         if ray.light == True:
             image_buffer[i, j] += vec4(ray.color, 1.0)
         if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
-            coord = vec2(i, j) + vec2(ti.random(), ti.random())
+            coord = vec2(i, j) + sample_vec2()
             uv = coord * SCREEN_PIXEL_SIZE
 
             camera = Camera()
