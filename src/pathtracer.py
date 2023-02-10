@@ -1,12 +1,12 @@
 import taichi as ti
-from taichi.math import vec2, vec3, exp, radians, normalize, cross, tan
+from taichi.math import vec2, vec3, radians, normalize, cross, tan
 
 
 from src.dataclass import SDFObject
 from src.scene import SHAPE_SPLIT, objects
 from src.sdf import sd_sphere, sd_cylinder, sd_box, transform
 from src.dataclass import Ray, Camera
-from src.config import MIN_DIS, MAX_DIS, MAX_RAYTRACE, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS, light_quality
+from src.config import MIN_DIS, MAX_DIS, MAX_RAYTRACE, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS
 from src.util import at, random_in_unit_disk, brightness
 from src.pbr import ray_surface_interaction
 from src.ibl import sky_color
@@ -51,19 +51,19 @@ def get_object_pos_scale(i: int, p: vec3) -> tuple[vec3, vec3]:
 def nearest_object(p: vec3) -> tuple[int, float]:
     index = 0
     min_dis = MAX_DIS
-    for i in range(SHAPE_SPLIT[0], SHAPE_SPLIT[1]):
+    for i in ti.static(range(SHAPE_SPLIT[0], SHAPE_SPLIT[1])):
         pos, scale = get_object_pos_scale(i, p)
         dis = abs(sd_sphere(pos, scale))
         if dis < min_dis:
             min_dis = dis
             index = i
-    for i in range(SHAPE_SPLIT[1], SHAPE_SPLIT[2]):
+    for i in ti.static(range(SHAPE_SPLIT[1], SHAPE_SPLIT[2])):
         pos, scale = get_object_pos_scale(i, p)
         dis = abs(sd_box(pos, scale))
         if dis < min_dis:
             min_dis = dis
             index = i
-    for i in range(SHAPE_SPLIT[2], SHAPE_SPLIT[3]):
+    for i in ti.static(range(SHAPE_SPLIT[2], SHAPE_SPLIT[3])):
         pos, scale = get_object_pos_scale(i, p)
         dis = abs(sd_cylinder(pos, scale))
         if dis < min_dis:
@@ -105,27 +105,22 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
 
 @ti.func
 def raytrace(ray: Ray) -> Ray:
-    for i in range(MAX_RAYTRACE):
-        inv_pdf = exp(float(i) / light_quality)
-        roulette_prob = 1.0 - (1.0 / inv_pdf)
+    ray.depth += 1
 
-        if ti.random() < roulette_prob:
-            ray.color *= roulette_prob
-            break
+    object, position, hit = raycast(ray)
 
-        object, position, hit = raycast(ray)
+    if not hit:
+        ray.color *= sky_color(ray) * 1.8
 
-        if not hit:
-            ray.color *= sky_color(ray) * 1.8
-            break
+    ray = ray_surface_interaction(ray, object, position)
 
-        ray = ray_surface_interaction(ray, object, position)
+    intensity = brightness(ray.color)
+    ray.color *= object.material.emission
+    visible = brightness(ray.color)
 
-        intensity = brightness(ray.color)
-        ray.color *= object.material.emission
-        visible = brightness(ray.color)
-
-        if intensity < visible or visible < VISIBILITY:
-            break
+    ray.light = not hit or intensity < visible
+    
+    if visible < VISIBILITY.x or visible > VISIBILITY.y:
+        ray.depth *= -1
 
     return ray

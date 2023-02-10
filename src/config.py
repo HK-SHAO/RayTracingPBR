@@ -6,17 +6,17 @@ ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
 image_resolution = (1920 // 4, 1080 // 4)
 
-SAMPLE_PER_PIXEL = 1
+SAMPLE_PER_PIXEL = 2
 
 SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
 PIXEL_RADIUS = 0.5 * min(SCREEN_PIXEL_SIZE.x, SCREEN_PIXEL_SIZE.y)
 
 MIN_DIS = 0.005
 MAX_DIS = 2000.0
-VISIBILITY = 0.000001
+VISIBILITY = vec2(0.000001, 100000)
 
 MAX_RAYMARCH = 512
-MAX_RAYTRACE = 128
+MAX_RAYTRACE = 512
 
 ENV_IOR = 1.000277
 
