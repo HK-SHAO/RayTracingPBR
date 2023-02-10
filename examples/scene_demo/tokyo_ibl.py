@@ -221,15 +221,15 @@ def get_object_pos_scale(i: int, p: vec3) -> tuple[vec3, vec3]:
 @ti.func
 def nearest_object(p: vec3) -> tuple[int, float]:
     index = 0; min_dis = MAX_DIS
-    for i in range(SHAPE_SPLIT[0], SHAPE_SPLIT[1]):
+    for i in ti.static(range(SHAPE_SPLIT[0], SHAPE_SPLIT[1])):
         pos, scale = get_object_pos_scale(i, p)
         dis = abs(sd_sphere(pos, scale))
         if dis < min_dis: min_dis = dis; index = i
-    for i in range(SHAPE_SPLIT[1], SHAPE_SPLIT[2]):
+    for i in ti.static(range(SHAPE_SPLIT[1], SHAPE_SPLIT[2])):
         pos, scale = get_object_pos_scale(i, p)
         dis = abs(sd_box(pos, scale))
         if dis < min_dis: min_dis = dis; index = i
-    for i in range(SHAPE_SPLIT[2], SHAPE_SPLIT[3]):
+    for i in ti.static(range(SHAPE_SPLIT[2], SHAPE_SPLIT[3])):
         pos, scale = get_object_pos_scale(i, p)
         dis = abs(sd_cylinder(pos, scale))
         if dis < min_dis: min_dis = dis; index = i
