@@ -252,7 +252,7 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
         index, distance = nearest_object(position)
 
         ld = d; d = distance
-        if w > 1.0 and ld + d < s:
+        if ld + d < s:
             s -= w * s; t += s; w = 0.5 + 0.5 * w
             continue
         err = d / t

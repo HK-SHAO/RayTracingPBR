@@ -29,7 +29,7 @@ class Image:
         return self.img[x, y]
 
 
-hdr_map = Image('assets/limpopo_golf_course_3k.hdr')
+hdr_map = Image('assets/Tokyo_BigSight_3k.hdr')
 hdr_map.process(exposure=1.8, gamma=camera_gamma)
 
 
