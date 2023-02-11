@@ -30,20 +30,22 @@ while window.running:
     down = int(window.is_pressed(ti.ui.DOWN))
     dir = up - down
 
-    if window.is_pressed(ti.ui.SPACE):
-        smooth.moving[None] = True
     if window.is_pressed('z'):
         smooth.moving[None] = True
         camera_vfov[None] += dir * dt * 10
+        print('vfov', camera_vfov[None])
     if window.is_pressed('x'):
         smooth.moving[None] = True
         camera_aperture[None] += dir * dt
+        print('aperture', camera_aperture[None])
     if window.is_pressed('c'):
         smooth.moving[None] = True
         camera_focus[None] += dir * dt
+        print('focus', camera_focus[None])
     if window.is_pressed('v'):
         smooth.moving[None] = True
         camera_exposure[None] += dir * dt
+        print('exposure', camera_exposure[None])
 
     render()
     canvas.set_image(image_pixels)
