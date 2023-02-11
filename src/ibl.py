@@ -3,9 +3,9 @@ import taichi as ti
 from taichi.math import vec2, vec3
 
 
-from src.camera import camera_gamma
-from src.dataclass import Ray
-from src.util import sample_spherical_map
+from .camera import camera_gamma
+from .dataclass import Ray
+from .util import sample_spherical_map
 
 
 @ti.data_oriented

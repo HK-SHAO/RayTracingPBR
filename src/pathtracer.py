@@ -1,14 +1,16 @@
 import taichi as ti
-from taichi.math import vec3
+from taichi.math import vec2, vec3, vec4
 
 
-from src.dataclass import SDFObject, Ray
-from src.scene import SHAPE_SPLIT, objects
-from src.sdf import sd_sphere, sd_cylinder, sd_box, transform
-from src.config import MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS, QUALITY_PER_SAMPLE
-from src.util import at, brightness, sample_float
-from src.pbr import ray_surface_interaction
-from src.ibl import sky_color
+from .dataclass import SDFObject, Ray, Camera
+from .scene import SHAPE_SPLIT, objects
+from .fileds import ray_buffer, image_buffer, image_pixels
+from .sdf import sd_sphere, sd_cylinder, sd_box, transform
+from .camera import get_ray, smooth, aspect_ratio, camera_vfov, camera_aperture, camera_focus
+from .config import MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS, QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, MAX_RAYTRACE
+from .util import at, brightness, sample_float, sample_vec2
+from .pbr import ray_surface_interaction
+from .ibl import sky_color
 
 
 @ti.func
@@ -78,7 +80,7 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
 def raytrace(ray: Ray) -> Ray:
     ray.depth += 1
 
-    if ray.depth > 1 and sample_float() > QUALITY_PER_SAMPLE:
+    if ray.depth > 3 and sample_float() > QUALITY_PER_SAMPLE:
         ray.color = vec3(0)
         ray.depth *= -1
     else:
@@ -100,3 +102,30 @@ def raytrace(ray: Ray) -> Ray:
             ray.depth *= -1
 
     return ray
+
+
+@ti.kernel
+def sample():
+    for i, j in image_pixels:
+        ray = ray_buffer[i, j]
+
+        if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
+            # image_buffer[i, j] += vec4(vec3(2.0 / (1.0 + abs(ray.depth) * 2)), 1.0)
+            image_buffer[i, j] += vec4(ray.color, 1.0)
+
+            coord = vec2(i, j) + sample_vec2()
+            uv = coord * SCREEN_PIXEL_SIZE
+
+            camera = Camera()
+            camera.lookfrom = smooth.position[None]
+            camera.lookat = smooth.lookat[None]
+            camera.vup = smooth.up[None]
+            camera.aspect = aspect_ratio[None]
+            camera.vfov = camera_vfov[None]
+            camera.aperture = camera_aperture[None]
+            camera.focus = camera_focus[None]
+
+            ray = get_ray(camera, uv, vec3(1))
+
+        ray = raytrace(ray)
+        ray_buffer[i, j] = ray

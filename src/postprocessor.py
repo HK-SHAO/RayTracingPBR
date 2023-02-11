@@ -2,8 +2,8 @@ import taichi as ti
 from taichi.math import vec3, mat3, clamp
 
 
-from src.camera import camera_exposure, camera_gamma
-from src.fileds import image_pixels, image_buffer
+from .camera import camera_exposure, camera_gamma
+from .fileds import image_pixels, image_buffer
 
 ACESInputMat = mat3(
     0.59719, 0.35458, 0.04823,

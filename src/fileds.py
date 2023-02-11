@@ -2,8 +2,8 @@ import taichi as ti
 from taichi.math import vec3, vec4
 
 
-from src.config import image_resolution
-from src.dataclass import Ray
+from .config import image_resolution
+from .dataclass import Ray
 
 ray_buffer = Ray.field()
 image_buffer = vec4.field()

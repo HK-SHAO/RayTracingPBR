@@ -2,11 +2,11 @@ import time
 import taichi as ti
 
 
-from src.config import image_resolution
-from src.fileds import image_pixels
-from src.renderer import render
-from src.scene import build_scene
-from src.camera import smooth, camera_exposure,  camera_focus, camera_aperture, camera_vfov
+from .config import image_resolution
+from .fileds import image_pixels
+from .renderer import render
+from .scene import build_scene
+from .camera import smooth, camera_exposure,  camera_focus, camera_aperture, camera_vfov
 
 
 window = ti.ui.Window("Taichi Renderer", image_resolution)

@@ -2,10 +2,10 @@ import taichi as ti
 from taichi.math import vec3, mix, sqrt, normalize, dot
 
 
-from src.config import ENV_IOR
-from src.dataclass import Ray, SDFObject
-from src.sdf import calc_normal
-from src.util import random_in_unit_sphere, sample_float
+from .config import ENV_IOR
+from .dataclass import Ray, SDFObject
+from .sdf import calc_normal
+from .util import random_in_unit_sphere, sample_float
 
 
 @ti.func

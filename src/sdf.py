@@ -2,8 +2,8 @@ import taichi as ti
 from taichi.math import length, vec2, vec3, normalize, min, max
 
 
-from src.dataclass import SDFObject, Transform
-from src.config import SHAPE_SPHERE, SHAPE_BOX, SHAPE_CYLINDER, MAX_DIS
+from .dataclass import SDFObject, Transform
+from .config import SHAPE_SPHERE, SHAPE_BOX, SHAPE_CYLINDER, MAX_DIS
 
 
 @ti.func

@@ -2,9 +2,9 @@ import taichi as ti
 from taichi.math import vec3, radians
 
 
-from src.dataclass import SDFObject, Transform, Material
-from src.config import SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_BOX
-from src.util import angle
+from .dataclass import SDFObject, Transform, Material
+from .config import SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_BOX
+from .util import rotate
 
 OBJECTS_LIST = sorted([
     SDFObject(type=SHAPE_SPHERE,
@@ -45,7 +45,7 @@ for i in range(objects.shape[0]):
 @ti.func
 def update_transform(i: int):
     transform = objects[i].transform
-    matrix = angle(radians(transform.rotation))
+    matrix = rotate(radians(transform.rotation))
     objects[i].transform.matrix = matrix
 
 

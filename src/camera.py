@@ -1,9 +1,9 @@
 import taichi as ti
 from taichi.math import vec2, vec3, radians, normalize, cross, tan, clamp
 
-from src.dataclass import Ray, Camera
-from src.config import SCREEN_PIXEL_SIZE
-from src.util import random_in_unit_disk
+from .dataclass import Ray, Camera
+from .config import SCREEN_PIXEL_SIZE
+from .util import random_in_unit_disk
 
 
 @ti.func

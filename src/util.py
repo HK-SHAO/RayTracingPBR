@@ -2,7 +2,7 @@ import taichi as ti
 from taichi.math import vec2, vec3, sqrt, sin, cos, pi, dot, mat3, atan2, asin
 
 
-from src.dataclass import Ray
+from .dataclass import Ray
 
 
 @ti.func
@@ -34,7 +34,7 @@ def brightness(rgb: vec3) -> float:
 
 
 @ti.func
-def angle(a: vec3) -> mat3:
+def rotate(a: vec3) -> mat3:
     s, c = sin(a), cos(a)
     return \
         mat3(c.z, s.z, 0, -s.z, c.z, 0, 0, 0, 1) @ \
