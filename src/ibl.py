@@ -1,8 +1,9 @@
+import numpy as np
 import taichi as ti
 from taichi.math import vec2, vec3
 
 
-from src.config import camera_gamma
+from src.camera import camera_gamma
 from src.dataclass import Ray
 from src.util import sample_spherical_map
 
@@ -10,7 +11,7 @@ from src.util import sample_spherical_map
 @ti.data_oriented
 class Image:
     def __init__(self, path: str):
-        img = ti.tools.imread(path).astype('float32')
+        img = ti.tools.imread(path).astype(np.float32)
         self.img = vec3.field(shape=img.shape[:2])
         self.img.from_numpy(img / 255)
 

@@ -2,7 +2,7 @@ import taichi as ti
 from taichi.math import vec3, mat3, clamp
 
 
-from src.config import camera_exposure, camera_gamma
+from src.camera import camera_exposure, camera_gamma
 from src.fileds import image_pixels, image_buffer
 
 ACESInputMat = mat3(
@@ -39,7 +39,7 @@ def post_process():
         buffer = image_buffer[i, j]
 
         color = buffer.rgb / buffer.a
-        color *= camera_exposure
+        color *= camera_exposure[None]
         color = ACESFitted(color)
         color = pow(color, vec3(1.0 / camera_gamma))
 

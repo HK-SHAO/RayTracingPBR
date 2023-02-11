@@ -6,18 +6,17 @@ from src.config import image_resolution
 from src.fileds import image_pixels
 from src.renderer import render
 from src.scene import build_scene
-from src.camera import smooth_camera
+from src.camera import smooth, camera_exposure,  camera_focus, camera_aperture, camera_vfov
 
 
 window = ti.ui.Window("Taichi Renderer", image_resolution)
 canvas = window.get_canvas()
 camera = ti.ui.Camera()
 camera.position(0, -0.2, 4.0)
-smooth_camera.init(camera)
+smooth.init(camera)
 
 
 build_scene()
-frame = 0
 prev_time = time.time()
 
 while window.running:
@@ -25,14 +24,32 @@ while window.running:
     prev_time = time.time()
 
     camera.track_user_inputs(window, movement_speed=dt*5, hold_key=ti.ui.LMB)
-    smooth_camera.update(dt, camera)
+    smooth.update(dt, camera)
 
-    render(frame)
+    up = int(window.is_pressed(ti.ui.UP))
+    down = int(window.is_pressed(ti.ui.DOWN))
+    dir = up - down
+
+    if window.is_pressed(ti.ui.SPACE):
+        smooth.moving[None] = True
+    if window.is_pressed('z'):
+        smooth.moving[None] = True
+        camera_vfov[None] += dir * dt * 10
+    if window.is_pressed('x'):
+        smooth.moving[None] = True
+        camera_aperture[None] += dir * dt
+    if window.is_pressed('c'):
+        smooth.moving[None] = True
+        camera_focus[None] += dir * dt
+    if window.is_pressed('v'):
+        smooth.moving[None] = True
+        camera_exposure[None] += dir * dt
+
+    render()
     canvas.set_image(image_pixels)
 
     if window.is_pressed('c'):
         ti.tools.imwrite(image_pixels, 'out/main_' +
-                         str(frame) + '.out.png')
+                         str(prev_time) + '.out.png')
 
     window.show()
-    frame += 1

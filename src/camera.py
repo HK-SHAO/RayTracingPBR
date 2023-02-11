@@ -2,6 +2,7 @@ import taichi as ti
 from taichi.math import vec2, vec3, radians, normalize, cross, tan, clamp
 
 from src.dataclass import Ray, Camera
+from src.config import SCREEN_PIXEL_SIZE
 from src.util import random_in_unit_disk
 
 
@@ -30,7 +31,7 @@ def get_ray(c: Camera, uv: vec2, color: vec3) -> Ray:
     po = lower_left_corner + uv.x * horizontal + uv.y * vertical
     rd = normalize(po - ro)
 
-    return Ray(ro, rd, color)
+    return Ray(ro, rd, color, 0, False)
 
 
 @ti.data_oriented
@@ -44,11 +45,13 @@ class SmoothCamera:
         self.lookat_velocity = ti.field(dtype=ti.f32, shape=())
         self.up_velocity = ti.field(dtype=ti.f32, shape=())
         self.moving = ti.field(dtype=ti.i32, shape=())
+        self.frame = ti.field(dtype=ti.i32, shape=())
 
         self.position_velocity[None] = 10
         self.lookat_velocity[None] = 10
         self.up_velocity[None] = 10
         self.moving[None] = 0
+        self.frame[None] = 0
 
     def init(self, camera: ti.ui.Camera):
         self.position[None] = camera.curr_position
@@ -87,6 +90,21 @@ class SmoothCamera:
         self.up[None] = up
 
         self.moving[None] = move_norm_squared.max() > 1e-8
+        self.frame[None] += 1
 
 
-smooth_camera = SmoothCamera()
+smooth = SmoothCamera()
+
+camera_gamma = 2.2
+
+aspect_ratio = ti.field(dtype=ti.f32, shape=())
+camera_exposure = ti.field(dtype=ti.f32, shape=())
+camera_vfov = ti.field(dtype=ti.f32, shape=())
+camera_aperture = ti.field(dtype=ti.f32, shape=())
+camera_focus = ti.field(dtype=ti.f32, shape=())
+
+aspect_ratio[None] = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x
+camera_exposure[None] = 1
+camera_vfov[None] = 35
+camera_aperture[None] = 0.01
+camera_focus[None] = 4

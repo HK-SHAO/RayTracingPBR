@@ -6,7 +6,7 @@ from taichi.math import *
 
 ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
-image_resolution = (1920 // 4, 1080 // 4)
+image_resolution = (192*15, 108*15)
 
 image_buffer = ti.Vector.field(4, float, image_resolution)
 image_pixels = ti.Vector.field(3, float, image_resolution)

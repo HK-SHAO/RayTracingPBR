@@ -5,8 +5,8 @@ from taichi.math import vec3
 from src.dataclass import SDFObject, Ray
 from src.scene import SHAPE_SPLIT, objects
 from src.sdf import sd_sphere, sd_cylinder, sd_box, transform
-from src.config import MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS
-from src.util import at, brightness
+from src.config import MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS, QUALITY_PER_SAMPLE
+from src.util import at, brightness, sample_float
 from src.pbr import ray_surface_interaction
 from src.ibl import sky_color
 
@@ -78,20 +78,25 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
 def raytrace(ray: Ray) -> Ray:
     ray.depth += 1
 
-    object, position, hit = raycast(ray)
-
-    if not hit:
-        ray.color *= sky_color(ray) * 1.8
-
-    ray = ray_surface_interaction(ray, object, position)
-
-    intensity = brightness(ray.color)
-    ray.color *= object.material.emission
-    visible = brightness(ray.color)
-
-    ray.light = not hit or intensity < visible
-
-    if visible < VISIBILITY.x or visible > VISIBILITY.y:
+    if ray.depth > 1 and sample_float() > QUALITY_PER_SAMPLE:
+        ray.color = vec3(0)
         ray.depth *= -1
+    else:
+        ray.color /= QUALITY_PER_SAMPLE
+        object, position, hit = raycast(ray)
+
+        if not hit:
+            ray.color *= sky_color(ray) * 1.8
+
+        ray = ray_surface_interaction(ray, object, position)
+
+        intensity = brightness(ray.color)
+        ray.color *= object.material.emission
+        visible = brightness(ray.color)
+
+        ray.light = not hit or intensity < visible
+
+        if visible < VISIBILITY.x or visible > VISIBILITY.y:
+            ray.depth *= -1
 
     return ray

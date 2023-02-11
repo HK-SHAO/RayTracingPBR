@@ -3,10 +3,9 @@ from taichi.math import vec2, vec3, vec4
 
 
 from src.dataclass import Camera
-from src.config import (aspect_ratio, camera_vfov, camera_aperture,
-                        camera_focus, SAMPLE_PER_PIXEL, SCREEN_PIXEL_SIZE, MAX_RAYTRACE)
+from src.config import SAMPLE_PER_PIXEL, SCREEN_PIXEL_SIZE, MAX_RAYTRACE
 from src.pathtracer import raytrace
-from src.camera import get_ray, smooth_camera
+from src.camera import get_ray, smooth, aspect_ratio, camera_vfov, camera_aperture, camera_focus
 from src.postprocessor import post_process
 from src.fileds import image_pixels, image_buffer, ray_buffer
 from src.util import sample_vec2
@@ -21,37 +20,36 @@ def refresh():
 
 @ti.kernel
 def sample():
-
     for i, j in image_pixels:
         ray = ray_buffer[i, j]
 
         if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
+            # image_buffer[i, j] += vec4(vec3(2.0 / (1.0 + abs(ray.depth) * 2)), 1.0)
             image_buffer[i, j] += vec4(ray.color, 1.0)
+
             coord = vec2(i, j) + sample_vec2()
             uv = coord * SCREEN_PIXEL_SIZE
 
             camera = Camera()
-            camera.lookfrom = smooth_camera.position[None]
-            camera.lookat = smooth_camera.lookat[None]
-            camera.vup = smooth_camera.up[None]
-            camera.aspect = aspect_ratio
-            camera.vfov = camera_vfov
-            camera.aperture = camera_aperture
-            camera.focus = camera_focus
+            camera.lookfrom = smooth.position[None]
+            camera.lookat = smooth.lookat[None]
+            camera.vup = smooth.up[None]
+            camera.aspect = aspect_ratio[None]
+            camera.vfov = camera_vfov[None]
+            camera.aperture = camera_aperture[None]
+            camera.focus = camera_focus[None]
 
-            ray = get_ray(camera, uv, vec3(1.0))
+            ray = get_ray(camera, uv, vec3(1))
 
         ray = raytrace(ray)
         ray_buffer[i, j] = ray
 
 
-def render(frame: int):
-
-    if smooth_camera.moving[None]:
+def render():
+    if smooth.moving[None]:
         refresh()
 
-    for i in range(SAMPLE_PER_PIXEL):
+    for _ in range(SAMPLE_PER_PIXEL):
         sample()
-        print('frame:', frame, 'sample:', i + 1)
 
     post_process()
