@@ -16,8 +16,8 @@ def refresh():
         ray_buffer[i, j].depth = 0
 
 
-def render():
-    if smooth.moving[None]:
+def render(refreshing):
+    if refreshing or smooth.moving[None]:
         refresh()
 
     for _ in range(SAMPLE_PER_PIXEL):

@@ -47,21 +47,19 @@ def nearest_object(p: vec3) -> tuple[int, float]:
 
 @ti.func
 def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
-    t = MIN_DIS
     w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
-    index = 0
-    position = vec3(0)
-    hit = False
+    index, t, position, hit = 0, MIN_DIS, vec3(0), False
+
     for _ in range(MAX_RAYMARCH):
         position = at(ray, t)
         index, distance = nearest_object(position)
 
-        ld = d
-        d = distance
-        if w > 1.0 and ld + d < s:
+        ld, d = d, distance
+        if ld + d < s:
             s -= w * s
             t += s
-            w = 1.0
+            w *= 0.5
+            w += 0.5
             continue
         err = d / t
         if err < cerr:
@@ -70,7 +68,7 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
         s = w * d
         t += s
         hit = err < PIXEL_RADIUS
-        if t > MAX_DIS or hit:
+        if hit or t > MAX_DIS:
             break
 
     return objects[index], position, hit
@@ -78,28 +76,28 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
 
 @ti.func
 def raytrace(ray: Ray) -> Ray:
-    ray.depth += 1
-
-    if ray.depth > 3 and sample_float() > QUALITY_PER_SAMPLE:
+    if ray.depth > 0 and sample_float() > QUALITY_PER_SAMPLE:
         ray.color = vec3(0)
         ray.depth *= -1
     else:
-        ray.color /= QUALITY_PER_SAMPLE
+        ray.color *= 1.0 / QUALITY_PER_SAMPLE
         object, position, hit = raycast(ray)
 
-        if not hit:
-            ray.color *= sky_color(ray) * 1.8
+        if hit:
+            intensity = brightness(ray.color)
+            ray.color *= object.material.emission
+            visible = brightness(ray.color)
 
-        ray = ray_surface_interaction(ray, object, position)
+            ray.light = intensity < visible
 
-        intensity = brightness(ray.color)
-        ray.color *= object.material.emission
-        visible = brightness(ray.color)
-
-        ray.light = not hit or intensity < visible
-
-        if visible < VISIBILITY.x or visible > VISIBILITY.y:
-            ray.depth *= -1
+            if visible < VISIBILITY.x or visible > VISIBILITY.y:
+                ray.depth *= -1
+            elif not ray.light:
+                ray = ray_surface_interaction(ray, object, position)
+                ray.depth += 1
+        else:
+            ray.color *= sky_color(ray)
+            ray.light = True
 
     return ray
 

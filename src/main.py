@@ -23,31 +23,35 @@ while window.running:
     dt = time.time() - prev_time
     prev_time = time.time()
 
-    camera.track_user_inputs(window, movement_speed=dt*5, hold_key=ti.ui.LMB)
-    smooth.update(dt, camera)
+    direction = ti.math.vec2(float(window.is_pressed(ti.ui.RIGHT)) - float(window.is_pressed(ti.ui.LEFT)),
+                             float(window.is_pressed(ti.ui.UP)) - float(window.is_pressed(ti.ui.DOWN)))
 
-    up = int(window.is_pressed(ti.ui.UP))
-    down = int(window.is_pressed(ti.ui.DOWN))
-    dir = up - down
-
+    refreshing = False
     if window.is_pressed('z'):
-        smooth.moving[None] = True
-        camera_vfov[None] += dir * dt * 10
+        refreshing = True
+        camera_vfov[None] += direction.y * dt * 10
+        direction = ti.math.vec2(0)
         print('vfov', camera_vfov[None])
     if window.is_pressed('x'):
-        smooth.moving[None] = True
-        camera_aperture[None] += dir * dt
+        refreshing = True
+        camera_aperture[None] += direction.y * dt
+        direction = ti.math.vec2(0)
         print('aperture', camera_aperture[None])
     if window.is_pressed('c'):
-        smooth.moving[None] = True
-        camera_focus[None] += dir * dt
+        refreshing = True
+        camera_focus[None] += direction.y * dt
+        direction = ti.math.vec2(0)
         print('focus', camera_focus[None])
     if window.is_pressed('v'):
-        smooth.moving[None] = True
-        camera_exposure[None] += dir * dt
+        refreshing = True
+        camera_exposure[None] += direction.y * dt
+        direction = ti.math.vec2(0)
         print('exposure', camera_exposure[None])
 
-    render()
+    camera.track_user_inputs(window, movement_speed=dt*5, hold_key=ti.ui.LMB)
+    smooth.update(dt, camera, direction)
+
+    render(refreshing)
     canvas.set_image(image_pixels)
 
     if window.is_pressed('c'):
