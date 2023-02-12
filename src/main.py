@@ -54,7 +54,7 @@ while window.running:
     render(refreshing)
     canvas.set_image(image_pixels)
 
-    if window.is_pressed('c'):
+    if window.is_pressed('g'):
         ti.tools.imwrite(image_pixels, 'out/main_' +
                          str(prev_time) + '.out.png')
 
