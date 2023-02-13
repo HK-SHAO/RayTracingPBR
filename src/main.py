@@ -52,7 +52,12 @@ while window.running:
         ti.tools.imwrite(image_pixels, 'out/main_' +
                          str(curr_time) + '.out.png')
 
-    camera.track_user_inputs(window, movement_speed=dt*5, hold_key=ti.ui.LMB)
+    if window.is_pressed('Shift'):
+        speed = dt * 50
+    else:
+        speed = dt * 5
+
+    camera.track_user_inputs(window, movement_speed=speed, hold_key=ti.ui.LMB)
     smooth.update(dt, camera, direction)
 
     render(refreshing)
