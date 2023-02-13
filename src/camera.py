@@ -84,22 +84,19 @@ class SmoothCamera:
         lookat_velocity = self.lookat_velocity[None]
         up_velocity = self.up_velocity[None]
 
-        diff_position = (curr_position - position) * \
-            clamp(position_velocity * dt, 0, 1)
-        diff_lookat = (curr_lookat - lookat) * \
-            clamp(lookat_velocity * dt, 0, 1)
-        diff_up = (curr_up - up) * \
-            clamp(up_velocity * dt, 0, 1)
+        diff_position = (curr_position - position)
+        diff_lookat = (curr_lookat - lookat)
+        diff_up = (curr_up - up)
 
-        position += diff_position
-        lookat += diff_lookat
-        up += diff_up
+        position += diff_position * clamp(position_velocity * dt, 0, 1)
+        lookat += diff_lookat * clamp(lookat_velocity * dt, 0, 1)
+        up += diff_up * clamp(up_velocity * dt, 0, 1)
 
         moving = vec3(
             abs(diff_position).max(),
             abs(diff_lookat).max(),
             abs(diff_up).max()
-        ).max() > 1e-5
+        ).max() > 1e-3
 
         self.position[None] = position
         self.lookat[None] = lookat
