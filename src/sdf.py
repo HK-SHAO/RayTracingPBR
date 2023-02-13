@@ -3,6 +3,7 @@ from taichi.math import length, vec2, vec3, normalize, min, max
 
 
 from .dataclass import SDFObject, Transform
+from .scene import objects, SHAPE_SPLIT
 from .config import SHAPE_SPHERE, SHAPE_BOX, SHAPE_CYLINDER, MAX_DIS
 
 
@@ -54,3 +55,35 @@ def calc_normal(obj: SDFObject, p: vec3) -> vec3:
                      e.yyx * signed_distance(obj, p + e.yyx) +
                      e.yxy * signed_distance(obj, p + e.yxy) +
                      e.xxx * signed_distance(obj, p + e.xxx))
+
+
+@ti.func
+def get_object_pos_scale(i: int, p: vec3) -> tuple[vec3, vec3]:
+    obj = objects[i]
+    pos = transform(obj.transform, p)
+    return pos, obj.transform.scale
+
+
+@ti.func
+def nearest_object(p: vec3) -> tuple[int, float]:
+    index = 0
+    min_dis = MAX_DIS
+    for i in ti.static(range(SHAPE_SPLIT[0], SHAPE_SPLIT[1])):
+        pos, scale = get_object_pos_scale(i, p)
+        dis = abs(sd_sphere(pos, scale))
+        if dis < min_dis:
+            min_dis = dis
+            index = i
+    for i in ti.static(range(SHAPE_SPLIT[1], SHAPE_SPLIT[2])):
+        pos, scale = get_object_pos_scale(i, p)
+        dis = abs(sd_box(pos, scale))
+        if dis < min_dis:
+            min_dis = dis
+            index = i
+    for i in ti.static(range(SHAPE_SPLIT[2], SHAPE_SPLIT[3])):
+        pos, scale = get_object_pos_scale(i, p)
+        dis = abs(sd_cylinder(pos, scale))
+        if dis < min_dis:
+            min_dis = dis
+            index = i
+    return index, min_dis

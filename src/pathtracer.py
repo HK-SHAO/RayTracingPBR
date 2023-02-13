@@ -3,46 +3,14 @@ from taichi.math import vec2, vec3, vec4
 
 
 from .dataclass import SDFObject, Ray, Camera
-from .scene import SHAPE_SPLIT, objects
+from .scene import objects
 from .fileds import ray_buffer, image_buffer, image_pixels
-from .sdf import sd_sphere, sd_cylinder, sd_box, transform
 from .camera import get_ray, smooth, aspect_ratio, camera_vfov, camera_aperture, camera_focus
 from .config import MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS, QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, MAX_RAYTRACE
 from .util import at, brightness, sample_float, sample_vec2
 from .pbr import ray_surface_interaction
+from .sdf import nearest_object
 from .ibl import sky_color
-
-
-@ti.func
-def get_object_pos_scale(i: int, p: vec3) -> tuple[vec3, vec3]:
-    obj = objects[i]
-    pos = transform(obj.transform, p)
-    return pos, obj.transform.scale
-
-
-@ti.func
-def nearest_object(p: vec3) -> tuple[int, float]:
-    index = 0
-    min_dis = MAX_DIS
-    for i in ti.static(range(SHAPE_SPLIT[0], SHAPE_SPLIT[1])):
-        pos, scale = get_object_pos_scale(i, p)
-        dis = abs(sd_sphere(pos, scale))
-        if dis < min_dis:
-            min_dis = dis
-            index = i
-    for i in ti.static(range(SHAPE_SPLIT[1], SHAPE_SPLIT[2])):
-        pos, scale = get_object_pos_scale(i, p)
-        dis = abs(sd_box(pos, scale))
-        if dis < min_dis:
-            min_dis = dis
-            index = i
-    for i in ti.static(range(SHAPE_SPLIT[2], SHAPE_SPLIT[3])):
-        pos, scale = get_object_pos_scale(i, p)
-        dis = abs(sd_cylinder(pos, scale))
-        if dis < min_dis:
-            min_dis = dis
-            index = i
-    return index, min_dis
 
 
 @ti.func
