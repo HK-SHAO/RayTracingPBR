@@ -88,20 +88,24 @@ class SmoothCamera:
             clamp(position_velocity * dt, 0, 1)
         diff_lookat = (curr_lookat - lookat) * \
             clamp(lookat_velocity * dt, 0, 1)
-        diff_up = (curr_up - up) * clamp(up_velocity * dt, 0, 1)
+        diff_up = (curr_up - up) * \
+            clamp(up_velocity * dt, 0, 1)
 
         position += diff_position
         lookat += diff_lookat
         up += diff_up
 
-        move_norm_squared = vec3(diff_position.norm_sqr(
-        ), diff_lookat.norm_sqr(), diff_up.norm_sqr())
+        moving = vec3(
+            abs(diff_position).max(),
+            abs(diff_lookat).max(),
+            abs(diff_up).max()
+        ).max() > 1e-5
 
         self.position[None] = position
         self.lookat[None] = lookat
         self.up[None] = up
 
-        self.moving[None] = move_norm_squared.max() > 1e-8
+        self.moving[None] = moving
         self.frame[None] += 1
 
 

@@ -20,42 +20,42 @@ build_scene()
 prev_time = time.time()
 
 while window.running:
-    dt = time.time() - prev_time
-    prev_time = time.time()
+    curr_time = time.time()
+    dt = curr_time - prev_time
+    prev_time = curr_time
 
     direction = ti.math.vec2(float(window.is_pressed(ti.ui.RIGHT)) - float(window.is_pressed(ti.ui.LEFT)),
                              float(window.is_pressed(ti.ui.UP)) - float(window.is_pressed(ti.ui.DOWN)))
 
     refreshing = False
     if window.is_pressed('z'):
-        refreshing = True
         camera_vfov[None] += direction.y * dt * 10
-        direction = ti.math.vec2(0)
+        direction.y = 0
+        refreshing = True
         print('vfov', camera_vfov[None])
-    if window.is_pressed('x'):
-        refreshing = True
+    elif window.is_pressed('x'):
         camera_aperture[None] += direction.y * dt
-        direction = ti.math.vec2(0)
+        direction.y = 0
+        refreshing = True
         print('aperture', camera_aperture[None])
-    if window.is_pressed('c'):
-        refreshing = True
+    elif window.is_pressed('c'):
         camera_focus[None] += direction.y * dt
-        direction = ti.math.vec2(0)
-        print('focus', camera_focus[None])
-    if window.is_pressed('v'):
+        direction.y = 0
         refreshing = True
+        print('focus', camera_focus[None])
+    elif window.is_pressed('v'):
         camera_exposure[None] += direction.y * dt
-        direction = ti.math.vec2(0)
+        direction.y = 0
+        refreshing = True
         print('exposure', camera_exposure[None])
+    elif window.is_pressed('g'):
+        ti.tools.imwrite(image_pixels, 'out/main_' +
+                         str(curr_time) + '.out.png')
 
     camera.track_user_inputs(window, movement_speed=dt*5, hold_key=ti.ui.LMB)
     smooth.update(dt, camera, direction)
 
     render(refreshing)
     canvas.set_image(image_pixels)
-
-    if window.is_pressed('g'):
-        ti.tools.imwrite(image_pixels, 'out/main_' +
-                         str(prev_time) + '.out.png')
 
     window.show()
