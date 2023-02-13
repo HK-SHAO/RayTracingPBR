@@ -44,9 +44,8 @@ while window.running:
         refreshing = True
         print('focus', camera_focus[None])
     elif window.is_pressed('v'):
-        camera_exposure[None] += direction.y * dt
+        camera_exposure[None] += direction.y * dt * 10
         direction.y = 0
-        refreshing = True
         print('exposure', camera_exposure[None])
     elif window.is_pressed('g'):
         ti.tools.imwrite(image_pixels, 'out/main_' +
