@@ -6,7 +6,8 @@ ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
 
 image_resolution = (1920 * 4 // 10, 1080 * 4 // 10)
 
-SAMPLE_PER_PIXEL = 1
+SAMPLES_PER_PIXEL = 1
+SAMPLES_PER_FRAME = 1
 QUALITY_PER_SAMPLE = 0.9
 
 SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)

@@ -2,7 +2,7 @@ import taichi as ti
 from taichi.math import vec4
 
 
-from .config import SAMPLE_PER_PIXEL
+from .config import SAMPLES_PER_PIXEL
 from .camera import smooth
 from .pathtracer import sample
 from .postprocessor import post_process
@@ -20,7 +20,7 @@ def render(refreshing):
     if refreshing or smooth.moving[None]:
         refresh()
 
-    for _ in range(SAMPLE_PER_PIXEL):
+    for _ in range(SAMPLES_PER_PIXEL):
         sample()
 
     post_process()

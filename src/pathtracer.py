@@ -3,10 +3,10 @@ from taichi.math import vec2, vec3, vec4
 
 
 from .dataclass import SDFObject, Ray, Camera
-from .scene import objects
+from .config import MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS, QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, MAX_RAYTRACE, SAMPLES_PER_FRAME
 from .fileds import ray_buffer, image_buffer, image_pixels
 from .camera import get_ray, smooth, aspect_ratio, camera_vfov, camera_aperture, camera_focus
-from .config import MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS, QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, MAX_RAYTRACE
+from .scene import objects
 from .util import at, brightness, sample_float, sample_vec2
 from .pbr import ray_surface_interaction
 from .sdf import nearest_object
@@ -14,11 +14,12 @@ from .ibl import sky_color
 
 
 @ti.func
-def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
+def raycast(ray: Ray) -> tuple[Ray, SDFObject, vec3, bool]:
     w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
     index, t, position, hit = 0, MIN_DIS, vec3(0), False
 
     for _ in range(MAX_RAYMARCH):
+        ray.depth += 1
         position = at(ray, t)
         index, distance = nearest_object(position)
 
@@ -39,7 +40,7 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
         if hit or t > MAX_DIS:
             break
 
-    return objects[index], position, hit
+    return ray, objects[index], position, hit
 
 
 @ti.func
@@ -49,8 +50,7 @@ def raytrace(ray: Ray) -> Ray:
         ray.depth *= -1
     else:
         ray.color *= 1.0 / QUALITY_PER_SAMPLE
-        object, position, hit = raycast(ray)
-        ray.depth += 1
+        ray, object, position, hit = raycast(ray)
 
         if hit:
             ray = ray_surface_interaction(ray, object, position)
@@ -70,28 +70,34 @@ def raytrace(ray: Ray) -> Ray:
     return ray
 
 
+@ti.func
+def gen_ray(uv: vec2) -> Ray:
+    camera = Camera()
+    camera.lookfrom = smooth.position[None]
+    camera.lookat = smooth.lookat[None]
+    camera.vup = smooth.up[None]
+    camera.aspect = aspect_ratio[None]
+    camera.vfov = camera_vfov[None]
+    camera.aperture = camera_aperture[None]
+    camera.focus = camera_focus[None]
+
+    return get_ray(camera, uv, vec3(1))
+
+
 @ti.kernel
 def sample():
     for i, j in image_pixels:
         ray = ray_buffer[i, j]
 
-        if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
-            # image_buffer[i, j] += vec4(vec3(1.0 / (1.0 + abs(ray.depth) * 2)), 1.0)
-            image_buffer[i, j] += vec4(ray.color, 1.0)
+        for _ in ti.static(range(SAMPLES_PER_FRAME)):
+            if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
+                image_buffer[i, j] += vec4(ray.color, 1.0)
 
-            coord = vec2(i, j) + sample_vec2()
-            uv = coord * SCREEN_PIXEL_SIZE
+                coord = vec2(i, j) + sample_vec2()
+                uv = coord * SCREEN_PIXEL_SIZE
 
-            camera = Camera()
-            camera.lookfrom = smooth.position[None]
-            camera.lookat = smooth.lookat[None]
-            camera.vup = smooth.up[None]
-            camera.aspect = aspect_ratio[None]
-            camera.vfov = camera_vfov[None]
-            camera.aperture = camera_aperture[None]
-            camera.focus = camera_focus[None]
+                ray = gen_ray(uv)
 
-            ray = get_ray(camera, uv, vec3(1))
+            ray = raytrace(ray)
 
-        ray = raytrace(ray)
         ray_buffer[i, j] = ray
