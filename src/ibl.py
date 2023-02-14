@@ -30,7 +30,7 @@ class Image:
 
 
 hdr_map = Image('assets/Tokyo_BigSight_3k.hdr')
-hdr_map.process(exposure=1.0, gamma=camera_gamma)
+hdr_map.process(exposure=1.4, gamma=camera_gamma)
 
 
 @ti.func

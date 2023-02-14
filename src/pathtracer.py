@@ -19,7 +19,6 @@ def raycast(ray: Ray) -> tuple[Ray, SDFObject, vec3, bool]:
     index, t, position, hit = 0, MIN_DIS, vec3(0), False
 
     for _ in range(MAX_RAYMARCH):
-        ray.depth += 1
         position = at(ray, t)
         index, distance = nearest_object(position)
 
@@ -40,32 +39,28 @@ def raycast(ray: Ray) -> tuple[Ray, SDFObject, vec3, bool]:
         if hit or t > MAX_DIS:
             break
 
+    ray.depth += 1
     return ray, objects[index], position, hit
 
 
 @ti.func
 def raytrace(ray: Ray) -> Ray:
-    if sample_float() > QUALITY_PER_SAMPLE:
-        ray.color = vec3(0)
-        ray.depth *= -1
+    ray, object, position, hit = raycast(ray)
+
+    if hit:
+        ray = ray_surface_interaction(ray, object, position)
+
+        intensity = brightness(ray.color)
+        ray.color *= object.material.emission
+        visible = brightness(ray.color)
+
+        ray.light = intensity < visible
+
+        if visible < VISIBILITY.x or visible > VISIBILITY.y:
+            ray.depth *= -1
     else:
-        ray.color *= 1.0 / QUALITY_PER_SAMPLE
-        ray, object, position, hit = raycast(ray)
-
-        if hit:
-            ray = ray_surface_interaction(ray, object, position)
-
-            intensity = brightness(ray.color)
-            ray.color *= object.material.emission
-            visible = brightness(ray.color)
-
-            ray.light = intensity < visible
-
-            if visible < VISIBILITY.x or visible > VISIBILITY.y:
-                ray.depth *= -1
-        else:
-            ray.color *= sky_color(ray)
-            ray.light = True
+        ray.color *= sky_color(ray)
+        ray.light = True
 
     return ray
 
@@ -84,20 +79,39 @@ def gen_ray(uv: vec2) -> Ray:
     return get_ray(camera, uv, vec3(1))
 
 
+@ti.func
+def track_once(ray: Ray, i: int, j: int) -> Ray:
+    if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
+        image_buffer[i, j] += vec4(ray.color, 1.0)
+
+        coord = vec2(i, j) + sample_vec2()
+        uv = coord * SCREEN_PIXEL_SIZE
+
+        ray = gen_ray(uv)
+
+    if ti.static(QUALITY_PER_SAMPLE < 1):
+        if sample_float() > QUALITY_PER_SAMPLE:
+            ray.color = vec3(0)
+            ray.depth *= -1
+        else:
+            ray.color *= 1.0 / QUALITY_PER_SAMPLE
+            ray = raytrace(ray)
+    else:
+        ray = raytrace(ray)
+
+    return ray
+
+
 @ti.kernel
-def sample():
+def pathtrace():
     for i, j in image_pixels:
         ray = ray_buffer[i, j]
 
-        for _ in ti.static(range(SAMPLES_PER_FRAME)):
-            if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
-                image_buffer[i, j] += vec4(ray.color, 1.0)
-
-                coord = vec2(i, j) + sample_vec2()
-                uv = coord * SCREEN_PIXEL_SIZE
-
-                ray = gen_ray(uv)
-
-            ray = raytrace(ray)
+        if ti.static(SAMPLES_PER_FRAME > 16):
+            for _ in range(SAMPLES_PER_FRAME):
+                ray = track_once(ray, i, j)
+        else:
+            for _ in ti.static(range(SAMPLES_PER_FRAME)):
+                ray = track_once(ray, i, j)
 
         ray_buffer[i, j] = ray

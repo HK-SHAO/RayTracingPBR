@@ -4,7 +4,7 @@ from taichi.math import vec4
 
 from .config import SAMPLES_PER_PIXEL
 from .camera import smooth
-from .pathtracer import sample
+from .pathtracer import pathtrace
 from .postprocessor import post_process
 from .fileds import image_buffer, ray_buffer
 
@@ -21,6 +21,6 @@ def render(refreshing):
         refresh()
 
     for _ in range(SAMPLES_PER_PIXEL):
-        sample()
+        pathtrace()
 
     post_process()

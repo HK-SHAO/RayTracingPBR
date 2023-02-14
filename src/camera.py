@@ -5,6 +5,7 @@ from taichi.ui.utils import euler_to_vec, vec_to_euler
 from .dataclass import Ray, Camera
 from .config import SCREEN_PIXEL_SIZE
 from .util import random_in_unit_disk
+from .fileds import u_frame
 
 
 @ti.func
@@ -32,7 +33,7 @@ def get_ray(c: Camera, uv: vec2, color: vec3) -> Ray:
     po = lower_left_corner + uv.x * horizontal + uv.y * vertical
     rd = normalize(po - ro)
 
-    return Ray(ro, rd, color, 0, False)
+    return Ray(ro, rd, color)
 
 
 @ti.data_oriented
@@ -46,13 +47,11 @@ class SmoothCamera:
         self.lookat_velocity = ti.field(dtype=ti.f32, shape=())
         self.up_velocity = ti.field(dtype=ti.f32, shape=())
         self.moving = ti.field(dtype=ti.i32, shape=())
-        self.frame = ti.field(dtype=ti.i32, shape=())
 
         self.position_velocity[None] = 10
         self.lookat_velocity[None] = 10
         self.up_velocity[None] = 10
         self.moving[None] = 0
-        self.frame[None] = 0
 
     def init(self, camera: ti.ui.Camera):
         self.position[None] = camera.curr_position
@@ -103,7 +102,8 @@ class SmoothCamera:
         self.up[None] = up
 
         self.moving[None] = moving
-        self.frame[None] += 1
+
+        u_frame[None] += 1
 
 
 smooth = SmoothCamera()

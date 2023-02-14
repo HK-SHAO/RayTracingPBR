@@ -40,7 +40,7 @@ def post_process():
 
         color = buffer.rgb / buffer.a
         color *= camera_exposure[None]
-        color = ACESFitted(color)
         color = pow(color, vec3(1.0 / camera_gamma))
+        color = ACESFitted(color)
 
         image_pixels[i, j] = clamp(color, 0, 1)

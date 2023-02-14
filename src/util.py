@@ -57,4 +57,8 @@ def sample_float() -> float:
 
 @ti.func
 def sample_vec2() -> vec2:
-    return vec2(ti.random(), ti.random())
+    x = sample_float()
+    y = sample_float()
+    return vec2(x, y)
+
+# ToDo: Low Discrepancy Sequence
