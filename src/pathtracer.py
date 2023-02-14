@@ -44,14 +44,17 @@ def raycast(ray: Ray) -> tuple[SDFObject, vec3, bool]:
 
 @ti.func
 def raytrace(ray: Ray) -> Ray:
-    if ray.depth > 0 and sample_float() > QUALITY_PER_SAMPLE:
+    if sample_float() > QUALITY_PER_SAMPLE:
         ray.color = vec3(0)
         ray.depth *= -1
     else:
         ray.color *= 1.0 / QUALITY_PER_SAMPLE
         object, position, hit = raycast(ray)
+        ray.depth += 1
 
         if hit:
+            ray = ray_surface_interaction(ray, object, position)
+
             intensity = brightness(ray.color)
             ray.color *= object.material.emission
             visible = brightness(ray.color)
@@ -60,9 +63,6 @@ def raytrace(ray: Ray) -> Ray:
 
             if visible < VISIBILITY.x or visible > VISIBILITY.y:
                 ray.depth *= -1
-            elif not ray.light:
-                ray = ray_surface_interaction(ray, object, position)
-                ray.depth += 1
         else:
             ray.color *= sky_color(ray)
             ray.light = True
@@ -76,7 +76,7 @@ def sample():
         ray = ray_buffer[i, j]
 
         if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
-            # image_buffer[i, j] += vec4(vec3(2.0 / (1.0 + abs(ray.depth) * 2)), 1.0)
+            # image_buffer[i, j] += vec4(vec3(1.0 / (1.0 + abs(ray.depth) * 2)), 1.0)
             image_buffer[i, j] += vec4(ray.color, 1.0)
 
             coord = vec2(i, j) + sample_vec2()
