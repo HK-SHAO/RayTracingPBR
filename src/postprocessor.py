@@ -1,9 +1,10 @@
 import taichi as ti
-from taichi.math import vec3, mat3, clamp
+from taichi.math import vec2, vec3, mat3, clamp
 
 
 from .camera import camera_exposure, camera_gamma
-from .fileds import image_pixels, image_buffer
+from .fileds import image_pixels, image_buffer, diff_pixels, diff_buffer
+from .util import brightness
 
 ACESInputMat = mat3(
     0.59719, 0.35458, 0.04823,
@@ -36,6 +37,7 @@ def ACESFitted(color: vec3) -> vec3:
 @ti.kernel
 def post_process():
     for i, j in image_pixels:
+        last_color = image_pixels[i, j]
         buffer = image_buffer[i, j]
 
         color = buffer.rgb / buffer.a
@@ -44,3 +46,7 @@ def post_process():
         color = ACESFitted(color)
 
         image_pixels[i, j] = clamp(color, 0, 1)
+
+        diff_color = abs(image_pixels[i, j] - last_color)
+        diff_buffer[i, j] += vec2(brightness(diff_color), 1.0)
+        diff_pixels[i, j] = diff_buffer[i, j].x / diff_buffer[i, j].y

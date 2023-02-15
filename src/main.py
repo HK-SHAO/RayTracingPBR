@@ -3,7 +3,7 @@ import taichi as ti
 
 
 from .config import image_resolution
-from .fileds import image_pixels
+from .fileds import image_pixels, diff_pixels
 from .renderer import render
 from .scene import build_scene
 from .camera import smooth, camera_exposure,  camera_focus, camera_aperture, camera_vfov
@@ -61,5 +61,6 @@ while window.running:
 
     render(refreshing)
     canvas.set_image(image_pixels)
+    # canvas.set_image((diff_pixels.to_numpy() > 1e-3).astype('float32'))
 
     window.show()

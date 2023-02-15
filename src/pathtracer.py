@@ -3,8 +3,9 @@ from taichi.math import vec2, vec3, vec4
 
 
 from .dataclass import SDFObject, Ray, Camera
-from .config import MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS, QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, MAX_RAYTRACE, SAMPLES_PER_FRAME
-from .fileds import ray_buffer, image_buffer, image_pixels
+from .config import (MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS,
+                     QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, MAX_RAYTRACE, SAMPLES_PER_FRAME, NOISE_THRESHOLD)
+from .fileds import ray_buffer, image_buffer, image_pixels, diff_pixels
 from .camera import get_ray, smooth, aspect_ratio, camera_vfov, camera_aperture, camera_focus
 from .scene import objects
 from .util import at, brightness, sample_float, sample_vec2
@@ -102,16 +103,23 @@ def track_once(ray: Ray, i: int, j: int) -> Ray:
     return ray
 
 
+@ti.func
+def sample(i: int, j: int):
+    ray = ray_buffer[i, j]
+
+    if ti.static(SAMPLES_PER_FRAME > 16):
+        for _ in range(SAMPLES_PER_FRAME):
+            ray = track_once(ray, i, j)
+    else:
+        for _ in ti.static(range(SAMPLES_PER_FRAME)):
+            ray = track_once(ray, i, j)
+
+    ray_buffer[i, j] = ray
+
+
 @ti.kernel
 def pathtrace():
     for i, j in image_pixels:
-        ray = ray_buffer[i, j]
-
-        if ti.static(SAMPLES_PER_FRAME > 16):
-            for _ in range(SAMPLES_PER_FRAME):
-                ray = track_once(ray, i, j)
-        else:
-            for _ in ti.static(range(SAMPLES_PER_FRAME)):
-                ray = track_once(ray, i, j)
-
-        ray_buffer[i, j] = ray
+        diff = diff_pixels[i, j]  # for self-adaptive sampling
+        if diff > NOISE_THRESHOLD:
+            sample(i, j)
