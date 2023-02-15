@@ -90,15 +90,20 @@ def track_once(ray: Ray, i: int, j: int) -> Ray:
 
         ray = gen_ray(uv)
 
-    if ti.static(QUALITY_PER_SAMPLE < 1):
-        if sample_float() > QUALITY_PER_SAMPLE:
-            ray.color = vec3(0)
-            ray.depth *= -1
-        else:
-            ray.color *= 1.0 / QUALITY_PER_SAMPLE
-            ray = raytrace(ray)
+    return raytrace(ray)
+
+
+@ti.func
+def russian_roulette(ray: Ray, i: int, j: int) -> Ray:
+    roulette_prob = 1.0 if ray.depth == 0 else QUALITY_PER_SAMPLE
+    roulette_prob -= ray.depth * ti.static(1.0 / MAX_RAYTRACE)
+
+    if sample_float() > roulette_prob:
+        ray.color = vec3(0)
+        ray.depth *= -1
     else:
-        ray = raytrace(ray)
+        ray.color *= 1.0 / roulette_prob
+        ray = track_once(ray, i, j)
 
     return ray
 
@@ -107,12 +112,12 @@ def track_once(ray: Ray, i: int, j: int) -> Ray:
 def sample(i: int, j: int):
     ray = ray_buffer[i, j]
 
-    if ti.static(SAMPLES_PER_FRAME > 16):
-        for _ in range(SAMPLES_PER_FRAME):
-            ray = track_once(ray, i, j)
-    else:
+    if ti.static(SAMPLES_PER_FRAME <= 4):
         for _ in ti.static(range(SAMPLES_PER_FRAME)):
-            ray = track_once(ray, i, j)
+            ray = russian_roulette(ray, i, j)
+    else:
+        for _ in range(SAMPLES_PER_FRAME):
+            ray = russian_roulette(ray, i, j)
 
     ray_buffer[i, j] = ray
 
