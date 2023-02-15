@@ -48,14 +48,9 @@ while window.running:
         direction.y = 0
         print('exposure', camera_exposure[None])
     elif window.is_pressed('g'):
-        ti.tools.imwrite(image_pixels, 'out/main_' +
-                         str(curr_time) + '.out.png')
+        ti.tools.imwrite(image_pixels, 'out/main_' + str(curr_time) + '.png')
 
-    if window.is_pressed('Shift'):
-        speed = dt * 50
-    else:
-        speed = dt * 5
-
+    speed = dt * 5 * (10 if window.is_pressed('Shift') else 1)
     camera.track_user_inputs(window, movement_speed=speed, hold_key=ti.ui.LMB)
     smooth.update(dt, camera, direction)
 

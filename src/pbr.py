@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import vec3, mix, sqrt, normalize, dot
+from taichi.math import vec3, mix, sqrt, normalize, dot, sign
 
 
 from .config import ENV_IOR
@@ -52,7 +52,8 @@ def ray_surface_interaction(ray: Ray, object: SDFObject, position: vec3) -> Ray:
 
     if sample_float() < F + metallic or k < 0.0:
         ray.direction = I - 2.0 * NoI * N
-        ray.color *= float(dot(ray.direction, normal) > 0.0)
+        ray.depth *= int(sign(dot(ray.direction, normal)))
+        # ray.direction *= sign(dot(ray.direction, normal))
     elif sample_float() < transmission:
         ray.direction = eta * I - (sqrt(k) + eta * NoI) * N
     else:
