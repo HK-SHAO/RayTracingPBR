@@ -90,6 +90,7 @@ def sample(i: int, j: int):
 @ti.kernel
 def pathtrace():
     for i, j in image_pixels:
+        # ToDo: Shader Execution Reordering
         diff = diff_pixels[i, j]  # for self-adaptive sampling
         if diff > NOISE_THRESHOLD:
             sample(i, j)

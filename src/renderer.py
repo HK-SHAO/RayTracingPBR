@@ -18,6 +18,8 @@ def refresh():
         diff_buffer[i, j] = vec2(1.0, 1.0)
         diff_pixels[i, j] = 1e32
 
+        # ToDo: Reprojection
+
 
 def render(refreshing):
     if refreshing or smooth.moving[None]:
