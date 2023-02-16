@@ -2,46 +2,14 @@ import taichi as ti
 from taichi.math import vec2, vec3, vec4
 
 
-from .dataclass import SDFObject, Ray, Camera
-from .config import (MIN_DIS, MAX_DIS, MAX_RAYMARCH, VISIBILITY, PIXEL_RADIUS,
-                     QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, MAX_RAYTRACE, SAMPLES_PER_FRAME, NOISE_THRESHOLD)
+from .dataclass import Ray, Camera
 from .fileds import ray_buffer, image_buffer, image_pixels, diff_pixels
+from .config import VISIBILITY, QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, MAX_RAYTRACE, SAMPLES_PER_FRAME, NOISE_THRESHOLD
 from .camera import get_ray, smooth, aspect_ratio, camera_vfov, camera_aperture, camera_focus
-from .scene import objects
-from .util import at, brightness, sample_float, sample_vec2
+from .util import brightness, sample_float, sample_vec2
 from .pbr import ray_surface_interaction
-from .sdf import nearest_object
 from .ibl import sky_color
-
-
-@ti.func
-def raycast(ray: Ray) -> tuple[Ray, SDFObject, vec3, bool]:
-    w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
-    index, t, position, hit = 0, MIN_DIS, vec3(0), False
-
-    for _ in range(MAX_RAYMARCH):
-        position = at(ray, t)
-        index, distance = nearest_object(position)
-
-        ld, d = d, distance
-        if ld + d < s:
-            s -= w * s
-            t += s
-            w *= 0.5
-            w += 0.5
-            continue
-        err = d / t
-        if err < cerr:
-            cerr = err
-
-        s = w * d
-        t += s
-        hit = err < PIXEL_RADIUS
-        if hit or t > MAX_DIS:
-            break
-
-    ray.depth += 1
-    return ray, objects[index], position, hit
+from .sdf import raycast
 
 
 @ti.func

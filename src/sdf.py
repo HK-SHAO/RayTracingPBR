@@ -2,9 +2,10 @@ import taichi as ti
 from taichi.math import length, vec2, vec3, normalize, min, max
 
 
-from .dataclass import SDFObject, Transform
+from .config import SHAPE_SPHERE, SHAPE_BOX, SHAPE_CYLINDER, MAX_DIS, MAX_RAYMARCH, MIN_DIS, PIXEL_RADIUS
+from .dataclass import SDFObject, Transform, Ray
 from .scene import objects, SHAPE_SPLIT
-from .config import SHAPE_SPHERE, SHAPE_BOX, SHAPE_CYLINDER, MAX_DIS
+from .util import at
 
 
 @ti.func
@@ -87,3 +88,33 @@ def nearest_object(p: vec3) -> tuple[int, float]:
             min_dis = dis
             index = i
     return index, min_dis
+
+
+@ti.func
+def raycast(ray: Ray) -> tuple[Ray, SDFObject, vec3, bool]:
+    w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
+    index, t, position, hit = 0, MIN_DIS, vec3(0), False
+
+    for _ in range(MAX_RAYMARCH):
+        position = at(ray, t)
+        index, distance = nearest_object(position)
+
+        ld, d = d, distance
+        if ld + d < s:
+            s -= w * s
+            t += s
+            w *= 0.5
+            w += 0.5
+            continue
+        err = d / t
+        if err < cerr:
+            cerr = err
+
+        s = w * d
+        t += s
+        hit = err < PIXEL_RADIUS
+        if hit or t > MAX_DIS:
+            break
+
+    ray.depth += 1
+    return ray, objects[index], position, hit
