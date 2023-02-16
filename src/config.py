@@ -2,13 +2,13 @@ import taichi as ti
 from taichi.math import vec2
 
 
-ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32)
+ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32, debug=False)
 
 image_resolution = (1920 * 4 // 10, 1080 * 4 // 10)
 
 SAMPLES_PER_PIXEL = 1
 SAMPLES_PER_FRAME = 1  # number of samples in one draw call
-QUALITY_PER_SAMPLE = 0.9  # for russian roulette
+QUALITY_PER_SAMPLE = 0.8  # for russian roulette
 
 VISIBILITY = vec2(1e-4, 1e4)
 NOISE_THRESHOLD = 1e-4
