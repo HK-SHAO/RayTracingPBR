@@ -23,13 +23,11 @@ def raytrace(ray: Ray) -> Ray:
         ray.color *= object.material.emission
         visible = brightness(ray.color)
 
-        ray.light = intensity < visible
-
-        if visible < VISIBILITY.x or visible > VISIBILITY.y:
+        if intensity < visible or visible < VISIBILITY.x or visible > VISIBILITY.y:
             ray.depth *= -1
     else:
         ray.color *= sky_color(ray)
-        ray.light = True
+        ray.depth *= -1
 
     return ray
 
@@ -50,7 +48,7 @@ def gen_ray(uv: vec2) -> Ray:
 
 @ti.func
 def track_once(ray: Ray, i: int, j: int) -> Ray:
-    if ray.light == True or ray.depth < 1 or ray.depth > MAX_RAYTRACE:
+    if ray.depth < 1 or ray.depth > MAX_RAYTRACE:
         image_buffer[i, j] += vec4(ray.color, 1.0)
 
         coord = vec2(i, j) + sample_vec2()

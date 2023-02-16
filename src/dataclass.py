@@ -8,7 +8,6 @@ class Ray:
     direction: vec3
     color: vec3
     depth: int
-    light: bool
 
 
 @ti.dataclass

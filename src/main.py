@@ -5,7 +5,7 @@ from taichi.ui import LEFT, RIGHT, UP, DOWN
 
 
 from .config import image_resolution
-from .fileds import image_pixels, diff_pixels
+from .fileds import image_pixels, diff_pixels, ray_buffer
 from .camera import smooth, camera_exposure,  camera_focus, camera_aperture, camera_vfov
 from .scene import build_scene
 from .renderer import render
@@ -57,7 +57,9 @@ while window.running:
     smooth.update(dt, camera, direction)
 
     render(refreshing)
+
     canvas.set_image(image_pixels)
     # canvas.set_image((diff_pixels.to_numpy() > 1e-3).astype('float32'))
+    # canvas.set_image(((ray_buffer.depth).to_numpy() / 3.0).astype('float32'))
 
     window.show()
