@@ -52,8 +52,9 @@ def ray_surface_interaction(ray: Ray, object: SDFObject, position: vec3) -> Ray:
 
     if sample_float() < F + metallic or k < 0.0:
         ray.direction = I - 2.0 * NoI * N
-        ray.depth *= int(sign(dot(ray.direction, normal)))
-        # ray.direction *= sign(dot(ray.direction, normal))
+        # ray.depth *= int(sign(dot(ray.direction, normal)))
+        ray.direction *= sign(dot(ray.direction, normal))
+        # ray.color *= float(dot(ray.direction, normal) > 0 or ray.depth < 2)
     elif sample_float() < transmission:
         ray.direction = eta * I - (sqrt(k) + eta * NoI) * N
     else:
