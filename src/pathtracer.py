@@ -55,7 +55,6 @@ def track_once(ray: Ray, i: int, j: int) -> Ray:
 
         coord = vec2(i, j) + sample_vec2()
         uv = coord * SCREEN_PIXEL_SIZE
-
         ray = gen_ray(uv)
 
     return raytrace(ray)

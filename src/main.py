@@ -1,12 +1,14 @@
 import time
 import taichi as ti
+from taichi.math import vec2
+from taichi.ui import LEFT, RIGHT, UP, DOWN
 
 
 from .config import image_resolution
 from .fileds import image_pixels, diff_pixels
-from .renderer import render
-from .scene import build_scene
 from .camera import smooth, camera_exposure,  camera_focus, camera_aperture, camera_vfov
+from .scene import build_scene
+from .renderer import render
 
 
 window = ti.ui.Window("Taichi Renderer", image_resolution)
@@ -24,8 +26,8 @@ while window.running:
     dt = curr_time - prev_time
     prev_time = curr_time
 
-    direction = ti.math.vec2(float(window.is_pressed(ti.ui.RIGHT)) - float(window.is_pressed(ti.ui.LEFT)),
-                             float(window.is_pressed(ti.ui.UP)) - float(window.is_pressed(ti.ui.DOWN)))
+    direction = vec2(float(window.is_pressed(RIGHT)) - float(window.is_pressed(LEFT)),
+                     float(window.is_pressed(UP)) - float(window.is_pressed(DOWN)))
 
     refreshing = False
     if window.is_pressed('z'):
