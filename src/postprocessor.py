@@ -2,6 +2,7 @@ import taichi as ti
 from taichi.math import vec2, vec3, mat3, clamp
 
 
+from .config import ADAPTIVE_SAMPLING
 from .camera import camera_exposure, camera_gamma
 from .fileds import image_pixels, image_buffer, diff_pixels, diff_buffer
 from .util import brightness
@@ -49,6 +50,7 @@ def post_process():
 
         image_pixels[i, j] = clamp(color, 0, 1)
 
-        diff_color = abs(image_pixels[i, j] - last_color)
-        diff_buffer[i, j] += vec2(brightness(diff_color), 1.0)
-        diff_pixels[i, j] = diff_buffer[i, j].x / diff_buffer[i, j].y
+        if ti.static(ADAPTIVE_SAMPLING):
+            diff_color = abs(image_pixels[i, j] - last_color)
+            diff_buffer[i, j] += vec2(brightness(diff_color), 1.0)
+            diff_pixels[i, j] = diff_buffer[i, j].x / diff_buffer[i, j].y

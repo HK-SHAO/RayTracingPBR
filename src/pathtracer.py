@@ -4,7 +4,8 @@ from taichi.math import vec2, vec3, vec4
 
 from .dataclass import Ray, Camera
 from .fileds import ray_buffer, image_buffer, image_pixels, diff_pixels
-from .config import VISIBILITY, QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, MAX_RAYTRACE, SAMPLES_PER_FRAME, NOISE_THRESHOLD
+from .config import (VISIBILITY, QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, ADAPTIVE_SAMPLING,
+                     MAX_RAYTRACE, SAMPLES_PER_FRAME, NOISE_THRESHOLD, BLACK_BACKGROUND)
 from .camera import get_ray, smooth, aspect_ratio, camera_vfov, camera_aperture, camera_focus
 from .util import brightness, sample_float, sample_vec2
 from .pbr import ray_surface_interaction
@@ -26,8 +27,11 @@ def raytrace(ray: Ray) -> Ray:
         stop = intensity < visible or visible < VISIBILITY.x or visible > VISIBILITY.y
         ray.depth *= -1 if stop else 1
     else:
-        ray.color *= sky_color(ray)
         ray.depth *= -1
+        ray.color *= sky_color(ray)
+
+        if ti.static(BLACK_BACKGROUND):
+            ray.color *= float(ray.depth < -1)
 
     return ray
 
@@ -90,7 +94,10 @@ def sample(i: int, j: int):
 @ti.kernel
 def pathtrace():
     for i, j in image_pixels:
-        # ToDo: Shader Execution Reordering
-        diff = diff_pixels[i, j]  # for self-adaptive sampling
-        if diff > NOISE_THRESHOLD:
+        if ti.static(ADAPTIVE_SAMPLING):
+            # ToDo: Shader Execution Reordering
+            diff = diff_pixels[i, j]  # for self-adaptive sampling
+            if diff > NOISE_THRESHOLD:
+                sample(i, j)
+        else:
             sample(i, j)

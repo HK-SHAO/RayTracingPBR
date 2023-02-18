@@ -10,6 +10,9 @@ SAMPLES_PER_PIXEL = 1
 SAMPLES_PER_FRAME = 1  # number of samples in one draw call
 QUALITY_PER_SAMPLE = 0.8  # for russian roulette
 
+BLACK_BACKGROUND = False
+ADAPTIVE_SAMPLING = False
+
 VISIBILITY = vec2(1e-4, 1e4)
 NOISE_THRESHOLD = 1e-4
 
