@@ -71,12 +71,12 @@ class SmoothCamera:
         pitch += direction.y * dt
 
         # Avoid Gimbal Lock
-        pitch = max(min(pi*0.5*0.999, pitch), -pi*0.5*0.999)
+        pitch = max(-pi*0.5*0.999, min(pi*0.5*0.999, pitch))
 
         front = euler_to_vec(yaw, pitch)
         camera.lookat(*(camera.curr_position + front))
 
-        if abs(direction).max() > 1e-3:
+        if abs(direction.x) > 1e-3:
             self.moving[None] = True
 
     @ti.kernel
