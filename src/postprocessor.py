@@ -40,6 +40,8 @@ def post_process():
         last_color = image_pixels[i, j]
         buffer = image_buffer[i, j]
 
+        # ToDo: Post Denoise
+
         color = buffer.rgb / buffer.a
         color *= camera_exposure[None]
         color = pow(color, vec3(1.0 / camera_gamma))
