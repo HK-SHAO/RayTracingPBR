@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import vec2, vec3, radians, normalize, cross, tan, clamp
+from taichi.math import pi, vec2, vec3, radians, normalize, cross, tan, clamp
 from taichi.ui.utils import euler_to_vec, vec_to_euler
 
 from .dataclass import Ray, Camera
@@ -59,9 +59,9 @@ class SmoothCamera:
         self.up[None] = camera.curr_up
 
     def update(self, dt: float, camera: ti.ui.Camera, direction: vec2):
-        self._rotate(dt, camera, direction)
         self._update(dt, camera.curr_position,
                      camera.curr_lookat, camera.curr_up)
+        self._rotate(dt, camera, direction)
 
     def _rotate(self, dt: float, camera: ti.ui.Camera, direction: vec2):
         front = (camera.curr_lookat - camera.curr_position).normalized()
@@ -70,8 +70,14 @@ class SmoothCamera:
         yaw -= direction.x * dt
         pitch += direction.y * dt
 
+        # Avoid Gimbal Lock
+        pitch = max(min(pi*0.5*0.999, pitch), -pi*0.5*0.999)
+
         front = euler_to_vec(yaw, pitch)
         camera.lookat(*(camera.curr_position + front))
+
+        if abs(direction).max() > 1e-3:
+            self.moving[None] = True
 
     @ti.kernel
     def _update(self, dt: float, curr_position: vec3, curr_lookat: vec3, curr_up: vec3):
