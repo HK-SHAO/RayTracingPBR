@@ -2,9 +2,11 @@ import taichi as ti
 from taichi.math import vec3, radians
 
 
-from .dataclass import SDFObject, Transform, Material
-from .config import SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_BOX
-from .util import rotate
+from .dataclass import SDFObject, Transform, Material, Ray
+from .config import MAX_RAYMARCH, MIN_DIS, MAX_DIS, PIXEL_RADIUS
+from .sdf import SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_BOX, sd_sphere, sd_box, sd_cylinder, transform
+from .util import rotate, at
+
 
 OBJECTS_LIST = sorted([
     SDFObject(type=SHAPE_SPHERE,
@@ -40,6 +42,68 @@ objects = SDFObject.field()
 ti.root.dense(ti.i, len(OBJECTS_LIST)).place(objects)
 for i in range(objects.shape[0]):
     objects[i] = OBJECTS_LIST[i]
+
+
+@ti.func
+def get_object_pos_scale(i: int, p: vec3) -> tuple[vec3, vec3]:
+    obj = objects[i]
+    pos = transform(obj.transform, p)
+    return pos, obj.transform.scale
+
+
+@ti.func
+def nearest_object(p: vec3) -> tuple[int, float]:
+    index = 0
+    min_dis = MAX_DIS
+    for i in ti.static(range(SHAPE_SPLIT[0], SHAPE_SPLIT[1])):
+        pos, scale = get_object_pos_scale(i, p)
+        dis = abs(sd_sphere(pos, scale))
+        update = dis < min_dis
+        min_dis = dis if update else min_dis
+        index = i if update else index
+    for i in ti.static(range(SHAPE_SPLIT[1], SHAPE_SPLIT[2])):
+        pos, scale = get_object_pos_scale(i, p)
+        dis = abs(sd_box(pos, scale))
+        update = dis < min_dis
+        min_dis = dis if update else min_dis
+        index = i if update else index
+    for i in ti.static(range(SHAPE_SPLIT[2], SHAPE_SPLIT[3])):
+        pos, scale = get_object_pos_scale(i, p)
+        dis = abs(sd_cylinder(pos, scale))
+        update = dis < min_dis
+        min_dis = dis if update else min_dis
+        index = i if update else index
+    return index, min_dis
+
+
+@ti.func
+def raycast(ray: Ray) -> tuple[Ray, SDFObject, vec3, bool]:
+    w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
+    index, t, position, hit = 0, MIN_DIS, vec3(0), False
+
+    for _ in range(MAX_RAYMARCH):
+        position = at(ray, t)
+        index, distance = nearest_object(position)
+
+        ld, d = d, distance
+        if ld + d < s:
+            s -= w * s
+            t += s
+            w *= 0.5
+            w += 0.5
+            continue
+        s = w * d
+        t += s
+
+        err = d / t
+        cerr = err if err < cerr else cerr
+
+        hit = err < PIXEL_RADIUS
+        if hit or t > MAX_DIS:
+            break
+
+    ray.depth += 1
+    return ray, objects[index], position, hit
 
 
 @ti.func

@@ -10,7 +10,7 @@ from .camera import get_ray, smooth, aspect_ratio, camera_vfov, camera_aperture,
 from .util import brightness, sample_float, sample_vec2
 from .pbr import ray_surface_interaction
 from .ibl import sky_color
-from .sdf import raycast
+from .scene import raycast
 
 
 @ti.func
