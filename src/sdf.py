@@ -72,21 +72,21 @@ def nearest_object(p: vec3) -> tuple[int, float]:
     for i in ti.static(range(SHAPE_SPLIT[0], SHAPE_SPLIT[1])):
         pos, scale = get_object_pos_scale(i, p)
         dis = abs(sd_sphere(pos, scale))
-        if dis < min_dis:
-            min_dis = dis
-            index = i
+        update = dis < min_dis
+        min_dis = dis if update else min_dis
+        index = i if update else index
     for i in ti.static(range(SHAPE_SPLIT[1], SHAPE_SPLIT[2])):
         pos, scale = get_object_pos_scale(i, p)
         dis = abs(sd_box(pos, scale))
-        if dis < min_dis:
-            min_dis = dis
-            index = i
+        update = dis < min_dis
+        min_dis = dis if update else min_dis
+        index = i if update else index
     for i in ti.static(range(SHAPE_SPLIT[2], SHAPE_SPLIT[3])):
         pos, scale = get_object_pos_scale(i, p)
         dis = abs(sd_cylinder(pos, scale))
-        if dis < min_dis:
-            min_dis = dis
-            index = i
+        update = dis < min_dis
+        min_dis = dis if update else min_dis
+        index = i if update else index
     return index, min_dis
 
 
@@ -106,12 +106,12 @@ def raycast(ray: Ray) -> tuple[Ray, SDFObject, vec3, bool]:
             w *= 0.5
             w += 0.5
             continue
-        err = d / t
-        if err < cerr:
-            cerr = err
-
         s = w * d
         t += s
+
+        err = d / t
+        cerr = err if err < cerr else cerr
+
         hit = err < PIXEL_RADIUS
         if hit or t > MAX_DIS:
             break

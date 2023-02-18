@@ -4,8 +4,8 @@ from taichi.math import vec3, mix, sqrt, normalize, dot, sign
 
 from .config import ENV_IOR
 from .dataclass import Ray, SDFObject
-from .sdf import calc_normal
 from .util import random_in_unit_sphere, sample_float
+from .sdf import calc_normal
 
 
 @ti.func
@@ -50,6 +50,7 @@ def ray_surface_interaction(ray: Ray, object: SDFObject, position: vec3) -> Ray:
     F0 = 2.0 * (eta - 1.0) / (eta + 1.0)
     F = fresnel_schlick(NoI, F0*F0)
 
+    # ToDo: Removing if statements?
     if sample_float() < F + metallic or k < 0.0:
         ray.direction = I - 2.0 * NoI * N
         # ray.depth *= int(sign(dot(ray.direction, normal)))

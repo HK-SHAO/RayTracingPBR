@@ -23,8 +23,8 @@ def raytrace(ray: Ray) -> Ray:
         ray.color *= object.material.emission
         visible = brightness(ray.color)
 
-        if intensity < visible or visible < VISIBILITY.x or visible > VISIBILITY.y:
-            ray.depth *= -1
+        stop = intensity < visible or visible < VISIBILITY.x or visible > VISIBILITY.y
+        ray.depth *= -1 if stop else 1
     else:
         ray.color *= sky_color(ray)
         ray.depth *= -1
