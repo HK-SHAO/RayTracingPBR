@@ -1,7 +1,7 @@
 import time
 import taichi as ti
 from taichi.math import vec2
-from taichi.ui import LEFT, RIGHT, UP, DOWN
+from taichi.ui import LEFT, RIGHT, UP, DOWN, RELEASE
 
 
 from .config import image_resolution
@@ -30,7 +30,9 @@ while window.running:
                      float(window.is_pressed(UP)) - float(window.is_pressed(DOWN)))
 
     refreshing = False
-    if window.is_pressed('z'):
+    if refreshing:
+        pass
+    elif window.is_pressed('z'):
         camera_vfov[None] += direction.y * dt * 10
         direction.y = 0
         refreshing = True
@@ -49,8 +51,11 @@ while window.running:
         camera_exposure[None] += direction.y * dt * 10
         direction.y = 0
         print('exposure', camera_exposure[None])
-    elif window.is_pressed('g'):
-        ti.tools.imwrite(image_pixels, 'out/main_' + str(curr_time) + '.png')
+
+    for event in window.get_events(RELEASE):
+        if event.key == 'g':
+            ti.tools.imwrite(image_pixels, 'out/main_' +
+                             str(curr_time) + '.png')
 
     speed = dt * 5 * (10 if window.is_pressed('Shift') else 1)
     camera.track_user_inputs(window, movement_speed=speed, hold_key=ti.ui.LMB)

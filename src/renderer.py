@@ -2,7 +2,7 @@ import taichi as ti
 from taichi.math import vec2, vec4
 
 
-from .config import SAMPLES_PER_PIXEL, ADAPTIVE_SAMPLING
+from .config import SAMPLES_PER_FRAME, ADAPTIVE_SAMPLING
 from .camera import smooth
 from .pathtracer import pathtrace
 from .postprocessor import post_process
@@ -16,7 +16,7 @@ def refresh():
         ray_buffer[i, j].depth = 0
 
         if ti.static(ADAPTIVE_SAMPLING):
-            diff_buffer[i, j] = vec2(1.0, 1.0)
+            diff_buffer[i, j] = vec2(1)
             diff_pixels[i, j] = 1e32
 
         # ToDo: Reprojection
@@ -26,7 +26,7 @@ def render(refreshing):
     if refreshing or smooth.moving[None]:
         refresh()
 
-    for _ in range(SAMPLES_PER_PIXEL):
+    for _ in range(SAMPLES_PER_FRAME):
         pathtrace()
 
     post_process()

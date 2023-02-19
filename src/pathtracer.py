@@ -5,7 +5,7 @@ from taichi.math import vec2, vec3, vec4
 from .dataclass import Ray, Camera
 from .fileds import ray_buffer, image_buffer, image_pixels, diff_pixels
 from .config import (VISIBILITY, QUALITY_PER_SAMPLE, SCREEN_PIXEL_SIZE, ADAPTIVE_SAMPLING,
-                     MAX_RAYTRACE, SAMPLES_PER_FRAME, NOISE_THRESHOLD, BLACK_BACKGROUND)
+                     MAX_RAYTRACE, SAMPLES_PER_PIXEL, NOISE_THRESHOLD, BLACK_BACKGROUND)
 from .camera import get_ray, smooth, aspect_ratio, camera_vfov, camera_aperture, camera_focus
 from .util import brightness, sample_float, sample_vec2
 from .pbr import ray_surface_interaction
@@ -81,11 +81,11 @@ def russian_roulette(ray: Ray, i: int, j: int) -> Ray:
 def sample(i: int, j: int):
     ray = ray_buffer[i, j]
 
-    if ti.static(SAMPLES_PER_FRAME <= 4):
-        for _ in ti.static(range(SAMPLES_PER_FRAME)):
+    if ti.static(SAMPLES_PER_PIXEL <= 4):
+        for _ in ti.static(range(SAMPLES_PER_PIXEL)):
             ray = russian_roulette(ray, i, j)
     else:
-        for _ in range(SAMPLES_PER_FRAME):
+        for _ in range(SAMPLES_PER_PIXEL):
             ray = russian_roulette(ray, i, j)
 
     ray_buffer[i, j] = ray
