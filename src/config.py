@@ -14,7 +14,7 @@ BLACK_BACKGROUND = False
 ADAPTIVE_SAMPLING = False
 
 VISIBILITY = vec2(1e-4, 1e4)
-NOISE_THRESHOLD = 1e-4 # for self-adaptive sampling
+NOISE_THRESHOLD = 1e-4  # for self-adaptive sampling
 
 SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
 PIXEL_RADIUS = 1.0 * SCREEN_PIXEL_SIZE.min()

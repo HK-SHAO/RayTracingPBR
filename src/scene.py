@@ -78,25 +78,23 @@ def nearest_object(p: vec3) -> tuple[int, float]:
 
 @ti.func
 def raycast(ray: Ray) -> tuple[Ray, SDFObject, vec3, bool]:
-    w, s, d, cerr = 1.6, 0.0, 0.0, 1e32
-    index, t, position, hit = 0, MIN_DIS, vec3(0), False
+    t, w, s, d = MIN_DIS, 1.6, 0.0, 0.0
+    index, position, hit = 0, vec3(0), False
 
     for _ in range(MAX_RAYMARCH):
         position = at(ray, t)
         index, distance = nearest_object(position)
 
         ld, d = d, distance
-        if ld + d < s:
+        if w > 1.0 and ld + d < s:
             s -= w * s
             t += s
-            w *= 0.5
-            w += 0.5
+            w = 1.0
             continue
         s = w * d
         t += s
 
         err = d / t
-        cerr = err if err < cerr else cerr
 
         hit = err < PIXEL_RADIUS
         if hit or t > MAX_DIS:
