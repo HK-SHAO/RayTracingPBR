@@ -2,7 +2,7 @@ import taichi as ti
 from taichi.math import vec3, mix, sqrt, normalize, dot, sign
 
 
-from .config import ENV_IOR
+from .config import ENV_IOR, MIN_DIS
 from .dataclass import Ray, SDFObject
 from .util import random_in_unit_sphere, sample_float
 from .sdf import calc_normal
@@ -20,26 +20,20 @@ def hemispheric_sampling(normal: vec3) -> vec3:
 
 
 @ti.func
-def roughness_sampling(hemispheric_sample: vec3, normal: vec3, roughness: float) -> vec3:
-    alpha = roughness * roughness
-    return normalize(mix(normal, hemispheric_sample, alpha))
-
-
-@ti.func
-def ray_surface_interaction(ray: Ray, object: SDFObject, position: vec3) -> Ray:
+def ray_surface_interaction(ray: Ray, object: SDFObject) -> Ray:
     albedo = object.material.albedo
     roughness = object.material.roughness
     metallic = object.material.metallic
     transmission = object.material.transmission
     ior = object.material.ior
 
-    normal = calc_normal(object, position)
+    normal = calc_normal(object, ray.origin)
     outer = dot(ray.direction, normal) < 0
     normal *= 1 if outer else -1
 
+    alpha = roughness * roughness
     hemispheric_sample = hemispheric_sampling(normal)
-    roughness_sample = roughness_sampling(
-        hemispheric_sample, normal, roughness)
+    roughness_sample = normalize(mix(normal, hemispheric_sample, alpha))
 
     N = roughness_sample
     I = ray.direction
@@ -60,6 +54,6 @@ def ray_surface_interaction(ray: Ray, object: SDFObject, position: vec3) -> Ray:
         ray.direction = hemispheric_sample
 
     ray.color *= albedo
-    ray.origin = position
+    ray.origin += normal * sign(dot(ray.direction, normal)) * MIN_DIS
 
     return ray

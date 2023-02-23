@@ -20,7 +20,7 @@ OBJECTS_LIST = sorted([
               material=Material(vec3(0.2, 0.2, 1)*0.9, vec3(1), 0.2, 1, 0, 1.100)),
     SDFObject(type=SHAPE_SPHERE,
               transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
-              material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.5)),
+              material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.500)),
     SDFObject(type=SHAPE_CYLINDER,
               transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
               material=Material(vec3(1.0, 0.2, 0.2)*0.9, vec3(1), 0, 0, 0, 1.460)),
@@ -77,31 +77,31 @@ def nearest_object(p: vec3) -> tuple[int, float]:
 
 
 @ti.func
-def raycast(ray: Ray) -> tuple[Ray, SDFObject, vec3, bool]:
-    t, w, s, d = MIN_DIS, 1.6, 0.0, 0.0
-    index, position, hit = 0, vec3(0), False
+def raycast(ray: Ray) -> tuple[Ray, SDFObject, bool]:
+    t, w, s, d = 0.0, 1.6, 0.0, 0.0
+    index, hit = 0, False
 
     for _ in range(MAX_RAYMARCH):
-        position = at(ray, t)
-        index, distance = nearest_object(position)
+        index, distance = nearest_object(ray.origin)
 
         ld, d = d, distance
         if w > 1.0 and ld + d < s:
             s -= w * s
             t += s
             w = 1.0
+            ray.origin += ray.direction * s
             continue
         s = w * d
         t += s
+        ray.origin += ray.direction * s
 
         err = d / t
-
         hit = err < PIXEL_RADIUS
         if hit or t > MAX_DIS:
             break
 
     ray.depth += 1
-    return ray, objects[index], position, hit
+    return ray, objects[index], hit
 
 
 @ti.func

@@ -19,7 +19,7 @@ NOISE_THRESHOLD = 1e-4  # for self-adaptive sampling
 SCREEN_PIXEL_SIZE = 1.0 / vec2(image_resolution)
 PIXEL_RADIUS = 1.0 * SCREEN_PIXEL_SIZE.min()
 
-MIN_DIS = 10.0 * PIXEL_RADIUS
+MIN_DIS = 2.5 * PIXEL_RADIUS
 MAX_DIS = 1e3
 
 MAX_RAYMARCH = 512

@@ -15,10 +15,10 @@ from .scene import raycast
 
 @ti.func
 def raytrace(ray: Ray) -> Ray:
-    ray, object, position, hit = raycast(ray)
+    ray, object, hit = raycast(ray)
 
     if hit:
-        ray = ray_surface_interaction(ray, object, position)
+        ray = ray_surface_interaction(ray, object)
 
         intensity = brightness(ray.color)
         ray.color *= object.material.emission
