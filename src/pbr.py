@@ -5,7 +5,7 @@ from taichi.math import vec3, mix, sqrt, normalize, dot
 from .config import ENV_IOR, MIN_DIS
 from .dataclass import Ray, SDFObject
 from .util import random_in_unit_sphere, sample_float
-from .sdf import calc_normal
+from .scene import calc_normal
 
 
 @ti.func

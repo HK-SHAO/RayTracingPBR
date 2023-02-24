@@ -1,14 +1,14 @@
 import taichi as ti
-from taichi.math import vec3, radians
+from taichi.math import vec3, radians, normalize
 
 
 from .dataclass import SDFObject, Transform, Material, Ray
 from .config import MAX_RAYMARCH, MAX_DIS, PIXEL_RADIUS
-from .sdf import SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_BOX, sd_sphere, sd_box, sd_cylinder, transform
-from .util import rotate, at
+from .sdf import SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_BOX, SHAPE_FUNC
+from .util import rotate
 
 
-OBJECTS_LIST = sorted([
+OBJECTS = sorted([
     SDFObject(type=SHAPE_SPHERE,
               transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
               material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1.0, 1.0, 0, 1.100)),
@@ -32,16 +32,13 @@ OBJECTS_LIST = sorted([
               material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
 ], key=lambda o: o.type)
 
-SHAPE_SPLIT = [0, 0, 0, 0]
-for o in OBJECTS_LIST:
-    SHAPE_SPLIT[o.type] += 1
-for i in range(1, len(SHAPE_SPLIT)):
-    SHAPE_SPLIT[i] += SHAPE_SPLIT[i - 1]
+SHAPES = list(set([o.type for o in OBJECTS]))
+
 
 objects = SDFObject.field()
-ti.root.dense(ti.i, len(OBJECTS_LIST)).place(objects)
+ti.root.dense(ti.i, len(OBJECTS)).place(objects)
 for i in range(objects.shape[0]):
-    objects[i] = OBJECTS_LIST[i]
+    objects[i] = OBJECTS[i]
 
 
 @ti.func
@@ -52,56 +49,72 @@ def get_object_pos_scale(i: int, p: vec3) -> tuple[vec3, vec3]:
 
 
 @ti.func
-def nearest_object(p: vec3) -> tuple[int, float]:
+def nearest(p: vec3) -> tuple[int, float]:
     index = 0
     min_dis = MAX_DIS
-    for i in ti.static(range(SHAPE_SPLIT[0], SHAPE_SPLIT[1])):
+
+    for i in ti.static(range(len(OBJECTS))):
         pos, scale = get_object_pos_scale(i, p)
-        dis = abs(sd_sphere(pos, scale))
+        dis = MAX_DIS
+
+        shape = ti.static(OBJECTS[i].type)
+        dis = abs(SHAPE_FUNC[shape](pos, scale))
+
         update = dis < min_dis
         min_dis = dis if update else min_dis
         index = i if update else index
-    for i in ti.static(range(SHAPE_SPLIT[1], SHAPE_SPLIT[2])):
-        pos, scale = get_object_pos_scale(i, p)
-        dis = abs(sd_box(pos, scale))
-        update = dis < min_dis
-        min_dis = dis if update else min_dis
-        index = i if update else index
-    for i in ti.static(range(SHAPE_SPLIT[2], SHAPE_SPLIT[3])):
-        pos, scale = get_object_pos_scale(i, p)
-        dis = abs(sd_cylinder(pos, scale))
-        update = dis < min_dis
-        min_dis = dis if update else min_dis
-        index = i if update else index
+
     return index, min_dis
 
 
 @ti.func
 def raycast(ray: Ray) -> tuple[Ray, SDFObject, bool]:
-    t, w, s, d = 0.0, 1.6, 0.0, 0.0
+    t, w, s, distance = 0.0, 1.6, 0.0, MAX_DIS
     index, hit = 0, False
 
     for _ in range(MAX_RAYMARCH):
-        index, distance = nearest_object(ray.origin)
+        ld = distance
+        index, distance = nearest(ray.origin)
 
-        ld, d = d, distance
-        if w > 1.0 and ld + d < s:
+        if w > 1.0 and ld + distance < s:
             s -= w * s
-            t += s
             w = 1.0
+            t += s
             ray.origin += ray.direction * s
             continue
-        s = w * d
+
+        s = w * distance
         t += s
         ray.origin += ray.direction * s
 
-        err = d / t
-        hit = err < PIXEL_RADIUS
+        hit = distance < PIXEL_RADIUS * t
         if hit or t > MAX_DIS:
             break
 
     ray.depth += 1
     return ray, objects[index], hit
+
+
+@ti.func
+def transform(t: Transform, p: vec3) -> vec3:
+    p -= t.position  # Cannot squeeze the Euclidean space of distance field
+    p = t.matrix @ p  # Otherwise the correct ray marching is not possible
+    return p
+
+
+@ti.func
+def calc_normal(obj: SDFObject, p: vec3) -> vec3:
+    scale = obj.transform.scale
+    pos = transform(obj.transform, p)
+
+    n, h = vec3(0), 0.5773 * 0.005
+    for shape in ti.static(SHAPES):
+        if obj.type == shape:
+            for i in ti.static(range(4)):
+                e = (2.0*vec3((((i+3) >> 1) & 1), ((i >> 1) & 1), (i & 1))-1.0)
+                n += e*SHAPE_FUNC[shape](pos+e*h, scale)
+
+    return normalize(n)
 
 
 @ti.func
