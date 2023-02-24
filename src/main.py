@@ -30,9 +30,7 @@ while window.running:
                      float(window.is_pressed(UP)) - float(window.is_pressed(DOWN)))
 
     refreshing = False
-    if refreshing:
-        pass
-    elif window.is_pressed('z'):
+    if window.is_pressed('z'):
         camera_vfov[None] += direction.y * dt * 10
         direction.y = 0
         refreshing = True

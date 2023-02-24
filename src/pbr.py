@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import vec3, mix, sqrt, normalize, dot, sign
+from taichi.math import vec3, mix, sqrt, normalize, dot
 
 
 from .config import ENV_IOR, MIN_DIS
@@ -28,8 +28,8 @@ def ray_surface_interaction(ray: Ray, object: SDFObject) -> Ray:
     ior = object.material.ior
 
     normal = calc_normal(object, ray.origin)
-    outer = dot(ray.direction, normal) < 0
-    normal *= 1 if outer else -1
+    outer = dot(ray.direction, normal) < 0.0
+    normal *= 1.0 if outer else -1.0
 
     alpha = roughness * roughness
     hemispheric_sample = hemispheric_sampling(normal)
@@ -47,13 +47,16 @@ def ray_surface_interaction(ray: Ray, object: SDFObject) -> Ray:
     # ToDo: Removing if statements?
     if sample_float() < F + metallic or k < 0.0:
         ray.direction = I - 2.0 * NoI * N
-        ray.direction *= sign(dot(ray.direction, normal))
+        outer = dot(ray.direction, normal) < 0.0
+        ray.direction *= (-1.0 if outer else 1.0)
     elif sample_float() < transmission:
         ray.direction = eta * I - (sqrt(k) + eta * NoI) * N
     else:
         ray.direction = hemispheric_sample
 
     ray.color *= albedo
-    ray.origin += normal * sign(dot(ray.direction, normal)) * MIN_DIS
+
+    outer = dot(ray.direction, normal) < 0.0
+    ray.origin += normal * MIN_DIS * (-1.0 if outer else 1.0)
 
     return ray

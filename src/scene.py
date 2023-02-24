@@ -3,7 +3,7 @@ from taichi.math import vec3, radians
 
 
 from .dataclass import SDFObject, Transform, Material, Ray
-from .config import MAX_RAYMARCH, MIN_DIS, MAX_DIS, PIXEL_RADIUS
+from .config import MAX_RAYMARCH, MAX_DIS, PIXEL_RADIUS
 from .sdf import SHAPE_SPHERE, SHAPE_CYLINDER, SHAPE_BOX, sd_sphere, sd_box, sd_cylinder, transform
 from .util import rotate, at
 
