@@ -32,7 +32,7 @@ def sd_sphere(p: vec3, r: vec3) -> float:
 @ti.func
 def sd_box(p: vec3, b: vec3) -> float:
     q = abs(p) - b
-    return length(max(q, 0)) + min(max(q.x, max(q.y, q.z)), 0)
+    return length(max(q, 0)) + min(q.max(), 0)
 
 
 @ti.func
@@ -54,10 +54,8 @@ def sd_plane(p: vec3, _: vec3) -> float:
 
 @ti.func
 def sd_menger(p: vec3, _: vec3) -> float:
-
-    di = abs(p) - 1.0
-    mc = max(p.x, max(p.y, p.z))
-    d = min(mc, length(max(di, 0.0)))
+    q = abs(p) - 1.0
+    d = min(q.max(), length(max(q, 0.0)))
 
     s = 1.0
     for _ in ti.static(range(4)):

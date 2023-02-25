@@ -4,7 +4,7 @@ from taichi.math import vec2
 
 ti.init(arch=ti.gpu, default_ip=ti.i32, default_fp=ti.f32, debug=False)
 
-image_resolution = (1920 * 4 // 2, 1080 * 4 // 2)
+image_resolution = (1920 * 4 // 4, 1080 * 4 // 4)
 
 SAMPLES_PER_FRAME = 1
 SAMPLES_PER_PIXEL = 1  # number of samples in one draw call
