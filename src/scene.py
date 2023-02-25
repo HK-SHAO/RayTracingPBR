@@ -10,8 +10,8 @@ from .util import rotate
 
 OBJECTS = sorted([
     SDFObject(type=SHAPE.MENGER,
-              transform=Transform(vec3(0, -0.501, 0), vec3(0), vec3(100)),
-              material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1.0, 1.0, 0, 1.100))
+              transform=Transform(vec3(0, 0, 0), vec3(0), vec3(1)),
+              material=Material(vec3(1, 1, 1)*0.6, vec3(1), 0.0, 1.0, 0, 1.100))
 ], key=lambda o: o.type)
 
 SHAPES = list(set([o.type for o in OBJECTS]))
