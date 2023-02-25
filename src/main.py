@@ -46,7 +46,7 @@ while window.running:
         refreshing = True
         print('focus', camera_focus[None])
     elif window.is_pressed('v'):
-        camera_exposure[None] += direction.y * dt * 10
+        camera_exposure[None] += direction.y * dt
         direction.y = 0
         print('exposure', camera_exposure[None])
 

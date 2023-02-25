@@ -5,6 +5,7 @@ from taichi.math import vec2, vec3
 
 from .camera import camera_gamma
 from .dataclass import Ray
+from .postprocessor import adjust
 from .util import sample_spherical_map
 
 
@@ -18,9 +19,8 @@ class Image:
     @ti.kernel
     def process(self, exposure: float, gamma: float):
         for i, j in self.img:
-            color = self.img[i, j] * exposure
-            color = pow(color, vec3(gamma))
-            self.img[i, j] = color
+            color = self.img[i, j]
+            self.img[i, j] = adjust(color, exposure, gamma)
 
     @ti.func
     def texture(self, uv: vec2) -> vec3:

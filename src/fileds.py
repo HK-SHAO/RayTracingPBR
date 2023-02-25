@@ -16,6 +16,7 @@ u_frame = ti.field(dtype=int, shape=())
 
 diff_buffer = None
 diff_pixels = None
+
 if ADAPTIVE_SAMPLING:
     diff_buffer = ti.Vector.field(2, float)
     diff_pixels = ti.field(float)

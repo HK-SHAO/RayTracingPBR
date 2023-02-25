@@ -1,38 +1,24 @@
 import taichi as ti
-from taichi.math import vec2, vec3, mat3, clamp
+from taichi.math import vec2, vec3, vec4, clamp
 
 
 from .config import ADAPTIVE_SAMPLING
 from .camera import camera_exposure, camera_gamma
 from .fileds import image_pixels, image_buffer, diff_pixels, diff_buffer
 from .util import brightness
-
-ACESInputMat = mat3(
-    0.59719, 0.35458, 0.04823,
-    0.07600, 0.90834, 0.01566,
-    0.02840, 0.13383, 0.83777
-)
-
-ACESOutputMat = mat3(
-    +1.60475, -0.53108, -0.07367,
-    -0.10208, +1.10813, -0.00605,
-    -0.00327, -0.07276, +1.07602
-)
+from .aces import ACESFitted
 
 
 @ti.func
-def RRTAndODTFit(v: vec3) -> vec3:
-    a = v * (v + 0.0245786) - 0.000090537
-    b = v * (0.983729 * v + 0.4329510) + 0.238081
-    return a / b
+def average(rgba: vec4) -> vec3:
+    return rgba.rgb / rgba.a
 
 
 @ti.func
-def ACESFitted(color: vec3) -> vec3:
-    color = ACESInputMat  @ color
-    color = RRTAndODTFit(color)
-    color = ACESOutputMat @ color
-    return color
+def adjust(rgb: vec3, exposure: float, gamma: float) -> vec3:
+    rgb *= exposure
+    rgb = pow(rgb, gamma)
+    return rgb
 
 
 @ti.kernel
@@ -42,10 +28,11 @@ def post_process():
         buffer = image_buffer[i, j]
 
         # ToDo: Post Denoise
+        exposure = camera_exposure[None]
+        gamma = ti.static(1.0 / camera_gamma)
 
-        color = buffer.rgb / buffer.a
-        color *= camera_exposure[None]
-        color = pow(color, vec3(1.0 / camera_gamma))
+        color = average(buffer)
+        color = adjust(color, exposure, gamma)
         color = ACESFitted(color)
 
         image_pixels[i, j] = clamp(color, 0, 1)
