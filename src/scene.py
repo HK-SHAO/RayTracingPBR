@@ -9,27 +9,9 @@ from .util import rotate
 
 
 OBJECTS = sorted([
-    SDFObject(type=SHAPE.SPHERE,
-              transform=Transform(vec3(0, -100.501, 0), vec3(0), vec3(100)),
-              material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1.0, 1.0, 0, 1.100)),
-    SDFObject(type=SHAPE.SPHERE,
-              transform=Transform(vec3(0, 0, 0), vec3(0), vec3(0.5)),
-              material=Material(vec3(1, 1, 1)*0.9, vec3(1, 10, 1), 0, 1, 0, 1.000)),
-    SDFObject(type=SHAPE.SPHERE,
-              transform=Transform(vec3(1, -0.2, 0), vec3(0), vec3(0.3)),
-              material=Material(vec3(0.2, 0.2, 1)*0.9, vec3(1), 0.2, 1, 0, 1.100)),
-    SDFObject(type=SHAPE.SPHERE,
-              transform=Transform(vec3(0.0, -0.2, 2), vec3(0), vec3(0.3)),
-              material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 0, 1, 1.500)),
-    SDFObject(type=SHAPE.CYLINDER,
-              transform=Transform(vec3(-1.0, -0.2, 0), vec3(0), vec3(0.3)),
-              material=Material(vec3(1.0, 0.2, 0.2)*0.9, vec3(1), 0, 0, 0, 1.460)),
-    SDFObject(type=SHAPE.BOX,
-              transform=Transform(vec3(0, 0, 5), vec3(0), vec3(2, 1, 0.2)),
-              material=Material(vec3(1, 1, 0.2)*0.9, vec3(1), 0, 1, 0, 0.470)),
-    SDFObject(type=SHAPE.BOX,
-              transform=Transform(vec3(0, 0, -2), vec3(0), vec3(2, 1, 0.2)),
-              material=Material(vec3(1, 1, 1)*0.9, vec3(1), 0, 1, 0, 2.950))
+    SDFObject(type=SHAPE.MENGER,
+              transform=Transform(vec3(0, -0.501, 0), vec3(0), vec3(100)),
+              material=Material(vec3(1, 1, 1)*0.6, vec3(1), 1.0, 1.0, 0, 1.100))
 ], key=lambda o: o.type)
 
 SHAPES = list(set([o.type for o in OBJECTS]))

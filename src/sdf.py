@@ -1,5 +1,5 @@
 import taichi as ti
-from taichi.math import length, vec2, vec3, min, max, dot
+from taichi.math import length, vec2, vec3, min, max, dot, mod
 from enum import IntEnum
 
 from .dataclass import Transform, SDFObject
@@ -16,6 +16,7 @@ class SHAPE(IntEnum):
     CYLINDER = 3
     CONE = 4
     PLANE = 5
+    MENGER = 6
 
 
 @ti.func
@@ -51,6 +52,25 @@ def sd_plane(p: vec3, _: vec3) -> float:
     return p.y
 
 
+@ti.func
+def sd_menger(p: vec3, _: vec3) -> float:
+    d = sd_box(p, vec3(1.0))
+
+    s = 1.0
+    for _ in ti.static(range(4)):
+        a = mod(p*s, 2.0)-1.0
+        s *= 3.0
+        r = abs(1.0 - 3.0*abs(a))
+        da = max(r.x, r.y)
+        db = max(r.y, r.z)
+        dc = max(r.z, r.x)
+        c = (min(da, min(db, dc))-1.0)/s
+
+        d = max(d, c)
+
+    return d
+
+
 SHAPE_FUNC = {
     SHAPE.NONE: sd_none,
     SHAPE.SPHERE: sd_sphere,
@@ -58,6 +78,7 @@ SHAPE_FUNC = {
     SHAPE.CYLINDER: sd_cylinder,
     SHAPE.CONE: sd_cone,
     SHAPE.PLANE: sd_plane,
+    SHAPE.MENGER: sd_menger,
 }
 
 
