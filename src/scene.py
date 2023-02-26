@@ -1,10 +1,10 @@
 import taichi as ti
-from taichi.math import vec3, radians, normalize
+from taichi.math import vec3, radians
 
 
 from .dataclass import SDFObject, Transform, Material, Ray
 from .config import MAX_RAYMARCH, MAX_DIS, PIXEL_RADIUS
-from .sdf import SHAPE, SHAPE_FUNC, calc_pos_scale
+from .sdf import SHAPE, SHAPE_FUNC, calc_pos_scale, normal
 from .util import rotate
 
 
@@ -86,16 +86,14 @@ def raycast(ray: Ray) -> tuple[Ray, SDFObject, bool]:
 
 @ti.func
 def calc_normal(obj: SDFObject, p: vec3) -> vec3:
-    n, h = vec3(0), 0.5773 * 0.005
+    n = vec3(0)
     for shape in ti.static(SHAPES):
         if obj.type == shape:
-            pos, scale = calc_pos_scale(obj, p)
-            # from https://iquilezles.org/articles/normalsSDF/
-            for i in ti.static(range(4)):
-                e = 2.0*vec3((((i+3) >> 1) & 1), ((i >> 1) & 1), (i & 1))-1.0
-                n += e*SHAPE_FUNC[shape](pos+e*h, scale)
+            n = normal(shape, obj, p)
+        # else:
+        #   ...
 
-    return normalize(n)
+    return n
 
 
 @ti.func
