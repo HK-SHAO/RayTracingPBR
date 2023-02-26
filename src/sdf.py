@@ -55,7 +55,7 @@ def sd_plane(p: vec3, _: vec3) -> float:
 @ti.func
 def sd_menger(p: vec3, _: vec3) -> float:
     q = abs(p) - 1.0
-    d = min(q.max(), length(max(q, 0.0)))
+    d = min(p.max(), length(max(q, 0.0)))
 
     s = 1.0
     for _ in ti.static(range(4)):
