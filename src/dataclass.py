@@ -31,7 +31,6 @@ class Transform:
 @ti.dataclass
 class SDFObject:
     type: int
-    distance: float
     transform: Transform
     material: Material
 
