@@ -2,7 +2,7 @@ import { expect, test } from "vite-plus/test";
 import { cornell } from "../scene/plugins/cornell";
 import { glass } from "../scene/plugins/glass";
 import { mirror } from "../scene/plugins/mirror";
-import { defaultsFor, formatParam, needsReset } from "./params";
+import { defaultsFor, formatParam, mergeParams, needsReset } from "./params";
 
 test("scene defaults are in range and pinhole-sharp", () => {
   const d = defaultsFor(cornell);
@@ -41,4 +41,14 @@ test("format matches knob precision", () => {
   expect(formatParam("bounce", 8)).toBe("8");
   expect(formatParam("aperture", 0.04)).toBe("0.040");
   expect(formatParam("vfov", 35)).toBe("35.0");
+});
+
+test("merge clamps and ignores junk", () => {
+  const a = defaultsFor(cornell);
+  expect(mergeParams(a, { vfov: 9, bounce: 3.6, hideIbl: 0.9, exposure: Number.NaN })).toEqual({
+    ...a,
+    vfov: 18,
+    bounce: 4,
+    hideIbl: 1,
+  });
 });

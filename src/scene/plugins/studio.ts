@@ -13,7 +13,7 @@ export const studio: ScenePlugin = {
     return {
       materials: [
         mat(vec3(0.6, 0.6, 0.6)),
-        mat(vec3(0.9, 0.9, 0.9), vec3(1, 10, 1), 0, 1),
+        mat(vec3(0.9, 0.9, 0.9), vec3(1, 100, 1), 0, 1),
         mat(vec3(0.18, 0.18, 0.9), vec3(0, 0, 0), 0.2, 1, 0, 1.1),
         mat(vec3(0.9, 0.9, 0.9), vec3(0, 0, 0), 0, 0, 1, 1.5),
         mat(vec3(0.9, 0.18, 0.18), vec3(0, 0, 0), 0, 0, 0, 1.46),
@@ -22,7 +22,7 @@ export const studio: ScenePlugin = {
       ],
       prims: [
         { kind: KIND_PLANE, material: 0, y: -0.501 },
-        { kind: KIND_SPHERE, material: 1, center: vec3(0, 1.5, 0), radius: 0.5 },
+        { kind: KIND_SPHERE, material: 1, center: vec3(0, 2, -1), radius: 0.2 },
         { kind: KIND_SPHERE, material: 2, center: vec3(1, -0.2, 0), radius: 0.3 },
         { kind: KIND_SPHERE, material: 3, center: vec3(0, -0.2, 2), radius: 0.3 },
         {

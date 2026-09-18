@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createRenderer } from "./render/renderer";
-import type { CameraMode } from "./render/camera";
-import { defaultsFor, DEV_KNOBS, formatParam, type DevParams } from "./render/params";
+import { defaultsFor, DEV_KNOBS, formatParam } from "./render/params";
 import { FPS_WINDOW, TARGET_FPS } from "./render/pace";
-import { pluginById, plugins } from "./scene";
+import { plugins } from "./scene";
+import { readSession, writeSession, type Session } from "./session";
 
 const FPS_MAX = TARGET_FPS * 2;
 
@@ -33,29 +33,32 @@ function FpsPlot({ values }: { values: readonly number[] }) {
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<ReturnType<typeof createRenderer> | null>(null);
+  const [session, setSession] = useState(readSession);
   const [spp, setSpp] = useState(0);
   const [fps, setFps] = useState(0);
   const [fpsHist, setFpsHist] = useState<number[]>([]);
-  const [scene, setScene] = useState(plugins[0]!.id);
-  const [mode, setMode] = useState<CameraMode>("orbit");
-  const [params, setParams] = useState<DevParams>(() => defaultsFor(plugins[0]!));
   const [error, setError] = useState<string>();
-  const [open, setOpen] = useState(true);
+  const { scene, mode, params, open } = session;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const renderer = createRenderer(canvas, (stats) => {
-      setSpp(stats.spp);
-      const fpsNow = stats.fps;
-      if (fpsNow === undefined) return;
-      setFps(fpsNow);
-      setFpsHist((prev) => {
-        const next = prev.length >= FPS_WINDOW ? prev.slice(1) : prev.slice();
-        next.push(fpsNow);
-        return next;
-      });
-    });
+    const boot = readSession();
+    const renderer = createRenderer(
+      canvas,
+      (stats) => {
+        setSpp(stats.spp);
+        const fpsNow = stats.fps;
+        if (fpsNow === undefined) return;
+        setFps(fpsNow);
+        setFpsHist((prev) => {
+          const next = prev.length >= FPS_WINDOW ? prev.slice(1) : prev.slice();
+          next.push(fpsNow);
+          return next;
+        });
+      },
+      { scene: boot.scene, mode: boot.mode, params: boot.params },
+    );
     rendererRef.current = renderer;
     renderer.ready.catch((err: unknown) =>
       setError(err instanceof Error ? err.message : String(err)),
@@ -63,10 +66,31 @@ export function App() {
     return () => renderer.dispose();
   }, []);
 
-  const applyParams = (next: DevParams) => {
-    setParams(next);
-    rendererRef.current?.setParams(next);
+  useEffect(() => writeSession(session), [session]);
+
+  useEffect(() => {
+    const onPop = () => {
+      const next = readSession();
+      setSession(next);
+      const renderer = rendererRef.current;
+      renderer?.setScene(next.scene);
+      renderer?.setMode(next.mode);
+      renderer?.setParams(next.params);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const commit = (next: Session) => {
+    setSession(next);
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    if (next.scene !== session.scene) renderer.setScene(next.scene);
+    if (next.mode !== session.mode) renderer.setMode(next.mode);
+    if (next.params !== session.params) renderer.setParams(next.params);
   };
+
+  const applyParams = (next: typeof params) => commit({ ...session, params: next });
 
   return (
     <>
@@ -74,7 +98,11 @@ export function App() {
       <aside className={open ? "dev open" : "dev"}>
         <header className="dev-bar">
           <span className="dev-title">raygame</span>
-          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          <button
+            type="button"
+            onClick={() => setSession((cur) => ({ ...cur, open: !cur.open }))}
+            aria-expanded={open}
+          >
             {open ? "hide" : "dev"}
           </button>
         </header>
@@ -88,12 +116,9 @@ export function App() {
                     key={item.id}
                     type="button"
                     aria-pressed={scene === item.id}
-                    onClick={() => {
-                      const next = defaultsFor(pluginById(item.id));
-                      setScene(item.id);
-                      applyParams(next);
-                      rendererRef.current?.setScene(item.id);
-                    }}
+                    onClick={() =>
+                      commit({ ...session, scene: item.id, params: defaultsFor(item) })
+                    }
                   >
                     {item.name}
                   </button>
@@ -106,20 +131,14 @@ export function App() {
                 <button
                   type="button"
                   aria-pressed={mode === "orbit"}
-                  onClick={() => {
-                    setMode("orbit");
-                    rendererRef.current?.setMode("orbit");
-                  }}
+                  onClick={() => commit({ ...session, mode: "orbit" })}
                 >
                   Orbit
                 </button>
                 <button
                   type="button"
                   aria-pressed={mode === "fps"}
-                  onClick={() => {
-                    setMode("fps");
-                    rendererRef.current?.setMode("fps");
-                  }}
+                  onClick={() => commit({ ...session, mode: "fps" })}
                 >
                   FPS
                 </button>

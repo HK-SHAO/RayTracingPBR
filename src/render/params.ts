@@ -27,6 +27,16 @@ export const DEV_KNOBS: readonly DevKnob[] = [
   { key: "env", min: 0, max: 3, step: 0.05, reset: true },
 ];
 
+export const DEV_PARAM_KEYS = [
+  "vfov",
+  "focus",
+  "aperture",
+  "exposure",
+  "bounce",
+  "env",
+  "hideIbl",
+] as const satisfies readonly (keyof DevParams)[];
+
 const RESET = new Set(DEV_KNOBS.filter((k) => k.reset).map((k) => k.key));
 
 export function defaultsFor(plugin: ScenePlugin): DevParams {
@@ -48,8 +58,26 @@ export function needsReset(prev: DevParams, next: DevParams): boolean {
 }
 
 export function formatParam(key: keyof DevParams, value: number): string {
-  if (key === "bounce") return String(value);
+  if (key === "bounce" || key === "hideIbl") return String(value);
   if (key === "aperture") return value.toFixed(3);
   if (key === "vfov") return value.toFixed(1);
   return value.toFixed(2);
+}
+
+export function clampParam(key: keyof DevParams, value: number): number {
+  if (key === "hideIbl") return value >= 0.5 ? 1 : 0;
+  const knob = DEV_KNOBS.find((item) => item.key === key);
+  if (!knob) return value;
+  const n = key === "bounce" ? Math.round(value) : value;
+  return Math.min(knob.max, Math.max(knob.min, n));
+}
+
+export function mergeParams(base: DevParams, patch: Partial<DevParams>): DevParams {
+  const next = { ...base };
+  for (const key of DEV_PARAM_KEYS) {
+    const value = patch[key];
+    if (value === undefined || !Number.isFinite(value)) continue;
+    next[key] = clampParam(key, value);
+  }
+  return next;
 }

@@ -47,6 +47,12 @@ export type Renderer = {
   setParams: (next: DevParams) => void;
 };
 
+export type RendererBoot = {
+  scene?: string;
+  mode?: CameraMode;
+  params?: DevParams;
+};
+
 export type RenderStats = {
   spp: number;
   fps?: number;
@@ -56,6 +62,7 @@ export type RenderStats = {
 export function createRenderer(
   canvas: HTMLCanvasElement,
   onStats: (stats: RenderStats) => void,
+  boot: RendererBoot = {},
 ): Renderer {
   let disposed = false;
   let gpu: Gpu | undefined;
@@ -66,10 +73,13 @@ export function createRenderer(
   let presenter: ReturnType<typeof effect> | undefined;
   let env: EnvGpu | undefined;
   let world: SceneGpu | undefined;
-  let plugin: ScenePlugin = plugins[0]!;
-  let mode: CameraMode = "orbit";
-  let cam: CameraState = plugin.camera;
-  let params: DevParams = defaultsFor(plugin);
+  let plugin: ScenePlugin = plugins.find((item) => item.id === boot.scene) ?? plugins[0]!;
+  let mode: CameraMode = boot.mode === "fps" ? "fps" : "orbit";
+  let params: DevParams = boot.params ?? defaultsFor(plugin);
+  let cam: CameraState =
+    mode === "fps"
+      ? withEye({ ...plugin.camera, vfov: params.vfov })
+      : { ...plugin.camera, vfov: params.vfov };
   let size: readonly [number, number] = [0, 0];
   let spp = 0;
   let waitTimer = 0;
