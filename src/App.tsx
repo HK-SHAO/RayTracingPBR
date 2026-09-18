@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { createRenderer } from "./render/renderer";
 import { defaultsFor, DEV_KNOBS, formatParam } from "./render/params";
 import { FPS_WINDOW, TARGET_FPS } from "./render/pace";
@@ -6,6 +6,30 @@ import { plugins } from "./scene";
 import { readSession, writeSession, type Session } from "./session";
 
 const FPS_MAX = TARGET_FPS * 2;
+
+function FpsPad({ onPad }: { onPad: (key: "up" | "down", down: boolean) => void }) {
+  const hold = (key: "up" | "down") => ({
+    onPointerDown: (e: PointerEvent) => {
+      e.preventDefault();
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      onPad(key, true);
+    },
+    onPointerUp: () => onPad(key, false),
+    onPointerCancel: () => onPad(key, false),
+  });
+  return (
+    <div className="fps-touch">
+      <div className="fps-lift">
+        <button type="button" className="fps-key" aria-label="down" {...hold("down")}>
+          Down
+        </button>
+        <button type="button" className="fps-key" aria-label="up" {...hold("up")}>
+          Up
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function FpsPlot({ values }: { values: readonly number[] }) {
   const w = 152;
@@ -95,15 +119,18 @@ export function App() {
   return (
     <>
       <canvas ref={canvasRef} />
+      {mode === "fps" ? (
+        <FpsPad onPad={(key, down) => rendererRef.current?.setPad(key, down)} />
+      ) : null}
       <aside className={open ? "dev open" : "dev"}>
         <header className="dev-bar">
-          <span className="dev-title">raygame</span>
+          <span className="dev-title">RayTracingPBR</span>
           <button
             type="button"
             onClick={() => setSession((cur) => ({ ...cur, open: !cur.open }))}
             aria-expanded={open}
           >
-            {open ? "hide" : "dev"}
+            {open ? "Hide" : "Open"}
           </button>
         </header>
         {open ? (
@@ -144,7 +171,7 @@ export function App() {
                 </button>
               </div>
               <p className="dev-hint">
-                {mode === "fps" ? "WASDQE · look drag · Shift" : "orbit drag · pinch / wheel"}
+                {mode === "fps" ? "WASDQE · look · stick" : "orbit drag · pinch / wheel"}
               </p>
             </section>
             <section className="dev-block">
@@ -168,7 +195,6 @@ export function App() {
               <p className="dev-hint">{params.hideIbl ? "no camera env" : "camera sees env"}</p>
             </section>
             <section className="dev-block">
-              <h2>Params</h2>
               {DEV_KNOBS.map((knob) => (
                 <label key={knob.key} className="dev-knob">
                   <span>{knob.key}</span>

@@ -33,6 +33,7 @@ import { buildEnv, decodeRgbe, EMPTY_ENV, fitEnvRgb } from "./hdr";
 import { defaultsFor, needsReset, type DevParams } from "./params";
 import { averageFps, MAX_BURST, mixMs, nextBurst, pushPresent, shouldDrain, waitMs } from "./pace";
 import { CLEAR_WGSL, PRESENT_WGSL, TRACE_WGSL } from "./shaders";
+import { clampAxis, clampStickOrigin, stickAxes, stickRole, STICK_RADIUS } from "./stick";
 
 const WG = 8;
 const MAX_SPP = 8192000;
@@ -45,6 +46,7 @@ export type Renderer = {
   setScene: (id: string) => void;
   setMode: (mode: CameraMode) => void;
   setParams: (next: DevParams) => void;
+  setPad: (key: "up" | "down", down: boolean) => void;
 };
 
 export type RendererBoot = {
@@ -87,7 +89,13 @@ export function createRenderer(
   let lastX = 0;
   let lastY = 0;
   let pinchSpan = 0;
-  const pointers = new Map<number, { x: number; y: number }>();
+  const pointers = new Map<number, { x: number; y: number; role: "look" | "move" | "orbit" }>();
+  let stickX = 0;
+  let stickY = 0;
+  let padUp = false;
+  let padDown = false;
+  let stickEl: HTMLDivElement | null = null;
+  let knobEl: HTMLSpanElement | null = null;
   let lastTick = performance.now();
   let burst = 1;
   let running = false;
@@ -148,12 +156,9 @@ export function createRenderer(
   };
 
   const moveFromHeld = (): MoveInput => ({
-    forward: held.has("KeyW"),
-    back: held.has("KeyS"),
-    left: held.has("KeyA"),
-    right: held.has("KeyD"),
-    up: held.has("KeyE"),
-    down: held.has("KeyQ"),
+    forward: clampAxis((held.has("KeyW") ? 1 : 0) - (held.has("KeyS") ? 1 : 0) + stickY),
+    right: clampAxis((held.has("KeyD") ? 1 : 0) - (held.has("KeyA") ? 1 : 0) + stickX),
+    up: clampAxis((held.has("KeyE") || padUp ? 1 : 0) - (held.has("KeyQ") || padDown ? 1 : 0)),
     fast: held.has("ShiftLeft") || held.has("ShiftRight"),
   });
 
@@ -294,9 +299,54 @@ export function createRenderer(
     const b = pts[1]!;
     return Math.hypot(a.x - b.x, a.y - b.y);
   };
+  const showStick = (x: number, y: number) => {
+    if (!stickEl) {
+      stickEl = document.createElement("div");
+      stickEl.className = "fps-stick";
+      stickEl.setAttribute("aria-hidden", "true");
+      knobEl = document.createElement("span");
+      stickEl.append(knobEl);
+      canvas.parentElement?.append(stickEl);
+    }
+    stickEl.style.transform = `translate3d(${x - STICK_RADIUS}px, ${y - STICK_RADIUS}px, 0)`;
+    stickEl.dataset.active = "true";
+    if (knobEl) knobEl.style.transform = "";
+  };
+  const hideStick = () => {
+    stickX = 0;
+    stickY = 0;
+    if (knobEl) knobEl.style.transform = "";
+    if (stickEl) stickEl.dataset.active = "false";
+  };
   const onDown = (e: PointerEvent) => {
     if (e.pointerType !== "mouse") e.preventDefault();
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (mode === "fps") {
+      const touch = e.pointerType !== "mouse";
+      const moving = [...pointers.values()].some((p) => p.role === "move");
+      const role =
+        touch &&
+        !moving &&
+        stickRole(e.clientX, e.clientY, canvas.clientWidth, canvas.clientHeight) === "move"
+          ? "move"
+          : "look";
+      if (role === "move") {
+        const origin = clampStickOrigin(
+          e.clientX,
+          e.clientY,
+          canvas.clientWidth,
+          canvas.clientHeight,
+        );
+        pointers.set(e.pointerId, { x: origin.x, y: origin.y, role });
+        stickX = 0;
+        stickY = 0;
+        showStick(origin.x, origin.y);
+      } else {
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, role: "look" });
+      }
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, role: "orbit" });
     if (pointers.size >= 2) {
       dragging = false;
       pinchSpan = spanOf();
@@ -305,35 +355,47 @@ export function createRenderer(
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
-    if (e.pointerType === "mouse") canvas.setPointerCapture(e.pointerId);
+    canvas.setPointerCapture(e.pointerId);
   };
   const onMove = (e: PointerEvent) => {
-    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId);
+    if (!prev) return;
     if (e.pointerType !== "mouse") e.preventDefault();
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (prev.role === "move") {
+      const axes = stickAxes(e.clientX - prev.x, e.clientY - prev.y);
+      stickX = axes.right;
+      stickY = axes.forward;
+      if (knobEl) knobEl.style.transform = `translate3d(${axes.knobX}px, ${axes.knobY}px, 0)`;
+      return;
+    }
+    if (prev.role === "look") {
+      cam = look(cam, e.clientX - prev.x, e.clientY - prev.y, fpsPitchLimit());
+      pointers.set(e.pointerId, { ...prev, x: e.clientX, y: e.clientY });
+      reset();
+      return;
+    }
+    pointers.set(e.pointerId, { ...prev, x: e.clientX, y: e.clientY });
     if (pointers.size >= 2) {
-      const next = spanOf();
-      if (mode !== "fps" && pinchSpan > 1 && next > 1) {
-        cam = pinch(cam, next / pinchSpan, plugin.limits.radiusMin, plugin.limits.radiusMax);
+      const span = spanOf();
+      if (pinchSpan > 1 && span > 1) {
+        cam = pinch(cam, span / pinchSpan, plugin.limits.radiusMin, plugin.limits.radiusMax);
         reset();
       }
-      pinchSpan = next;
+      pinchSpan = span;
       return;
     }
     if (!dragging) return;
-    cam = look(
-      cam,
-      e.clientX - lastX,
-      e.clientY - lastY,
-      mode === "fps" ? fpsPitchLimit() : plugin.limits.pitch,
-    );
+    cam = look(cam, e.clientX - lastX, e.clientY - lastY, plugin.limits.pitch);
     lastX = e.clientX;
     lastY = e.clientY;
     reset();
   };
   const onUp = (e: PointerEvent) => {
+    const prev = pointers.get(e.pointerId);
     pointers.delete(e.pointerId);
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+    if (prev?.role === "move") hideStick();
+    if (mode === "fps") return;
     if (pointers.size >= 2) {
       pinchSpan = spanOf();
       return;
@@ -419,6 +481,9 @@ export function createRenderer(
     canvas.removeEventListener("touchmove", onTouch);
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
+    stickEl?.remove();
+    stickEl = null;
+    knobEl = null;
     if (world) destroySceneGpu(world);
     gpu?.dispose();
   }
@@ -460,6 +525,9 @@ export function createRenderer(
       if (next === mode) return;
       cam = next === "fps" ? withEye(cam) : withOrbitTarget(cam);
       mode = next;
+      padUp = false;
+      padDown = false;
+      hideStick();
       reset();
     },
     setParams: (next) => {
@@ -467,6 +535,10 @@ export function createRenderer(
       params = next;
       if (cam.vfov !== next.vfov) cam = { ...cam, vfov: next.vfov };
       if (needsReset(prev, next)) reset();
+    },
+    setPad: (key, down) => {
+      if (key === "up") padUp = down;
+      else padDown = down;
     },
   };
 }

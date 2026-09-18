@@ -22,12 +22,9 @@ export type CameraFrame = {
 };
 
 export type MoveInput = {
-  forward: boolean;
-  back: boolean;
-  left: boolean;
-  right: boolean;
-  up: boolean;
-  down: boolean;
+  forward: number;
+  right: number;
+  up: number;
   fast: boolean;
 };
 
@@ -142,14 +139,15 @@ export function fpsPitchLimit(): number {
 }
 
 export function walkFps(cam: CameraState, move: MoveInput, dt: number, speed = 2.4): CameraState {
-  let x = (move.right ? 1 : 0) - (move.left ? 1 : 0);
-  let z = (move.forward ? 1 : 0) - (move.back ? 1 : 0);
-  let y = (move.up ? 1 : 0) - (move.down ? 1 : 0);
-  if (x === 0 && y === 0 && z === 0) return cam;
-  const len = Math.hypot(x, z);
-  if (len > 0) {
-    x /= len;
-    z /= len;
+  let x = Math.min(1, Math.max(-1, move.right));
+  let z = Math.min(1, Math.max(-1, move.forward));
+  const y = Math.min(1, Math.max(-1, move.up));
+  const planar = Math.hypot(x, z);
+  const throttle = Math.min(1, planar);
+  if (throttle <= 0 && y === 0) return cam;
+  if (planar > 0) {
+    x /= planar;
+    z /= planar;
   }
   const yaw = cam.yaw;
   const fwdX = -Math.sin(yaw);
@@ -160,9 +158,9 @@ export function walkFps(cam: CameraState, move: MoveInput, dt: number, speed = 2
   return {
     ...cam,
     eye: [
-      cam.eye[0] + (fwdX * z + rightX * x) * step,
+      cam.eye[0] + (fwdX * z + rightX * x) * step * throttle,
       cam.eye[1] + y * step,
-      cam.eye[2] + (fwdZ * z + rightZ * x) * step,
+      cam.eye[2] + (fwdZ * z + rightZ * x) * step * throttle,
     ],
   };
 }

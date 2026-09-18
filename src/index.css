@@ -181,3 +181,83 @@ canvas:active {
   border-color: var(--hi);
   color: var(--hi);
 }
+
+#root {
+  position: relative;
+}
+
+.fps-stick {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  width: 7.25em;
+  height: 7.25em;
+  border-radius: 50%;
+  border: 1px solid #ffffff2e;
+  background: #11111155;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+
+.fps-stick[data-active="true"] {
+  opacity: 1;
+}
+
+.fps-stick span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.75em;
+  height: 2.75em;
+  margin: -1.375em 0 0 -1.375em;
+  border-radius: 50%;
+  border: 1px solid #ffffff42;
+  background: #ececec55;
+}
+
+.fps-touch {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.fps-lift {
+  pointer-events: auto;
+  position: absolute;
+  right: calc(1rem + env(safe-area-inset-right));
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fps-key {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #2a2a2a;
+  background: rgba(16, 16, 16, 0.72);
+  color: #ececec;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  touch-action: none;
+  user-select: none;
+}
+
+.fps-key:active {
+  border-color: #ececec;
+}
+
+@media (pointer: coarse) {
+  .fps-touch {
+    display: block;
+  }
+}
