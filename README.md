@@ -27,9 +27,7 @@ bun run build
 ## More
 
 - https://github.com/HK-SHAO/RayTracingPBR/tree/taichi-dev
-- https://github.com/HK-SHAO/RayTracingPBR/tree/taichi
 - https://github.com/HK-SHAO/RayTracingPBR/tree/shadertoy
-- https://github.com/HK-SHAO/RayTracingPBR/tree/main-backup
 
 ## Reference
 
