@@ -14,6 +14,8 @@ html {
   --u: min(calc(7.5px * 1920 / 100cqi), calc(7.5px * 1920 / 100cqb), 10px);
   font-size: var(--u);
   line-height: 1.35;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 button,
@@ -31,6 +33,8 @@ body,
   margin: 0;
   height: 100%;
   background: #000;
+  overflow: hidden;
+  touch-action: none;
 }
 
 canvas {
@@ -46,6 +50,7 @@ canvas:active {
 }
 
 .dev {
+  touch-action: manipulation;
   --hi: #ececec;
   --lo: #777;
   --line: #2a2a2a;

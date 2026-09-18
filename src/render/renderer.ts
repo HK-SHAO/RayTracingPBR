@@ -18,6 +18,7 @@ import {
   cameraFrame,
   cameraMoved,
   dolly,
+  pinch,
   fpsPitchLimit,
   look,
   walkFps,
@@ -75,6 +76,8 @@ export function createRenderer(
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
+  let pinchSpan = 0;
+  const pointers = new Map<number, { x: number; y: number }>();
   let lastTick = performance.now();
   let burst = 1;
   let running = false;
@@ -274,13 +277,39 @@ export function createRenderer(
     arm(start);
   };
 
+  const spanOf = () => {
+    const pts = [...pointers.values()];
+    if (pts.length < 2) return 0;
+    const a = pts[0]!;
+    const b = pts[1]!;
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
   const onDown = (e: PointerEvent) => {
+    if (e.pointerType !== "mouse") e.preventDefault();
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size >= 2) {
+      dragging = false;
+      pinchSpan = spanOf();
+      return;
+    }
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
-    canvas.setPointerCapture(e.pointerId);
+    if (e.pointerType === "mouse") canvas.setPointerCapture(e.pointerId);
   };
   const onMove = (e: PointerEvent) => {
+    if (!pointers.has(e.pointerId)) return;
+    if (e.pointerType !== "mouse") e.preventDefault();
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size >= 2) {
+      const next = spanOf();
+      if (mode !== "fps" && pinchSpan > 1 && next > 1) {
+        cam = pinch(cam, next / pinchSpan, plugin.limits.radiusMin, plugin.limits.radiusMax);
+        reset();
+      }
+      pinchSpan = next;
+      return;
+    }
     if (!dragging) return;
     cam = look(
       cam,
@@ -293,14 +322,30 @@ export function createRenderer(
     reset();
   };
   const onUp = (e: PointerEvent) => {
-    dragging = false;
+    pointers.delete(e.pointerId);
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+    if (pointers.size >= 2) {
+      pinchSpan = spanOf();
+      return;
+    }
+    pinchSpan = 0;
+    const left = pointers.values().next().value;
+    if (left) {
+      dragging = true;
+      lastX = left.x;
+      lastY = left.y;
+      return;
+    }
+    dragging = false;
   };
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     if (mode === "fps") return;
     cam = dolly(cam, e.deltaY, plugin.limits.radiusMin, plugin.limits.radiusMax);
     reset();
+  };
+  const onTouch = (e: TouchEvent) => {
+    e.preventDefault();
   };
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -360,6 +405,8 @@ export function createRenderer(
     canvas.removeEventListener("pointerup", onUp);
     canvas.removeEventListener("pointercancel", onUp);
     canvas.removeEventListener("wheel", onWheel);
+    canvas.removeEventListener("touchstart", onTouch);
+    canvas.removeEventListener("touchmove", onTouch);
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     if (world) destroySceneGpu(world);
@@ -380,11 +427,13 @@ export function createRenderer(
     presenter = effect(gpu, PRESENT_WGSL, { label: "present" });
     rebuild([Math.max(1, output.size[0]), Math.max(1, output.size[1])]);
     await presenter.compile({ colors: [output.format] });
-    canvas.addEventListener("pointerdown", onDown);
-    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerdown", onDown, { passive: false });
+    canvas.addEventListener("pointermove", onMove, { passive: false });
     canvas.addEventListener("pointerup", onUp);
     canvas.addEventListener("pointercancel", onUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("touchstart", onTouch, { passive: false });
+    canvas.addEventListener("touchmove", onTouch, { passive: false });
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     await applyPlugin(plugin);

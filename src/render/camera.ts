@@ -121,9 +121,19 @@ export function dolly(
   radiusMin: number,
   radiusMax: number,
 ): CameraState {
+  return pinch(cam, 1 / (1 + delta * 0.001), radiusMin, radiusMax);
+}
+
+export function pinch(
+  cam: CameraState,
+  scale: number,
+  radiusMin: number,
+  radiusMax: number,
+): CameraState {
+  if (!(scale > 0) || !Number.isFinite(scale)) return cam;
   return {
     ...cam,
-    radius: Math.min(radiusMax, Math.max(radiusMin, cam.radius * (1 + delta * 0.001))),
+    radius: Math.min(radiusMax, Math.max(radiusMin, cam.radius / scale)),
   };
 }
 

@@ -2,7 +2,9 @@
 
 WebGPU MIS path tracer.
 
-Cornell · Studio · MIS · Classic · Mirror · Glass
+|![Cornell](./others/cornell.jpg)|![Studio](./others/studio.jpg)|![Glass](./others/glass.jpg)|
+|:-:|:-:|:-:|
+|Cornell|Studio|Glass|
 
 ## Install
 

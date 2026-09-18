@@ -1,5 +1,13 @@
 import { expect, test } from "vite-plus/test";
-import { cameraOrigin, lookDir, orbitCam, walkFps, withEye, withOrbitTarget } from "./camera";
+import {
+  cameraOrigin,
+  lookDir,
+  orbitCam,
+  pinch,
+  walkFps,
+  withEye,
+  withOrbitTarget,
+} from "./camera";
 
 test("orbit origin sits opposite the look direction", () => {
   const cam = orbitCam([0, 0, 0], 4, 0, 0, 40);
@@ -22,6 +30,12 @@ test("fps walk follows yaw on XZ and QE on Y", () => {
   expect(moved.eye[0]).toBeCloseTo(cam.eye[0]);
   expect(moved.eye[1]).toBeCloseTo(cam.eye[1] + 2);
   expect(moved.eye[2]).toBeCloseTo(cam.eye[2] - 2);
+});
+
+test("pinch out dollies in", () => {
+  const cam = orbitCam([0, 0, 0], 4, 0, 0, 40);
+  const next = pinch(cam, 2, 1, 12);
+  expect(next.radius).toBe(2);
 });
 
 test("switching fps back to orbit keeps the eye", () => {

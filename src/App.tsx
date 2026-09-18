@@ -125,7 +125,7 @@ export function App() {
                 </button>
               </div>
               <p className="dev-hint">
-                {mode === "fps" ? "WASDQE · look drag · Shift" : "orbit drag · wheel"}
+                {mode === "fps" ? "WASDQE · look drag · Shift" : "orbit drag · pinch / wheel"}
               </p>
             </section>
             <section className="dev-block">
