@@ -1,0 +1,178 @@
+@property --u {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 10px;
+}
+
+html {
+  container-type: size;
+  height: 100dvh;
+  margin: 0;
+  background: #000;
+  color: #c4c4c4;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  --u: min(calc(7.5px * 1920 / 100cqi), calc(7.5px * 1920 / 100cqb), 10px);
+  font-size: var(--u);
+  line-height: 1.35;
+}
+
+button,
+input,
+select,
+textarea,
+output {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: #000;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+canvas:active {
+  cursor: grabbing;
+}
+
+.dev {
+  --hi: #ececec;
+  --lo: #777;
+  --line: #2a2a2a;
+  --fill: #161616;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  width: 19rem;
+  background: rgba(10, 10, 10, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  corner-shape: squircle;
+  overflow: hidden;
+}
+
+.dev-bar,
+.dev-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.dev-bar {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dev:not(.open) .dev-bar {
+  border-bottom: 0;
+}
+
+.dev-title,
+.dev-block h2,
+.dev-knob span,
+.dev-fps span {
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--lo);
+}
+
+.dev-title {
+  color: var(--hi);
+}
+
+.dev-block h2,
+.dev-knob span,
+.dev-fps span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dev-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.dev-row,
+.dev-knob {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.dev-hint {
+  margin: 0;
+  color: var(--lo);
+}
+
+.dev-knob output,
+.dev-fps output {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--hi);
+}
+
+.dev-knob input {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0;
+  accent-color: currentColor;
+}
+
+.dev-fps {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.dev-fps-plot {
+  width: 100%;
+  height: 1.1rem;
+  display: block;
+}
+
+.dev-fps-plot line {
+  stroke: var(--lo);
+  stroke-dasharray: 2 2;
+  stroke-width: 1;
+}
+
+.dev-fps-plot polyline {
+  fill: none;
+  stroke: var(--hi);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.dev button {
+  appearance: none;
+  background: var(--fill);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  corner-shape: squircle;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.dev button[aria-pressed="true"],
+.dev button[aria-expanded="true"] {
+  border-color: var(--hi);
+  color: var(--hi);
+}
