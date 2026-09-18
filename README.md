@@ -2,9 +2,9 @@
 
 WebGPU MIS path tracer.
 
-|![Cornell](./others/cornell.jpg)|![Studio](./others/studio.jpg)|![Glass](./others/glass.jpg)|
+|![Cornell](./others/cornell.jpg)|![Studio](./others/studio.jpg)|![Dragon](./others/classic.jpg)|
 |:-:|:-:|:-:|
-|Cornell|Studio|Glass|
+|Cornell|Studio|Dragon|
 
 ## Install
 
