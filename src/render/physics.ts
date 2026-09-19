@@ -1,9 +1,5 @@
 export const EPS = 1e-6;
 
-export function visRange(dist: number): number {
-  return dist;
-}
-
 export function lum(c: readonly [number, number, number]): number {
   return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 }

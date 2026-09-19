@@ -629,24 +629,23 @@ fn t_cyl(ro: vec3f, rd: vec3f, data: vec4f, b_data: vec4f) -> f32 {
   return t;
 }
 
-fn t_finite(ro: vec3f, rd: vec3f, i: u32) -> f32 {
-  let kind = bitcast<u32>(load_prim_slot(i, 0u).x);
-  if (kind == KIND_SPHERE) { return t_sphere(ro, rd, load_prim_slot(i, 1u)); }
-  if (kind == KIND_PLANE) { return t_plane(ro, rd, load_prim_slot(i, 1u)); }
-  if (kind == KIND_QUAD) { return t_quad(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)); }
-  if (kind == KIND_BOX) { return t_box(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)); }
-  if (kind == KIND_CYL) { return t_cyl(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u)); }
-  return T_MAX;
+fn take(best: ptr<function, Isect>, t: f32, i: u32, any_hit: bool, skip: i32) -> bool {
+  return i32(i) != skip && keep(best, t, i32(i), any_hit);
 }
 
 fn scan_prims(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool, skip: i32) -> Isect {
   var best = none(); best.t = tmax;
   var i = 0u;
-  let n = trace.n_sphere + trace.n_plane + trace.n_quad + trace.n_box + trace.n_cyl;
-  while (i < n) {
-    if (i32(i) != skip && keep(&best, t_finite(ro, rd, i), i32(i), any_hit)) { return best; }
-    i += 1u;
-  }
+  let s0 = trace.n_sphere;
+  while (i < s0) { if (take(&best, t_sphere(ro, rd, load_prim_slot(i, 1u)), i, any_hit, skip)) { return best; } i += 1u; }
+  let s1 = s0 + trace.n_plane;
+  while (i < s1) { if (take(&best, t_plane(ro, rd, load_prim_slot(i, 1u)), i, any_hit, skip)) { return best; } i += 1u; }
+  let s2 = s1 + trace.n_quad;
+  while (i < s2) { if (take(&best, t_quad(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)), i, any_hit, skip)) { return best; } i += 1u; }
+  let s3 = s2 + trace.n_box;
+  while (i < s3) { if (take(&best, t_box(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)), i, any_hit, skip)) { return best; } i += 1u; }
+  let s4 = s3 + trace.n_cyl;
+  while (i < s4) { if (take(&best, t_cyl(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u)), i, any_hit, skip)) { return best; } i += 1u; }
   return best;
 }
 
@@ -769,7 +768,6 @@ fn light_le(L: Light) -> vec3f {
   return vec3f(L.le_x, L.u.w, L.v.w);
 }
 fn pick_pdf(L: Light, tot: f32) -> f32 { return max(MATH_EPS, lum(light_le(L)) * L.area) / tot; }
-fn vis_range(dist: f32) -> f32 { return dist; }
 fn skip_light(L: Light) -> vec2i {
   if (L.kind == LIGHT_TRI) { return vec2i(-1, i32(L.prim)); }
   return vec2i(i32(L.prim), -1);
@@ -828,7 +826,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${pro
     if (dot(n, wi) <= 0.0) { return vec3f(0.0); }
     pdf_w = p_pick * sphere_pdf_w(v.p, c, r);
     let t = t_sphere(origin, wi, vec4f(c, r));
-    if (t >= T_MAX || occluded(origin, wi, vis_range(t), i32(L.prim), -1)) { return vec3f(0.0); }
+    if (t >= T_MAX || occluded(origin, wi, t, i32(L.prim), -1)) { return vec3f(0.0); }
     ${probe ? "light_p = origin + wi * t;" : ""}
   } else {
     var sample_p = L.origin.xyz;
@@ -866,7 +864,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${pro
     if (cos_l <= 0.0 || cos_p <= 0.0) { return vec3f(0.0); }
     pdf_w = area_pdf_w(p_pick, L.area, dist2, cos_l);
     let skip = skip_light(L);
-    if (occluded(origin, wi, vis_range(dist), skip.x, skip.y)) { return vec3f(0.0); }
+    if (occluded(origin, wi, dist, skip.x, skip.y)) { return vec3f(0.0); }
     ${probe ? "light_p = sample_p;" : ""}
   }
   let ev = eval_bsdf(v.f, wo, wi, v.b);

@@ -7,13 +7,7 @@ import {
   lum,
   mis2,
   sphereSolidAnglePdf,
-  visRange,
 } from "./physics";
-
-test("shadow vis range does not open a distance-scaled gap", () => {
-  expect(visRange(100)).toBe(100);
-  expect(visRange(0.5)).toBe(0.5);
-});
 
 test("power heuristic is one-sided at zero", () => {
   expect(mis2(1, 0)).toBe(1);
