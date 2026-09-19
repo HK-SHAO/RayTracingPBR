@@ -78,6 +78,7 @@ export function sample1d(pixel: number, index: number, dim: number): number {
 }
 
 export const WGSL_SAMPLER = /* wgsl */ `
+var<private> g_sample: u32;
 const SOBOL_MAX_DIM = ${SOBOL_MAX_DIM}u;
 const D_PIX = ${D_PIX}u;
 const D_LENS = ${D_LENS}u;
@@ -125,10 +126,10 @@ fn sobol1(index: u32) -> u32 {
 }
 fn sample1d(pixel: u32, dim: u32) -> f32 {
   if (dim >= SOBOL_MAX_DIM) {
-    var s = (pixel ^ (trace.frame * 0x9e3779b9u)) ^ (dim * 0x85ebca6bu);
+    var s = (pixel ^ (g_sample * 0x9e3779b9u)) ^ (dim * 0x85ebca6bu);
     return pcg(&s);
   }
-  let raw = select(sobol0(trace.frame), sobol1(trace.frame), (dim & 1u) == 1u);
+  let raw = select(sobol0(g_sample), sobol1(g_sample), (dim & 1u) == 1u);
   return f32(owen(raw, mix_seed(pixel, dim))) * 2.3283064365386963e-10;
 }
 fn sample2d(pixel: u32, dim: u32) -> vec2f { return vec2f(sample1d(pixel, dim), sample1d(pixel, dim + 1u)); }

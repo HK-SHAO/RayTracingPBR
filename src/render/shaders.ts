@@ -83,7 +83,8 @@ struct Trace {
   n_quad: u32,
   n_box: u32,
   n_cyl: u32,
-  hide_ibl: u32,${
+  hide_ibl: u32,
+  spp_k: u32,${
     probe
       ? `
   probe_x: u32,
@@ -126,7 +127,7 @@ fn load_prim(i: u32) -> Prim {
   var p: Prim;
   let o = trace.prim_off + i * 4u;
   let h = world[o];
-  p.kind = bitcast<u32>(h.x); p.mat = bitcast<u32>(h.y); p._0 = 0u; p._1 = 0u;
+  p.kind = bitcast<u32>(h.x); p.mat = bitcast<u32>(h.y); p._0 = bitcast<u32>(h.z); p._1 = bitcast<u32>(h.w);
   p.a = world[o + 1u]; p.b = world[o + 2u]; p.c = world[o + 3u];
   return p;
 }
@@ -891,28 +892,34 @@ fn next_event(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState${pro
   return contrib;
 }
 
+fn light_hit_pdf(L: Light, hit: Hit, o: vec3f, dist2: f32, cos_l: f32, tot: f32) -> f32 {
+  let p_pick = pick_pdf(L, tot);
+  if (L.kind == LIGHT_SPHERE) {
+    if (i32(L.prim) != hit.prim) { return 0.0; }
+    return p_pick * sphere_pdf_w(o, L.origin.xyz, L.origin.w);
+  }
+  if (L.kind == LIGHT_TRI) {
+    if (L.prim != hit.tri) { return 0.0; }
+    return area_pdf_w(p_pick, L.area, dist2, cos_l);
+  }
+  if (L.kind == LIGHT_CYL) {
+    if (i32(L.prim) != hit.prim) { return 0.0; }
+    return area_pdf_w(p_pick, L.area, dist2, cos_l);
+  }
+  if (i32(L.prim) != hit.prim || !on_quad(hit.p, L)) { return 0.0; }
+  return area_pdf_w(p_pick, L.area, dist2, cos_l);
+}
 fn light_pdf_hit(hit: Hit, o: vec3f, d: vec3f) -> f32 {
   let tot = max(trace.tot_power, MATH_EPS);
   var pdf_w = 0.0;
   let dist2 = dot(hit.p - o, hit.p - o);
   let cos_l = max(0.0, -dot(hit.gn, d));
-  for (var i = 0u; i < trace.light_count; i++) {
-    let L = load_light(i);
-    let p_pick = pick_pdf(L, tot);
-    if (L.kind == LIGHT_SPHERE) {
-      if (i32(L.prim) != hit.prim) { continue; }
-      pdf_w += p_pick * sphere_pdf_w(o, L.origin.xyz, L.origin.w);
-    } else if (L.kind == LIGHT_TRI) {
-      if (L.prim != hit.tri) { continue; }
-      pdf_w += area_pdf_w(p_pick, L.area, dist2, cos_l);
-    } else if (L.kind == LIGHT_CYL) {
-      if (i32(L.prim) != hit.prim) { continue; }
-      pdf_w += area_pdf_w(p_pick, L.area, dist2, cos_l);
-    } else {
-      if (i32(L.prim) != hit.prim || !on_quad(hit.p, L)) { continue; }
-      pdf_w += area_pdf_w(p_pick, L.area, dist2, cos_l);
-    }
+  if (hit.prim >= 0) {
+    let p = load_prim(u32(hit.prim));
+    for (var i = 0u; i < p._1; i++) { pdf_w += light_hit_pdf(load_light(p._0 + i), hit, o, dist2, cos_l, tot); }
+    return pdf_w;
   }
+  for (var i = 0u; i < trace.light_count; i++) { pdf_w += light_hit_pdf(load_light(i), hit, o, dist2, cos_l, tot); }
   return pdf_w;
 }
 
@@ -1043,19 +1050,24 @@ fn trace_path(ro0: vec3f, rd0: vec3f, pixel: u32${probe ? ", rec: bool" : ""}) -
 fn main(@builtin(global_invocation_id) id: vec3u) {
   if (id.x >= trace.size_x || id.y >= trace.size_y) { return; }
   let pixel = id.y * trace.size_x + id.x;
-  let jitter = sample2d(pixel, D_PIX);
-  let u = (f32(id.x) + jitter.x) / f32(trace.size_x);
-  let v = (f32(id.y) + jitter.y) / f32(trace.size_y);
-  let pinhole = normalize(trace.forward + trace.right * ((2.0 * u - 1.0) * trace.half_w) + trace.up * ((1.0 - 2.0 * v) * trace.half_h));
-  var ro = trace.origin;
-  var rd = pinhole;
-  if (trace.aperture > 0.0) {
-    let lens = disk(sample2d(pixel, D_LENS)) * trace.aperture * 0.5;
-    ro = trace.origin + trace.right * lens.x + trace.up * lens.y;
-    rd = normalize(trace.origin + pinhole * max(trace.focus, MATH_EPS) - ro);
+  let k = max(1u, trace.spp_k);
+  var sum = vec3f(0.0);
+  for (var s = 0u; s < k; s++) {
+    g_sample = trace.frame + s;
+    let jitter = sample2d(pixel, D_PIX);
+    let u = (f32(id.x) + jitter.x) / f32(trace.size_x);
+    let v = (f32(id.y) + jitter.y) / f32(trace.size_y);
+    let pinhole = normalize(trace.forward + trace.right * ((2.0 * u - 1.0) * trace.half_w) + trace.up * ((1.0 - 2.0 * v) * trace.half_h));
+    var ro = trace.origin;
+    var rd = pinhole;
+    if (trace.aperture > 0.0) {
+      let lens = disk(sample2d(pixel, D_LENS)) * trace.aperture * 0.5;
+      ro = trace.origin + trace.right * lens.x + trace.up * lens.y;
+      rd = normalize(trace.origin + pinhole * max(trace.focus, MATH_EPS) - ro);
+    }
+    sum += trace_path(ro, rd, pixel${probe ? ", id.x == trace.probe_x && id.y == trace.probe_y && s == 0u" : ""});
   }
-  let L = trace_path(ro, rd, pixel${probe ? ", id.x == trace.probe_x && id.y == trace.probe_y" : ""});
-  accum[pixel] += vec4f(L, 1.0);
+  accum[pixel] += vec4f(sum, f32(k));
 }
 `;
 

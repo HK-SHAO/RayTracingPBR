@@ -150,7 +150,7 @@ export function createRenderer(
     reset();
   };
 
-  const uniforms = () => {
+  const uniforms = (k = 1) => {
     const view = cameraFrame(cam, size[0] / Math.max(1, size[1]), mode);
     return {
       origin: view.origin,
@@ -170,6 +170,7 @@ export function createRenderer(
       aperture: params.aperture,
       env_gain: params.env,
       hide_ibl: params.hideIbl ? 1 : 0,
+      spp_k: k,
       ...(probePixel && probeKernel ? { probe_x: probePixel[0], probe_y: probePixel[1] } : {}),
       ...worldTrace(world),
     };
@@ -252,7 +253,8 @@ export function createRenderer(
     let taken = 0;
     if (spp < MAX_SPP) {
       const n = Math.min(burst, MAX_SPP - spp, MAX_BURST);
-      for (let i = 0; i < n; i++) {
+      let left = n;
+      while (left > 0) {
         if (guideSamples >= guideEpochEnd) {
           guidingNow.swap();
           clearGuiding(guidingNow.write);
@@ -261,8 +263,14 @@ export function createRenderer(
         }
         const recording = probeArmed && probePixel && probeKernel && probeBuf;
         const kernel = (recording ? probeKernel : tracerNow) ?? tracerNow;
+        const k = Math.min(
+          recording ? 1 : 8,
+          left,
+          MAX_SPP - spp,
+          Math.max(1, guideEpochEnd - guideSamples),
+        );
         kernel.set({
-          trace: uniforms(),
+          trace: uniforms(k),
           accum: accumLive,
           env: envNow.data,
           world: worldLive.world,
@@ -271,9 +279,10 @@ export function createRenderer(
           ...(recording ? { probe: probeBuf } : {}),
         });
         kernel.dispatch(Math.ceil(size[0] / WG), Math.ceil(size[1] / WG));
-        spp += 1;
-        guideSamples += 1;
-        taken += 1;
+        spp += k;
+        guideSamples += k;
+        taken += k;
+        left -= k;
       }
     }
     presenterNow.set({

@@ -53,6 +53,7 @@ test("packing groups primitive kinds and remaps light indices", () => {
   expect(packed.nBox).toBe(1);
   expect(packed.lightCount).toBe(8);
   expect(new Uint32Array(packed.lights.buffer, packed.lights.byteOffset, 4)[1]).toBe(0);
+  expect(new Uint32Array(packed.prims.buffer, packed.prims.byteOffset, 4)[3]).toBe(1);
 });
 
 test("packing reuses empty mesh acceleration storage", () => {

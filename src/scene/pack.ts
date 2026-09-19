@@ -309,17 +309,40 @@ export function packWorld(world: SceneWorld, prev?: PackedScene): PackedScene {
   }
 
   const lights = new Float32Array(lightCount * LIGHT_FLOATS);
-  const powers = new Float32Array(Math.max(1, sceneLights.length));
-  for (let i = 0; i < sceneLights.length; i++) {
-    const light = sceneLights[i];
-    powers[i] = light ? Math.max(1e-4, lum(light.emission) * light.area) : 1e-4;
-  }
-  const table = aliasTable(powers);
+  const grouped: AreaLight[] = [];
+  const firstAt = new Int32Array(ordered.length).fill(-1);
+  const countAt = new Uint32Array(ordered.length);
   for (let i = 0; i < sceneLights.length; i++) {
     const light = sceneLights[i];
     if (!light) continue;
-    const prim = light.kind === LIGHT_TRI ? light.prim : (remap[light.prim] ?? light.prim);
-    writeLight(lights, i, { ...light, prim }, table.accept[i] ?? 1, table.alias[i] ?? i);
+    if (light.kind === LIGHT_TRI) {
+      grouped.push(light);
+      continue;
+    }
+    const slot = remap[light.prim] ?? light.prim;
+    if (slot < 0 || slot >= ordered.length) continue;
+    const at = firstAt[slot] ?? -1;
+    if (at < 0) firstAt[slot] = grouped.length;
+    countAt[slot] = (countAt[slot] ?? 0) + 1;
+    grouped.push({ ...light, prim: slot });
+  }
+  const powers = new Float32Array(Math.max(1, grouped.length));
+  for (let i = 0; i < grouped.length; i++) {
+    const light = grouped[i];
+    powers[i] = light ? Math.max(1e-4, lum(light.emission) * light.area) : 1e-4;
+  }
+  const table = aliasTable(powers);
+  for (let i = 0; i < grouped.length; i++) {
+    const light = grouped[i];
+    if (!light) continue;
+    writeLight(lights, i, light, table.accept[i] ?? 1, table.alias[i] ?? i);
+  }
+  for (let i = 0; i < ordered.length; i++) {
+    const o = i * PRIM_FLOATS;
+    const u = new Uint32Array(prims.buffer, prims.byteOffset + o * 4, 4);
+    const first = firstAt[i] ?? -1;
+    u[2] = first >= 0 ? first : 0;
+    u[3] = countAt[i] ?? 0;
   }
 
   const materials = new Float32Array(Math.max(1, world.materials.length) * MAT_FLOATS);
