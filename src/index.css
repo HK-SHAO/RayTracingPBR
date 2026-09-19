@@ -49,6 +49,41 @@ canvas:active {
   cursor: grabbing;
 }
 
+canvas.probe-on,
+canvas.probe-on:active {
+  cursor: crosshair;
+}
+
+.probe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.probe line {
+  fill: none;
+  stroke-width: 1;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.probe .nee {
+  stroke-dasharray: 4 3;
+}
+
+.probe .env {
+  stroke-dasharray: 1.5 3;
+}
+
+.probe .mark {
+  stroke: #fff;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
 .dev {
   touch-action: manipulation;
   --hi: #ececec;

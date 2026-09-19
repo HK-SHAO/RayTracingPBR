@@ -4,6 +4,7 @@ import { classic } from "../scene/plugins/classic";
 import { glass } from "../scene/plugins/glass";
 import { studio } from "../scene/plugins/studio";
 import { GUIDE_FIRST_EPOCH } from "./guiding";
+import { parseProbe } from "./probe";
 
 const skipGpu = process.env.VGPU_SKIP_GPU === "1";
 
@@ -61,6 +62,30 @@ test.skipIf(skipGpu)(
     const { gpu: context, guideWeights } = await traceSamples(24, 24, GUIDE_FIRST_EPOCH + 1);
     try {
       expect(guideWeights.some((weight) => weight > 0)).toBe(true);
+    } finally {
+      context.dispose();
+    }
+  },
+  120_000,
+);
+
+test.skipIf(skipGpu)(
+  "probe records a camera-to-hit segment",
+  async () => {
+    const { gpu: context, probeData } = await traceSamples(
+      24,
+      24,
+      4,
+      undefined,
+      false,
+      -1,
+      [12, 12],
+    );
+    try {
+      const paths = parseProbe(probeData);
+      const live = paths.filter((path) => path.verts.length >= 2);
+      expect(live.length).toBeGreaterThan(0);
+      expect(live.some((path) => path.verts[0]?.kind === 0)).toBe(true);
     } finally {
       context.dispose();
     }

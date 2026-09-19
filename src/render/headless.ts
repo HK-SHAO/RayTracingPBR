@@ -8,7 +8,8 @@ import { uploadEnv, writeStorage } from "./env";
 import { buildEnv, decodeRgbe, EMPTY_ENV, fitEnvRgb } from "./hdr";
 import { clearGuiding, createGuiding, GUIDE_FIRST_EPOCH, GUIDE_MAX_EPOCH } from "./guiding";
 import { readBytes } from "../media";
-import { TRACE_WGSL } from "./shaders";
+import { TRACE_PROBE_WGSL, TRACE_WGSL } from "./shaders";
+import { PROBE_BYTES, PROBE_FLOATS } from "./probe";
 
 const WG = 8;
 
@@ -19,12 +20,16 @@ export async function traceSamples(
   plugin: ScenePlugin = cornell,
   guidingEnabled = true,
   bounce = -1,
+  probePixel: readonly [number, number] | null = null,
 ) {
   const gpu = await init();
   try {
     const pixels = width * height;
     const accum = storage(gpu, pixels * 16);
     writeStorage(accum, new Float32Array(pixels * 4));
+    const recording = probePixel != null;
+    const probe = recording ? storage(gpu, PROBE_BYTES) : undefined;
+    if (probe) writeStorage(probe, new Float32Array(PROBE_FLOATS));
     let env = uploadEnv(gpu, EMPTY_ENV);
     let useIbl = 0;
     if (plugin.ibl) {
@@ -35,7 +40,7 @@ export async function traceSamples(
     }
     const world = uploadPacked(gpu, packWorld(await plugin.build()));
     const guiding = createGuiding(gpu);
-    const tracer = compute(gpu, TRACE_WGSL, { label: "trace" });
+    const tracer = compute(gpu, recording ? TRACE_PROBE_WGSL : TRACE_WGSL, { label: "trace" });
     const view = cameraFrame(plugin.camera, width / height);
     let epochSize = GUIDE_FIRST_EPOCH;
     let epochEnd = GUIDE_FIRST_EPOCH;
@@ -65,6 +70,7 @@ export async function traceSamples(
           aperture: 0,
           env_gain: 1,
           hide_ibl: plugin.hideIblDirect ? 1 : 0,
+          ...(probePixel ? { probe_x: probePixel[0], probe_y: probePixel[1] } : {}),
           ...worldTrace(world),
         },
         accum,
@@ -72,12 +78,14 @@ export async function traceSamples(
         world: world.world,
         guide: guiding.read,
         guide_train: guiding.write,
+        ...(probe ? { probe } : {}),
       });
       tracer.dispatch(Math.ceil(width / WG), Math.ceil(height / WG));
     }
     const bytes = new Float32Array(await accum.read());
     const guideWeights = new Uint32Array(await guiding.read.read());
-    return { gpu, bytes, guideWeights };
+    const probeData = probe ? new Float32Array(await probe.read()) : new Float32Array();
+    return { gpu, bytes, guideWeights, probeData };
   } catch (error) {
     gpu.dispose();
     throw error;

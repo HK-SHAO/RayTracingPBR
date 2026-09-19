@@ -29,7 +29,7 @@ import {
   type CameraState,
   type MoveInput,
 } from "./camera";
-import { uploadEnv, type EnvGpu, destroyStorage } from "./env";
+import { uploadEnv, type EnvGpu, destroyStorage, writeStorage } from "./env";
 import { buildEnv, decodeRgbe, EMPTY_ENV, fitEnvRgb } from "./hdr";
 import {
   clearGuiding,
@@ -40,7 +40,8 @@ import {
 } from "./guiding";
 import { defaultsFor, needsReset, type DevParams } from "./params";
 import { averageFps, MAX_BURST, mixMs, nextBurst, pushPresent, shouldDrain, waitMs } from "./pace";
-import { CLEAR_WGSL, PRESENT_WGSL, TRACE_WGSL } from "./shaders";
+import { CLEAR_WGSL, PRESENT_WGSL, TRACE_PROBE_WGSL, TRACE_WGSL } from "./shaders";
+import { PROBE_BYTES, PROBE_FLOATS, PROBE_PATHS, parseProbe, type ProbeFrame } from "./probe";
 import { clampAxis, clampStickOrigin, stickAxes, stickRole, STICK_RADIUS } from "./stick";
 
 const WG = 8;
@@ -53,12 +54,14 @@ export type Renderer = {
   setMode: (mode: CameraMode) => void;
   setParams: (next: DevParams) => void;
   setPad: (key: "up" | "down", down: boolean) => void;
+  setProbeArmed: (on: boolean) => void;
 };
 
 export type RendererBoot = {
   scene?: string;
   mode?: CameraMode;
   params?: DevParams;
+  onProbe?: (frame: ProbeFrame | null) => void;
 };
 
 export type RenderStats = {
@@ -76,6 +79,8 @@ export function createRenderer(
   let gpu: Gpu | undefined;
   let output: Surface | undefined;
   let accum: StorageBuffer | undefined;
+  let probeBuf: StorageBuffer | undefined;
+  let probeKernel: ReturnType<typeof compute> | undefined;
   let tracer: ReturnType<typeof compute> | undefined;
   let clearer: ReturnType<typeof compute> | undefined;
   let presenter: ReturnType<typeof effect> | undefined;
@@ -95,6 +100,12 @@ export function createRenderer(
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
+  let dragDist = 0;
+  let probeArmed = false;
+  let probePixel: readonly [number, number] | null = null;
+  let probeBusy = false;
+  let lastPaths: ReturnType<typeof parseProbe> | null = null;
+  const onProbe = boot.onProbe;
   let pinchSpan = 0;
   const pointers = new Map<number, { x: number; y: number; role: "look" | "move" | "orbit" }>();
   let stickX = 0;
@@ -126,6 +137,7 @@ export function createRenderer(
     const groups = Math.ceil(count / 64);
     clearer.set({ dst: accum });
     clearer.dispatch(groups);
+    if (probeBuf && probePixel) writeStorage(probeBuf, new Float32Array(PROBE_FLOATS));
   };
 
   const rebuild = (next: readonly [number, number]) => {
@@ -158,6 +170,7 @@ export function createRenderer(
       aperture: params.aperture,
       env_gain: params.env,
       hide_ibl: params.hideIbl ? 1 : 0,
+      ...(probePixel && probeKernel ? { probe_x: probePixel[0], probe_y: probePixel[1] } : {}),
       ...worldTrace(world),
     };
   };
@@ -246,15 +259,18 @@ export function createRenderer(
           guideEpochSize = Math.min(GUIDE_MAX_EPOCH, guideEpochSize * 2);
           guideEpochEnd = guideSamples + guideEpochSize;
         }
-        tracerNow.set({
+        const recording = probeArmed && probePixel && probeKernel && probeBuf;
+        const kernel = (recording ? probeKernel : tracerNow) ?? tracerNow;
+        kernel.set({
           trace: uniforms(),
           accum: accumLive,
           env: envNow.data,
           world: worldLive.world,
           guide: guidingNow.read,
           guide_train: guidingNow.write,
+          ...(recording ? { probe: probeBuf } : {}),
         });
-        tracerNow.dispatch(Math.ceil(size[0] / WG), Math.ceil(size[1] / WG));
+        kernel.dispatch(Math.ceil(size[0] / WG), Math.ceil(size[1] / WG));
         spp += 1;
         guideSamples += 1;
         taken += 1;
@@ -304,6 +320,28 @@ export function createRenderer(
     pushPresent(presents, now);
     const fps = averageFps(presents);
     onStats(fps > 0 ? { spp: shownSpp, fps, burst } : { spp: shownSpp, burst });
+    if (probeArmed && probePixel && onProbe && probeBuf) {
+      const view = cameraFrame(cam, size[0] / Math.max(1, size[1]), mode);
+      const pixel = probePixel;
+      const exposure = params.exposure;
+      const latest = shownSpp > 0 ? (shownSpp - 1) % PROBE_PATHS : 0;
+      const wh: readonly [number, number] = [size[0], size[1]];
+      if (lastPaths) {
+        onProbe({ paths: lastPaths, view, size: wh, pixel, exposure, latest });
+      }
+      if (!probeBusy && taken > 0) {
+        probeBusy = true;
+        void probeBuf
+          .read()
+          .then((raw) => {
+            if (disposed || !probeArmed || probePixel !== pixel) return;
+            lastPaths = parseProbe(new Float32Array(raw));
+          })
+          .finally(() => {
+            probeBusy = false;
+          });
+      }
+    }
     running = false;
     arm(start);
   };
@@ -334,8 +372,70 @@ export function createRenderer(
     if (knobEl) knobEl.style.transform = "";
     if (stickEl) stickEl.dataset.active = "false";
   };
+  const dropProbeGpu = () => {
+    if (probeBuf) destroyStorage(probeBuf);
+    probeBuf = undefined;
+    probeKernel = undefined;
+  };
+
+  const ensureProbeGpu = () => {
+    if (!gpu || probeKernel) return;
+    probeKernel = compute(gpu, TRACE_PROBE_WGSL, { label: "trace-probe" });
+    probeBuf = storage(gpu, PROBE_BYTES);
+    writeStorage(probeBuf, new Float32Array(PROBE_FLOATS));
+  };
+
+  const pixelAt = (e: PointerEvent): readonly [number, number] => {
+    const r = canvas.getBoundingClientRect();
+    const x = Math.min(
+      size[0] - 1,
+      Math.max(0, Math.floor(((e.clientX - r.left) / Math.max(r.width, 1)) * size[0])),
+    );
+    const y = Math.min(
+      size[1] - 1,
+      Math.max(0, Math.floor(((e.clientY - r.top) / Math.max(r.height, 1)) * size[1])),
+    );
+    return [x, y];
+  };
+
+  const applyProbe = (pixel: readonly [number, number] | null) => {
+    if (pixel && probePixel && pixel[0] === probePixel[0] && pixel[1] === probePixel[1]) {
+      pixel = null;
+    }
+    probePixel = pixel;
+    probeBusy = false;
+    if (probeBuf) writeStorage(probeBuf, new Float32Array(PROBE_FLOATS));
+    if (!pixel) {
+      lastPaths = null;
+      onProbe?.(null);
+      return;
+    }
+    lastPaths = parseProbe(new Float32Array(PROBE_FLOATS));
+    if (!onProbe || size[0] < 1) return;
+    onProbe({
+      paths: lastPaths,
+      view: cameraFrame(cam, size[0] / Math.max(1, size[1]), mode),
+      size: [size[0], size[1]],
+      pixel,
+      exposure: params.exposure,
+      latest: 0,
+    });
+  };
+
+  const setProbeArmed = (on: boolean) => {
+    if (on === probeArmed) return;
+    probeArmed = on;
+    canvas.classList.toggle("probe-on", on);
+    if (on) ensureProbeGpu();
+    else {
+      applyProbe(null);
+      dropProbeGpu();
+    }
+  };
+
   const onDown = (e: PointerEvent) => {
     if (e.pointerType !== "mouse") e.preventDefault();
+    dragDist = 0;
     if (mode === "fps") {
       const touch = e.pointerType !== "mouse";
       const moving = [...pointers.values()].some((p) => p.role === "move");
@@ -377,6 +477,7 @@ export function createRenderer(
     const prev = pointers.get(e.pointerId);
     if (!prev) return;
     if (e.pointerType !== "mouse") e.preventDefault();
+    dragDist += Math.hypot(e.clientX - prev.x, e.clientY - prev.y);
     if (prev.role === "move") {
       const axes = stickAxes(e.clientX - prev.x, e.clientY - prev.y);
       stickX = axes.right;
@@ -411,6 +512,8 @@ export function createRenderer(
     pointers.delete(e.pointerId);
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     if (prev?.role === "move") hideStick();
+    const tap = dragDist < 5 && pointers.size === 0 && prev?.role !== "move";
+    if (tap && probeArmed) applyProbe(pixelAt(e));
     if (mode === "fps") return;
     if (pointers.size >= 2) {
       pinchSpan = spanOf();
@@ -436,6 +539,10 @@ export function createRenderer(
     e.preventDefault();
   };
   const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && probePixel) {
+      applyProbe(null);
+      return;
+    }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (
       mode === "fps" &&
@@ -459,6 +566,7 @@ export function createRenderer(
     const token = ++sceneToken;
     plugin = next;
     clock0 = performance.now();
+    applyProbe(null);
     cam = withEye({ ...next.camera, vfov: params.vfov });
     const packed = packWorld(await next.build(0));
     if (disposed || token !== sceneToken) return;
@@ -508,6 +616,7 @@ export function createRenderer(
     stickEl = null;
     knobEl = null;
     if (world) destroySceneGpu(world);
+    dropProbeGpu();
     gpu?.dispose();
   }
 
@@ -564,5 +673,6 @@ export function createRenderer(
       if (key === "up") padUp = down;
       else padDown = down;
     },
+    setProbeArmed,
   };
 }

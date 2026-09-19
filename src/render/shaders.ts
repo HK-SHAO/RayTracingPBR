@@ -6,8 +6,9 @@ import {
   GUIDE_PHI_BINS,
   GUIDE_Z_BINS,
 } from "./guiding";
+import { PROBE_MAX, PROBE_PATHS, PROBE_STRIDE } from "./probe";
 
-export const WGSL_CORE = /* wgsl */ `
+const wgslCore = (probe: boolean) => /* wgsl */ `
 const PI = 3.141592653589793;
 const EPS = 1e-4;
 const T_MAX = 1e4;
@@ -23,6 +24,13 @@ const GUIDE_MIX = 0.5;
 const GUIDE_CELL_SIZE = 0.5;
 const GUIDE_MIN_WEIGHT = 64u;
 const GUIDE_FIRST = ${GUIDE_FIRST_EPOCH}u;
+${
+  probe
+    ? `const PROBE_PATHS = ${PROBE_PATHS}u;
+const PROBE_MAX = ${PROBE_MAX}u;
+const PROBE_STRIDE = ${PROBE_STRIDE}u;`
+    : ""
+}
 const R2A = 0.7548776662466927;
 const R2B = 0.5698402909980532;
 const KIND_SPHERE = 0u;
@@ -67,7 +75,13 @@ struct Trace {
   n_quad: u32,
   n_box: u32,
   n_cyl: u32,
-  hide_ibl: u32,
+  hide_ibl: u32,${
+    probe
+      ? `
+  probe_x: u32,
+  probe_y: u32,`
+      : ""
+  }
 }
 
 struct Prim { kind: u32, mat: u32, _0: u32, _1: u32, a: vec4f, b: vec4f, c: vec4f }
@@ -84,6 +98,21 @@ struct Isect { t: f32, prim: i32, tri: u32, bu: f32, bv: f32 }
 @group(0) @binding(4) var<storage, read> world: array<vec4f>;
 @group(0) @binding(5) var<storage, read> guide: array<u32>;
 @group(0) @binding(6) var<storage, read_write> guide_train: array<atomic<u32>>;
+${
+  probe
+    ? `@group(0) @binding(7) var<storage, read_write> probe: array<vec4f>;
+
+fn probe_push(rec: bool, n: ptr<function, u32>, p: vec3f, rgb: vec3f, kind: f32) {
+  if (!rec || *n >= PROBE_MAX) { return; }
+  let b = (trace.frame % PROBE_PATHS) * PROBE_STRIDE;
+  let i = *n;
+  probe[b + 1u + i * 2u] = vec4f(p, kind);
+  probe[b + 2u + i * 2u] = vec4f(max(rgb, vec3f(0.0)), 0.0);
+  *n += 1u;
+  probe[b] = vec4f(f32(*n), 0.0, 0.0, 0.0);
+}`
+    : ""
+}
 
 fn load_prim(i: u32) -> Prim {
   var p: Prim;
@@ -308,6 +337,8 @@ fn fresnel_dielectric(cos_i: f32, eta: f32) -> f32 {
   return 0.5 * a * a * (1.0 + b * b);
 }
 `;
+
+export const WGSL_CORE = wgslCore(false);
 
 export const WGSL_BSDF = /* wgsl */ `
 fn is_delta(b: Bsdf) -> bool {
@@ -704,7 +735,7 @@ fn intersect(ro: vec3f, rd: vec3f) -> Hit {
 }
 `;
 
-const WGSL_LIGHT = /* wgsl */ `
+const wgslLight = (probe: boolean) => /* wgsl */ `
 fn light_le(L: Light) -> vec3f {
   return vec3f(L.le_x, L.u.w, L.v.w);
 }
@@ -744,7 +775,7 @@ fn area_pdf_w(p_pick: f32, area: f32, dist2: f32, cos_l: f32) -> f32 {
   return p_pick / max(area, EPS) * dist2 / max(cos_l, EPS);
 }
 
-fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
+fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
   if (trace.light_count == 0u) { return vec3f(0.0); }
   let tot = max(trace.tot_power, EPS);
   let i = pick_light(rng);
@@ -752,6 +783,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
   let p_pick = pick_pdf(L, tot);
   var wi = vec3f(0.0, 1.0, 0.0);
   var pdf_w = 1.0;
+  ${probe ? "var light_p = v.p;" : ""}
   let n = v.f.n;
   let origin = v.p + v.gn * (EPS * 8.0);
   if (L.kind == LIGHT_SPHERE) {
@@ -764,6 +796,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
     pdf_w = p_pick * sphere_pdf_w(v.p, c, r);
     let t = t_sphere(origin, wi, vec4f(c, r));
     if (t >= T_MAX || occluded(origin, wi, vis_range(t))) { return vec3f(0.0); }
+    ${probe ? "light_p = origin + wi * t;" : ""}
   } else {
     var sample_p = L.origin.xyz;
     var ln = vec3f(0.0, 1.0, 0.0);
@@ -800,10 +833,13 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
     if (cos_l <= 0.0 || cos_p <= 0.0) { return vec3f(0.0); }
     pdf_w = area_pdf_w(p_pick, L.area, dist2, cos_l);
     if (occluded(origin, wi, vis_range(dist))) { return vec3f(0.0); }
+    ${probe ? "light_p = sample_p;" : ""}
   }
   let ev = eval_bsdf(v.f, wo, wi, v.b);
   if (pdf_w <= EPS) { return vec3f(0.0); }
-  return ev.f * light_le(L) * max(dot(n, wi), 0.0) * mis2(pdf_w, ev.pdf) / pdf_w;
+  let contrib = ev.f * light_le(L) * max(dot(n, wi), 0.0) * mis2(pdf_w, ev.pdf) / pdf_w;
+  ${probe ? "if (max(contrib.x, max(contrib.y, contrib.z)) > 0.0) { probe_push(rec, pn, light_p, beta * contrib, 1.0); }" : ""}
+  return contrib;
 }
 
 fn light_pdf_hit(hit: Hit, o: vec3f, d: vec3f) -> f32 {
@@ -854,7 +890,7 @@ fn env_pick(rng: ptr<function, u32>) -> vec2u {
   let j = select(i, min(u32(env_f32(n + i)), n - 1u), fract(x) >= env_f32(i));
   return vec2u(j % trace.env_w, j / trace.env_w);
 }
-fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
+fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
   if (trace.use_ibl == 0u) { return vec3f(0.0); }
   let px = env_pick(rng);
   let uv = vec2f((f32(px.x) + pcg(rng)) / f32(trace.env_w), (f32(px.y) + pcg(rng)) / f32(trace.env_h));
@@ -867,23 +903,28 @@ fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
   if (cos_p <= 0.0 || pdf_e <= EPS) { return vec3f(0.0); }
   if (occluded(v.p + v.gn * (EPS * 8.0), wi, T_MAX)) { return vec3f(0.0); }
   let ev = eval_bsdf(v.f, wo, wi, v.b);
-  return ev.f * le * cos_p * mis2(pdf_e, ev.pdf) / pdf_e;
+  let contrib = ev.f * le * cos_p * mis2(pdf_e, ev.pdf) / pdf_e;
+  ${probe ? "if (max(contrib.x, max(contrib.y, contrib.z)) > 0.0) { probe_push(rec, pn, v.p + wi * 8.0, beta * contrib, 2.0); }" : ""}
+  return contrib;
 }
 `;
 
-const WGSL_PATH = /* wgsl */ `
-fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
+const wgslPath = (probe: boolean) => /* wgsl */ `
+fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>${probe ? ", rec: bool" : ""}) -> vec3f {
   var radiance = vec3f(0.0); var o = ro0; var d = rd0; var beta = vec3f(1.0); var eta_scale = 1.0; var pdf = 1.0; var delta = true;
   var record_index = 0u;
   var record_radiance = vec3f(0.0);
   var record_beta = vec3f(1.0);
   var record_count = 0u;
+  ${probe ? "var pn = 0u;\n  if (rec) { probe[(trace.frame % PROBE_PATHS) * PROBE_STRIDE] = vec4f(0.0); }\n  probe_push(rec, &pn, ro0, vec3f(1.0), 0.0);" : ""}
   for (var bounce = 0u; ; bounce++) {
     let hit = intersect(o, d);
     if (!hit.ok) {
       if (bounce > 0u || trace.hide_ibl == 0u) {
         let envl = env_lookup(d);
-        radiance += beta * envl.xyz * trace.env_gain * select(mis2(pdf, envl.w), 1.0, delta);
+        let envc = beta * envl.xyz * trace.env_gain * select(mis2(pdf, envl.w), 1.0, delta);
+        radiance += envc;
+        ${probe ? "probe_push(rec, &pn, o + d * 8.0, envc, 2.0);" : ""}
       }
       break;
     }
@@ -892,13 +933,18 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
     let gs = select(-hit.gn, hit.gn, front);
     let wo = -d;
     if (max(hit.emission.x, max(hit.emission.y, hit.emission.z)) > 0.0) {
-      if (front) { radiance += beta * hit.emission * select(mis2(pdf, light_pdf_hit(hit, o, d)), 1.0, delta); }
+      if (front) {
+        let emit = beta * hit.emission * select(mis2(pdf, light_pdf_hit(hit, o, d)), 1.0, delta);
+        radiance += emit;
+        ${probe ? "probe_push(rec, &pn, hit.p, emit, 0.0);" : ""}
+      }
       break;
     }
+    ${probe ? "probe_push(rec, &pn, hit.p, beta, 0.0);" : ""}
     let v = make_vertex(hit, ns, gs, front);
     if (!is_delta(v.b)) {
-      radiance += beta * next_event(v, wo, rng);
-      radiance += beta * next_event_env(v, wo, rng);
+      radiance += beta * next_event(v, wo, rng${probe ? ", rec, &pn, beta" : ""});
+      radiance += beta * next_event_env(v, wo, rng${probe ? ", rec, &pn, beta" : ""});
     }
     if (trace.bounce >= 0 && bounce >= u32(trace.bounce)) { break; }
     let s = sample_guided_bsdf(v, wo, rng);
@@ -945,12 +991,25 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
     ro = trace.origin + trace.right * lens.x + trace.up * lens.y;
     rd = normalize(trace.origin + pinhole * max(trace.focus, EPS) - ro);
   }
-  let L = trace_path(ro, rd, &rng);
+  let L = trace_path(ro, rd, &rng${probe ? ", id.x == trace.probe_x && id.y == trace.probe_y" : ""});
   accum[i] += vec4f(L, 1.0);
 }
 `;
 
-export const TRACE_WGSL = [WGSL_CORE, WGSL_BSDF, WGSL_HIT, WGSL_LIGHT, WGSL_PATH].join("\n");
+export const TRACE_WGSL = [
+  wgslCore(false),
+  WGSL_BSDF,
+  WGSL_HIT,
+  wgslLight(false),
+  wgslPath(false),
+].join("\n");
+export const TRACE_PROBE_WGSL = [
+  wgslCore(true),
+  WGSL_BSDF,
+  WGSL_HIT,
+  wgslLight(true),
+  wgslPath(true),
+].join("\n");
 
 export const PRESENT_WGSL = /* wgsl */ `
 struct Present { size: vec2f, exposure: f32 }
