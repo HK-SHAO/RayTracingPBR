@@ -3,7 +3,10 @@ import {
   GUIDE_CELL_COUNT,
   GUIDE_DIR_COUNT,
   GUIDE_FIRST_EPOCH,
+  GUIDE_INC_MAX,
   GUIDE_PHI_BINS,
+  GUIDE_PROBES,
+  GUIDE_STRIDE,
   GUIDE_Z_BINS,
 } from "./guiding";
 import { PROBE_MAX, PROBE_PATHS, PROBE_STRIDE } from "./probe";
@@ -21,6 +24,9 @@ const RR_MIN = ${RR_MIN_SURVIVAL};
 const RR_MAX = ${RR_MAX_SURVIVAL};
 const GUIDE_CELLS = ${GUIDE_CELL_COUNT}u;
 const GUIDE_DIRS = ${GUIDE_DIR_COUNT}u;
+const GUIDE_STRIDE = ${GUIDE_STRIDE}u;
+const GUIDE_PROBES = ${GUIDE_PROBES}u;
+const GUIDE_INC_MAX = ${GUIDE_INC_MAX}u;
 const GUIDE_PHI = ${GUIDE_PHI_BINS}u;
 const GUIDE_Z = ${GUIDE_Z_BINS}u;
 const GUIDE_MIX = 0.5;
@@ -222,11 +228,35 @@ fn frame_n(n: vec3f) -> Frame {
 fn to_world(f: Frame, v: vec3f) -> vec3f { return f.t * v.x + f.b * v.y + f.n * v.z; }
 fn to_local(f: Frame, v: vec3f) -> vec3f { return vec3f(dot(f.t, v), dot(f.b, v), dot(f.n, v)); }
 
-fn guide_cell(p: vec3f) -> u32 {
+fn spatial_key(p: vec3f) -> u32 {
   let q = bitcast<vec3u>(vec3i(floor(p / GUIDE_CELL_SIZE)));
   var h = (q.x * 0x8da6b343u) ^ (q.y * 0xd8163841u) ^ (q.z * 0xcb1ab31fu);
   h ^= h >> 16u;
-  return h % GUIDE_CELLS;
+  return max(h, 1u);
+}
+fn guide_bin_at(slot: u32, bin: u32) -> u32 { return slot * GUIDE_STRIDE + 1u + bin; }
+fn guide_lookup(p: vec3f) -> u32 {
+  let key = spatial_key(p);
+  for (var i = 0u; i < GUIDE_PROBES; i++) {
+    let s = (key + i) % GUIDE_CELLS;
+    if (guide[s * GUIDE_STRIDE] == key) { return s; }
+  }
+  return GUIDE_CELLS;
+}
+fn claim_train(key: u32) -> u32 {
+  for (var i = 0u; i < GUIDE_PROBES; i++) {
+    let s = (key + i) % GUIDE_CELLS;
+    let ki = s * GUIDE_STRIDE;
+    loop {
+      let prev = atomicLoad(&guide_train[ki]);
+      if (prev == key) { return s; }
+      if (prev != 0u) { break; }
+      let r = atomicCompareExchangeWeak(&guide_train[ki], 0u, key);
+      if (r.exchanged || r.old_value == key) { return s; }
+      if (r.old_value != 0u) { break; }
+    }
+  }
+  return GUIDE_CELLS;
 }
 fn guide_bin_local(wi: vec3f) -> u32 {
   let phi = atan2(wi.y, wi.x) + PI;
@@ -235,14 +265,15 @@ fn guide_bin_local(wi: vec3f) -> u32 {
   return z * GUIDE_PHI + p;
 }
 fn guide_total(cell: u32) -> u32 {
+  if (cell >= GUIDE_CELLS) { return 0u; }
   var total = 0u;
-  for (var i = 0u; i < GUIDE_DIRS; i++) { total += guide[cell * GUIDE_DIRS + i]; }
+  for (var i = 0u; i < GUIDE_DIRS; i++) { total += guide[guide_bin_at(cell, i)]; }
   return total;
 }
 fn guide_pdf(cell: u32, f: Frame, wi: vec3f, total: u32) -> f32 {
   let local = to_local(f, wi);
-  if (local.z <= 0.0 || total == 0u) { return 0.0; }
-  let weight = guide[cell * GUIDE_DIRS + guide_bin_local(local)];
+  if (cell >= GUIDE_CELLS || local.z <= 0.0 || total == 0u) { return 0.0; }
+  let weight = guide[guide_bin_at(cell, guide_bin_local(local))];
   return f32(weight) / f32(total) * f32(GUIDE_DIRS) / (2.0 * PI);
 }
 struct GuideSample { wi: vec3f, pdf: f32 }
@@ -251,7 +282,7 @@ fn sample_guide(cell: u32, f: Frame, total: u32, u: vec3f) -> GuideSample {
   var sum = 0u;
   var bin = 0u;
   for (var i = 0u; i < GUIDE_DIRS; i++) {
-    sum += guide[cell * GUIDE_DIRS + i];
+    sum += guide[guide_bin_at(cell, i)];
     if (sum > pick) { bin = i; break; }
   }
   let pb = bin % GUIDE_PHI;
@@ -278,7 +309,7 @@ fn make_vertex(hit: Hit, ns: vec3f, gs: vec3f, enter: bool) -> Vertex {
   v.b.transmission = hit.transmission;
   v.b.ior = hit.ior;
   v.b.enter = enter;
-  v.cell = guide_cell(hit.p);
+  v.cell = guide_lookup(hit.p);
   return v;
 }
 
@@ -934,7 +965,8 @@ const wgslPath = (probe: boolean) => /* wgsl */ `
 fn trace_path(ro0: vec3f, rd0: vec3f, pixel: u32${probe ? ", rec: bool" : ""}) -> vec3f {
   var radiance = vec3f(0.0); var o = ro0; var d = rd0; var beta = vec3f(1.0); var eta_scale = 1.0; var pdf = 1.0; var delta = true;
   var sigma = vec3f(0.0);
-  var record_index = 0u;
+  var record_key = 0u;
+  var record_bin = 0u;
   var record_radiance = vec3f(0.0);
   var record_beta = vec3f(1.0);
   var record_count = 0u;
@@ -976,7 +1008,8 @@ fn trace_path(ro0: vec3f, rd0: vec3f, pixel: u32${probe ? ", rec: bool" : ""}) -
     if (guide_eligible(v.b)) {
       record_count++;
       if (sample1d(pixel, bounce_dim(bounce, S_RESERVOIR)) * f32(record_count) < 1.0) {
-        record_index = v.cell * GUIDE_DIRS + guide_bin_local(to_local(v.f, s.wi));
+        record_key = spatial_key(v.p);
+        record_bin = guide_bin_local(to_local(v.f, s.wi));
         record_radiance = radiance;
         record_beta = beta;
       }
@@ -995,8 +1028,13 @@ fn trace_path(ro0: vec3f, rd0: vec3f, pixel: u32${probe ? ", rec: bool" : ""}) -
   }
   if (record_count > 0u) {
     let future = max((radiance - record_radiance) / max(record_beta, vec3f(MATH_EPS)), vec3f(0.0));
-    let weight = u32(clamp(lum(future) * 64.0 * f32(record_count), 0.0, 4095.0));
-    if (weight > 0u) { atomicAdd(&guide_train[record_index], weight); }
+    let weight = min(u32(clamp(lum(future) * 64.0 * f32(record_count), 0.0, 4095.0)), GUIDE_INC_MAX);
+    let slot = claim_train(record_key);
+    if (weight > 0u && slot < GUIDE_CELLS) {
+      let i = guide_bin_at(slot, record_bin);
+      let old = atomicAdd(&guide_train[i], weight);
+      if (old > 0xffffffffu - weight) { atomicStore(&guide_train[i], 0xffffffffu); }
+    }
   }
   return radiance;
 }
