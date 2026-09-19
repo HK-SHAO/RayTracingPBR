@@ -9,6 +9,17 @@ export function mis2(a: number, b: number): number {
   return a2 / (a2 + b * b);
 }
 
+export function beer(
+  albedo: readonly [number, number, number],
+  t: number,
+): [number, number, number] {
+  return [
+    Math.pow(Math.max(albedo[0], EPS), t),
+    Math.pow(Math.max(albedo[1], EPS), t),
+    Math.pow(Math.max(albedo[2], EPS), t),
+  ];
+}
+
 export function iorF0(ior: number): number {
   const a = (ior - 1) / (ior + 1);
   return a * a;

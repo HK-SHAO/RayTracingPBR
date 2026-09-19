@@ -1,10 +1,27 @@
 import { expect, test } from "vite-plus/test";
-import { iorF0, lightPower, lightSolidAnglePdf, lum, mis2, sphereSolidAnglePdf } from "./physics";
+import {
+  beer,
+  iorF0,
+  lightPower,
+  lightSolidAnglePdf,
+  lum,
+  mis2,
+  sphereSolidAnglePdf,
+} from "./physics";
 
 test("power heuristic is one-sided at zero", () => {
   expect(mis2(1, 0)).toBe(1);
   expect(mis2(0, 1)).toBe(0);
   expect(mis2(2, 2)).toBe(0.5);
+});
+
+test("Beer-Lambert transmittance is albedo^t", () => {
+  expect(beer([1, 1, 1], 10)).toEqual([1, 1, 1]);
+  const tint = beer([0.2, 0.2, 1], 0.6);
+  expect(tint[0]).toBeCloseTo(0.2 ** 0.6, 5);
+  expect(tint[1]).toBeCloseTo(0.2 ** 0.6, 5);
+  expect(tint[2]).toBe(1);
+  expect(tint[2]).toBeGreaterThan(tint[0]);
 });
 
 test("dielectric F0 for glass", () => {

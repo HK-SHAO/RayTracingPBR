@@ -912,6 +912,7 @@ fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>${probe ? ", rec:
 const wgslPath = (probe: boolean) => /* wgsl */ `
 fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>${probe ? ", rec: bool" : ""}) -> vec3f {
   var radiance = vec3f(0.0); var o = ro0; var d = rd0; var beta = vec3f(1.0); var eta_scale = 1.0; var pdf = 1.0; var delta = true;
+  var sigma = vec3f(0.0);
   var record_index = 0u;
   var record_radiance = vec3f(0.0);
   var record_beta = vec3f(1.0);
@@ -919,6 +920,7 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>${probe ? ", rec: b
   ${probe ? "var pn = 0u;\n  if (rec) { probe[(trace.frame % PROBE_PATHS) * PROBE_STRIDE] = vec4f(0.0); }\n  probe_push(rec, &pn, ro0, vec3f(1.0), 0.0);" : ""}
   for (var bounce = 0u; ; bounce++) {
     let hit = intersect(o, d);
+    if (hit.ok && max(sigma.x, max(sigma.y, sigma.z)) > 0.0) { beta *= exp(-sigma * hit.t); }
     if (!hit.ok) {
       if (bounce > 0u || trace.hide_ibl == 0u) {
         let envl = env_lookup(d);
@@ -958,6 +960,9 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>${probe ? ", rec: b
       }
     }
     beta *= s.weight; eta_scale *= s.eta_scale; pdf = s.pdf; delta = s.delta == 1u;
+    if (v.b.transmission > 0.0 && dot(v.f.n, wo) * dot(v.f.n, s.wi) < 0.0) {
+      sigma = select(vec3f(0.0), -log(max(v.b.albedo, vec3f(EPS))), v.b.enter);
+    }
     let g_out = select(-hit.gn, hit.gn, dot(hit.gn, s.wi) >= 0.0);
     o = hit.p + g_out * (EPS * 8.0); d = s.wi;
     if (bounce >= RR_START) {

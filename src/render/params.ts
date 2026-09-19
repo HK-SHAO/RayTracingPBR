@@ -11,7 +11,7 @@ export type DevParams = {
 };
 
 export type DevKnob = {
-  key: keyof DevParams;
+  key: Exclude<keyof DevParams, "hideIbl">;
   min: number;
   max: number;
   step: number;

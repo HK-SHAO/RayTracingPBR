@@ -3,6 +3,7 @@ import { DEV_KNOBS, formatParam, type DevParams } from "../render/params";
 import { TARGET_FPS } from "../render/pace";
 import { plugins } from "../scene";
 import type { CameraMode } from "../render/camera";
+import { t } from "../i18n";
 import { version } from "../../package.json";
 
 const FPS_MAX = TARGET_FPS * 2;
@@ -20,11 +21,11 @@ export function FpsPad({ onPad }: { onPad: (key: "up" | "down", down: boolean) =
   return (
     <div className="fps-touch">
       <div className="fps-lift">
-        <button type="button" className="fps-key" aria-label="down" {...hold("down")}>
-          Down
+        <button type="button" className="fps-key" aria-label={t("liftDown")} {...hold("down")}>
+          {t("liftDown")}
         </button>
-        <button type="button" className="fps-key" aria-label="up" {...hold("up")}>
-          Up
+        <button type="button" className="fps-key" aria-label={t("liftUp")} {...hold("up")}>
+          {t("liftUp")}
         </button>
       </div>
     </div>
@@ -90,13 +91,13 @@ export function DevPanel({
       <header className="dev-bar">
         <span className="dev-title">RayTracingPBR v{version}</span>
         <button type="button" onClick={onToggleOpen} aria-expanded={open}>
-          {open ? "Hide" : "Open"}
+          {open ? t("hide") : t("open")}
         </button>
       </header>
       {open ? (
         <div className="dev-body">
           <section className="dev-block">
-            <h2>Scene</h2>
+            <h2>{t("scene")}</h2>
             <div className="dev-row">
               {plugins.map((item) => (
                 <button
@@ -111,35 +112,33 @@ export function DevPanel({
             </div>
           </section>
           <section className="dev-block">
-            <h2>Camera</h2>
+            <h2>{t("camera")}</h2>
             <div className="dev-row">
               <button type="button" aria-pressed={mode === "orbit"} onClick={() => onMode("orbit")}>
-                Orbit
+                {t("orbit")}
               </button>
               <button type="button" aria-pressed={mode === "fps"} onClick={() => onMode("fps")}>
-                FPS
+                {t("fpsMode")}
               </button>
             </div>
-            <p className="dev-hint">
-              {mode === "fps" ? "WASDQE · look · stick" : "orbit drag · pinch / wheel"}
-            </p>
+            <p className="dev-hint">{mode === "fps" ? t("hintFps") : t("hintOrbit")}</p>
           </section>
           <section className="dev-block">
-            <h2>Path</h2>
+            <h2>{t("path")}</h2>
             <div className="dev-row">
               <button type="button" aria-pressed={!probeArmed} onClick={() => onProbeArmed(false)}>
-                Off
+                {t("off")}
               </button>
               <button type="button" aria-pressed={probeArmed} onClick={() => onProbeArmed(true)}>
-                On
+                {t("on")}
               </button>
             </div>
-            <p className="dev-hint">{probeArmed ? "tap a pixel · esc" : "off"}</p>
+            <p className="dev-hint">{probeArmed ? t("hintPathOn") : t("hintPathOff")}</p>
           </section>
           <section className="dev-block">
             {DEV_KNOBS.map((knob) => (
               <label key={knob.key} className="dev-knob">
-                <span>{knob.key}</span>
+                <span>{t(knob.key)}</span>
                 <output>{formatParam(knob.key, params[knob.key])}</output>
                 <input
                   type="range"
@@ -152,11 +151,11 @@ export function DevPanel({
               </label>
             ))}
             <label className="dev-knob">
-              <span>spp</span>
+              <span>{t("spp")}</span>
               <output>{error ?? spp}</output>
             </label>
             <label className="dev-fps">
-              <span>fps</span>
+              <span>{t("fps")}</span>
               <FpsPlot values={fpsHist} />
               <output>{fps.toFixed(0)}</output>
             </label>
