@@ -3,6 +3,7 @@ import { DEV_KNOBS, formatParam, type DevParams } from "../render/params";
 import { TARGET_FPS } from "../render/pace";
 import { plugins } from "../scene";
 import type { CameraMode } from "../render/camera";
+import { version } from "../../package.json";
 
 const FPS_MAX = TARGET_FPS * 2;
 
@@ -87,7 +88,7 @@ export function DevPanel({
   return (
     <aside className={open ? "dev open" : "dev"}>
       <header className="dev-bar">
-        <span className="dev-title">RayTracingPBR</span>
+        <span className="dev-title">RayTracingPBR v{version}</span>
         <button type="button" onClick={onToggleOpen} aria-expanded={open}>
           {open ? "Hide" : "Open"}
         </button>
@@ -160,6 +161,12 @@ export function DevPanel({
               <output>{fps.toFixed(0)}</output>
             </label>
           </section>
+          <footer className="dev-foot">
+            <a href="https://github.com/HK-SHAO/RayTracingPBR" rel="noreferrer">
+              github.com/HK-SHAO/RayTracingPBR
+            </a>
+            <span>RayTracingPBR © 2026 烧风 HK-SHAO</span>
+          </footer>
         </div>
       ) : null}
     </aside>

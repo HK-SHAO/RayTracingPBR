@@ -90,11 +90,19 @@ canvas.probe-on:active {
   --lo: #777;
   --line: #2a2a2a;
   --fill: #161616;
+  --inset: 1rem;
+  --edge: max(var(--inset), env(safe-area-inset-top, 0px));
+  --edge-r: max(var(--inset), env(safe-area-inset-right, 0px));
+  --edge-b: max(var(--inset), env(safe-area-inset-bottom, 0px));
+  --edge-l: max(var(--inset), env(safe-area-inset-left, 0px));
   position: fixed;
-  top: 1rem;
-  right: 1rem;
+  top: var(--edge);
+  right: var(--edge-r);
   z-index: 2;
-  width: 19rem;
+  display: flex;
+  flex-direction: column;
+  width: min(19rem, calc(100svw - var(--edge-l) - var(--edge-r) - 2px));
+  max-height: calc(100svh - var(--edge) - var(--edge-b) - 2px);
   background: rgba(10, 10, 10, 0.88);
   border: 1px solid var(--line);
   border-radius: 1rem;
@@ -113,6 +121,7 @@ canvas.probe-on:active {
 
 .dev-bar {
   flex-direction: row;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
 }
@@ -145,6 +154,13 @@ canvas.probe-on:active {
 .dev-body {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 
 .dev-row,
@@ -158,6 +174,26 @@ canvas.probe-on:active {
 .dev-hint {
   margin: 0;
   color: var(--lo);
+}
+
+.dev-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.7rem 0.75rem 0.8rem;
+  color: var(--lo);
+  font-size: 0.7rem;
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+}
+
+.dev-foot a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dev-foot a:hover {
+  color: var(--hi);
 }
 
 .dev-knob output,
