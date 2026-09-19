@@ -16,7 +16,6 @@ const GUIDE_Z = ${GUIDE_Z_BINS}u;
 const GUIDE_MIX = 0.5;
 const GUIDE_CELL_SIZE = 0.5;
 const GUIDE_MIN_WEIGHT = 64u;
-const GUIDE_RECORDS = 8u;
 const R2A = 0.7548776662466927;
 const R2B = 0.5698402909980532;
 const KIND_SPHERE = 0u;
@@ -868,9 +867,9 @@ fn next_event_env(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, rough
 const WGSL_PATH = /* wgsl */ `
 fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
   var radiance = vec3f(0.0); var o = ro0; var d = rd0; var beta = vec3f(1.0); var eta_scale = 1.0; var pdf = 1.0; var delta = true;
-  var record_index: array<u32, 8>;
-  var record_radiance: array<vec3f, 8>;
-  var record_beta: array<vec3f, 8>;
+  var record_index = 0u;
+  var record_radiance = vec3f(0.0);
+  var record_beta = vec3f(1.0);
   var record_count = 0u;
   for (var bounce = 0u; ; bounce++) {
     let hit = intersect(o, d);
@@ -896,12 +895,14 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
     if (trace.bounce >= 0 && bounce >= u32(trace.bounce)) { break; }
     let s = sample_guided_bsdf(hit.p, ns, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
     if (s.pdf <= 0.0 || max(s.weight.x, max(s.weight.y, s.weight.z)) <= 0.0) { break; }
-    if (record_count < GUIDE_RECORDS && guide_eligible(hit.roughness, hit.metallic, hit.transmission)) {
-      let local = to_local(frame_n(ns), s.wi);
-      record_index[record_count] = guide_cell(hit.p) * GUIDE_DIRS + guide_bin_local(local);
-      record_radiance[record_count] = radiance;
-      record_beta[record_count] = beta;
+    if (guide_eligible(hit.roughness, hit.metallic, hit.transmission)) {
       record_count++;
+      if (pcg(rng) * f32(record_count) < 1.0) {
+        let local = to_local(frame_n(ns), s.wi);
+        record_index = guide_cell(hit.p) * GUIDE_DIRS + guide_bin_local(local);
+        record_radiance = radiance;
+        record_beta = beta;
+      }
     }
     beta *= s.weight; eta_scale *= s.eta_scale; pdf = s.pdf; delta = s.delta == 1u;
     let g_out = select(-hit.gn, hit.gn, dot(hit.gn, s.wi) >= 0.0);
@@ -912,10 +913,10 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
       beta /= q;
     }
   }
-  for (var i = 0u; i < record_count; i++) {
-    let future = max((radiance - record_radiance[i]) / max(record_beta[i], vec3f(EPS)), vec3f(0.0));
-    let weight = u32(clamp(lum(future) * 64.0, 0.0, 4095.0));
-    if (weight > 0u) { atomicAdd(&guide_train[record_index[i]], weight); }
+  if (record_count > 0u) {
+    let future = max((radiance - record_radiance) / max(record_beta, vec3f(EPS)), vec3f(0.0));
+    let weight = u32(clamp(lum(future) * 64.0 * f32(record_count), 0.0, 4095.0));
+    if (weight > 0u) { atomicAdd(&guide_train[record_index], weight); }
   }
   return radiance;
 }
