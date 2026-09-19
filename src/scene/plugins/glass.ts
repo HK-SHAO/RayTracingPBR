@@ -18,7 +18,7 @@ export const glass: ScenePlugin = {
   exposure: 1,
   aperture: 0,
   ibl: iblHdr,
-  hideIblDirect: true,
+  hideIblDirect: false,
   build() {
     const shell = mat(vec3(0.85, 0.9, 1), vec3(0, 0, 0), 0, 0, 1, 1.5);
     return {

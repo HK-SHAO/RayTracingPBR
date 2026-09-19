@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
+    "build:toy": "vp build --mode toy && rm -f toy.zip && zip -qr toy.zip dist",
     "preview": "vp preview",
     "check": "vp check",
     "lint": "vp lint",

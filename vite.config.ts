@@ -1,8 +1,10 @@
 import { defineConfig } from "vite-plus";
+import { publishExt } from "./vite/publish-ext";
 
 export default defineConfig({
   base: "./",
   publicDir: false,
+  plugins: [publishExt()],
   server: { port: 5173 },
   preview: { port: 4173 },
   build: { sourcemap: false },
