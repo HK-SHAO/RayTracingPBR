@@ -8,15 +8,24 @@ import { parseProbe } from "./probe";
 
 const skipGpu = process.env.VGPU_SKIP_GPU === "1";
 
-function meanLum(bytes: Float32Array): number {
-  let sum = 0;
+function meanRgb(bytes: Float32Array): [number, number, number] {
+  let r = 0;
+  let g = 0;
+  let b = 0;
   let n = 0;
   for (let i = 0; i < bytes.length; i += 4) {
     const w = Math.max(bytes[i + 3] ?? 0, 1);
-    sum += ((bytes[i] ?? 0) + (bytes[i + 1] ?? 0) + (bytes[i + 2] ?? 0)) / w;
+    r += (bytes[i] ?? 0) / w;
+    g += (bytes[i + 1] ?? 0) / w;
+    b += (bytes[i + 2] ?? 0) / w;
     n += 1;
   }
-  return n ? sum / n : 0;
+  return n ? [r / n, g / n, b / n] : [0, 0, 0];
+}
+
+function meanLum(bytes: Float32Array): number {
+  const [r, g, b] = meanRgb(bytes);
+  return r + g + b;
 }
 
 test.skipIf(skipGpu)(
@@ -51,6 +60,31 @@ test.skipIf(skipGpu)(
       expect(leftR).toBeGreaterThan(rightG * 0.25);
     } finally {
       context.dispose();
+    }
+  },
+  120_000,
+);
+
+test.skipIf(skipGpu)(
+  "path guiding with continuation MIS matches unguided mean",
+  async () => {
+    const spp = GUIDE_FIRST_EPOCH + 48;
+    const guided = await traceSamples(32, 32, spp, undefined, true);
+    try {
+      const unguided = await traceSamples(32, 32, spp, undefined, false);
+      try {
+        const a = meanRgb(guided.bytes);
+        const b = meanRgb(unguided.bytes);
+        for (let c = 0; c < 3; c++) {
+          const ref = Math.max(b[c] ?? 0, 1e-6);
+          expect(Math.abs((a[c] ?? 0) - (b[c] ?? 0)) / ref).toBeLessThan(0.12);
+        }
+        expect(guided.guideWeights.some((weight) => weight > 0)).toBe(true);
+      } finally {
+        unguided.gpu.dispose();
+      }
+    } finally {
+      guided.gpu.dispose();
     }
   },
   120_000,

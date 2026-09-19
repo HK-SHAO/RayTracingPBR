@@ -498,26 +498,37 @@ fn sample_bsdf(f: Frame, wo_w: vec3f, b: Bsdf, u: vec2f, u_lobe: f32, u_sel: vec
   }
   return finish_local(f, wo, local, b);
 }
-fn sample_guided_bsdf(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> Sampled {
-  let eligible = guide_eligible(v.b);
-  var total = 0u;
-  if (eligible && trace.frame >= GUIDE_FIRST) { total = guide_total(v.cell); }
-  let mix_weight = select(0.0, GUIDE_MIX, total >= GUIDE_MIN_WEIGHT);
-  if (mix_weight > 0.0 && pcg(rng) < mix_weight) {
-    let g = sample_guide(v.cell, v.f, total, vec3f(pcg(rng), pcg(rng), pcg(rng)));
+struct GuideState { mix: f32, total: u32 }
+fn guide_state(v: Vertex) -> GuideState {
+  var gs: GuideState;
+  gs.total = 0u;
+  gs.mix = 0.0;
+  if (guide_eligible(v.b) && trace.frame >= GUIDE_FIRST) {
+    gs.total = guide_total(v.cell);
+    gs.mix = select(0.0, GUIDE_MIX, gs.total >= GUIDE_MIN_WEIGHT);
+  }
+  return gs;
+}
+fn continuation_pdf(v: Vertex, wi: vec3f, pb: f32, gs: GuideState) -> f32 {
+  if (gs.mix <= 0.0) { return pb; }
+  return mix(pb, guide_pdf(v.cell, v.f, wi, gs.total), gs.mix);
+}
+fn sample_guided_bsdf(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState) -> Sampled {
+  if (gs.mix > 0.0 && pcg(rng) < gs.mix) {
+    let g = sample_guide(v.cell, v.f, gs.total, vec3f(pcg(rng), pcg(rng), pcg(rng)));
     let ev = eval_bsdf(v.f, wo, g.wi, v.b);
     var sampled: Sampled;
     sampled.wi = g.wi;
-    sampled.pdf = mix(ev.pdf, g.pdf, mix_weight);
+    sampled.pdf = continuation_pdf(v, g.wi, ev.pdf, gs);
     sampled.weight = ev.f * max(0.0, dot(v.f.n, g.wi)) / max(sampled.pdf, EPS);
     sampled.eta_scale = 1.0;
     sampled.delta = 0u;
     return sampled;
   }
   var sampled = sample_bsdf(v.f, wo, v.b, rand2(rng), pcg(rng), rand2(rng));
-  if (mix_weight > 0.0 && sampled.pdf > 0.0) {
+  if (gs.mix > 0.0 && sampled.pdf > 0.0) {
     let ev = eval_bsdf(v.f, wo, sampled.wi, v.b);
-    sampled.pdf = mix(sampled.pdf, guide_pdf(v.cell, v.f, sampled.wi, total), mix_weight);
+    sampled.pdf = continuation_pdf(v, sampled.wi, ev.pdf, gs);
     sampled.weight = ev.f * abs(dot(v.f.n, sampled.wi)) / max(sampled.pdf, EPS);
   }
   return sampled;
@@ -775,7 +786,7 @@ fn area_pdf_w(p_pick: f32, area: f32, dist2: f32, cos_l: f32) -> f32 {
   return p_pick / max(area, EPS) * dist2 / max(cos_l, EPS);
 }
 
-fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
+fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
   if (trace.light_count == 0u) { return vec3f(0.0); }
   let tot = max(trace.tot_power, EPS);
   let i = pick_light(rng);
@@ -837,7 +848,8 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>${probe ? ", rec: boo
   }
   let ev = eval_bsdf(v.f, wo, wi, v.b);
   if (pdf_w <= EPS) { return vec3f(0.0); }
-  let contrib = ev.f * light_le(L) * max(dot(n, wi), 0.0) * mis2(pdf_w, ev.pdf) / pdf_w;
+  let q = continuation_pdf(v, wi, ev.pdf, gs);
+  let contrib = ev.f * light_le(L) * max(dot(n, wi), 0.0) * mis2(pdf_w, q) / pdf_w;
   ${probe ? "if (max(contrib.x, max(contrib.y, contrib.z)) > 0.0) { probe_push(rec, pn, light_p, beta * contrib, 1.0); }" : ""}
   return contrib;
 }
@@ -890,7 +902,7 @@ fn env_pick(rng: ptr<function, u32>) -> vec2u {
   let j = select(i, min(u32(env_f32(n + i)), n - 1u), fract(x) >= env_f32(i));
   return vec2u(j % trace.env_w, j / trace.env_w);
 }
-fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
+fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
   if (trace.use_ibl == 0u) { return vec3f(0.0); }
   let px = env_pick(rng);
   let uv = vec2f((f32(px.x) + pcg(rng)) / f32(trace.env_w), (f32(px.y) + pcg(rng)) / f32(trace.env_h));
@@ -903,7 +915,8 @@ fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>${probe ? ", rec:
   if (cos_p <= 0.0 || pdf_e <= EPS) { return vec3f(0.0); }
   if (occluded(v.p + v.gn * (EPS * 8.0), wi, T_MAX)) { return vec3f(0.0); }
   let ev = eval_bsdf(v.f, wo, wi, v.b);
-  let contrib = ev.f * le * cos_p * mis2(pdf_e, ev.pdf) / pdf_e;
+  let q = continuation_pdf(v, wi, ev.pdf, gs);
+  let contrib = ev.f * le * cos_p * mis2(pdf_e, q) / pdf_e;
   ${probe ? "if (max(contrib.x, max(contrib.y, contrib.z)) > 0.0) { probe_push(rec, pn, v.p + wi * 8.0, beta * contrib, 2.0); }" : ""}
   return contrib;
 }
@@ -944,12 +957,13 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>${probe ? ", rec: b
     }
     ${probe ? "probe_push(rec, &pn, hit.p, beta, 0.0);" : ""}
     let v = make_vertex(hit, ns, gs, front);
+    let gstate = guide_state(v);
     if (!is_delta(v.b)) {
-      radiance += beta * next_event(v, wo, rng${probe ? ", rec, &pn, beta" : ""});
-      radiance += beta * next_event_env(v, wo, rng${probe ? ", rec, &pn, beta" : ""});
+      radiance += beta * next_event(v, wo, rng, gstate${probe ? ", rec, &pn, beta" : ""});
+      radiance += beta * next_event_env(v, wo, rng, gstate${probe ? ", rec, &pn, beta" : ""});
     }
     if (trace.bounce >= 0 && bounce >= u32(trace.bounce)) { break; }
-    let s = sample_guided_bsdf(v, wo, rng);
+    let s = sample_guided_bsdf(v, wo, rng, gstate);
     if (s.pdf <= 0.0 || max(s.weight.x, max(s.weight.y, s.weight.z)) <= 0.0) { break; }
     if (guide_eligible(v.b)) {
       record_count++;

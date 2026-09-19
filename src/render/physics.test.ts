@@ -15,6 +15,15 @@ test("power heuristic is one-sided at zero", () => {
   expect(mis2(2, 2)).toBe(0.5);
 });
 
+test("MIS partitions only when both techniques use the same pdf pair", () => {
+  const pLight = 0.2;
+  const pBsdf = 0.08;
+  const pGuide = 0.5;
+  const pCont = 0.5 * pBsdf + 0.5 * pGuide;
+  expect(mis2(pLight, pCont) + mis2(pCont, pLight)).toBeCloseTo(1, 10);
+  expect(mis2(pLight, pBsdf) + mis2(pCont, pLight)).not.toBeCloseTo(1, 2);
+});
+
 test("Beer-Lambert transmittance is albedo^t", () => {
   expect(beer([1, 1, 1], 10)).toEqual([1, 1, 1]);
   const tint = beer([0.2, 0.2, 1], 0.6);
