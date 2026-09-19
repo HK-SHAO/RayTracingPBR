@@ -88,6 +88,9 @@ fn load_prim(i: u32) -> Prim {
   p.a = world[o + 1u]; p.b = world[o + 2u]; p.c = world[o + 3u];
   return p;
 }
+fn load_prim_slot(i: u32, slot: u32) -> vec4f {
+  return world[trace.prim_off + i * 4u + slot];
+}
 fn load_light(i: u32) -> Light {
   var L: Light;
   let o = trace.light_off + i * 5u;
@@ -287,6 +290,9 @@ fn fresnel_dielectric(cos_i: f32, eta: f32) -> f32 {
 `;
 
 export const WGSL_BSDF = /* wgsl */ `
+fn is_delta(roughness: f32, metallic: f32, transmission: f32) -> bool {
+  return roughness <= 0.0 && ((metallic >= 1.0 && transmission <= 0.0) || transmission >= 1.0);
+}
 fn eval_plastic(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32, ior: f32) -> Evaluated {
   var out: Evaluated; out.f = vec3f(0.0); out.pdf = 0.0;
   let f0 = vec3f(ior_f0(ior));
@@ -362,7 +368,7 @@ fn eval_local(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32, metallic: f32, tr
   return out;
 }
 fn eval_bsdf(n: vec3f, wo_w: vec3f, wi_w: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool) -> Evaluated {
-  if (roughness <= 0.0 && ((metallic >= 1.0 && transmission <= 0.0) || transmission >= 1.0)) {
+  if (is_delta(roughness, metallic, transmission)) {
     var delta: Evaluated;
     delta.f = vec3f(0.0);
     delta.pdf = 0.0;
@@ -492,48 +498,48 @@ fn keep(best: ptr<function, Isect>, t: f32, prim: i32, any_hit: bool) -> bool {
   return any_hit;
 }
 
-fn t_sphere(ro: vec3f, rd: vec3f, prim: Prim) -> f32 {
-  let oc = ro - prim.a.xyz; let b = dot(oc, rd); let disc = b * b - dot(oc, oc) + prim.a.w * prim.a.w;
+fn t_sphere(ro: vec3f, rd: vec3f, a: vec4f) -> f32 {
+  let oc = ro - a.xyz; let b = dot(oc, rd); let disc = b * b - dot(oc, oc) + a.w * a.w;
   if (disc < 0.0) { return T_MAX; }
   let s = sqrt(disc); var t = -b - s; if (t <= EPS) { t = -b + s; }
   if (t <= EPS) { return T_MAX; }
   return t;
 }
-fn t_plane(ro: vec3f, rd: vec3f, prim: Prim) -> f32 {
+fn t_plane(ro: vec3f, rd: vec3f, a: vec4f) -> f32 {
   if (abs(rd.y) < EPS) { return T_MAX; }
-  let t = (prim.a.w - ro.y) / rd.y;
+  let t = (a.w - ro.y) / rd.y;
   if (t <= EPS) { return T_MAX; }
   return t;
 }
-fn t_quad(ro: vec3f, rd: vec3f, prim: Prim) -> f32 {
-  let n = cross(prim.b.xyz, prim.c.xyz); let area = length(n);
+fn t_quad(ro: vec3f, rd: vec3f, a: vec4f, b: vec4f, c: vec4f) -> f32 {
+  let n = cross(b.xyz, c.xyz); let area = length(n);
   if (area < EPS) { return T_MAX; }
   let nn = n / area; let denom = dot(nn, rd);
   if (abs(denom) < EPS) { return T_MAX; }
-  let t = dot(nn, prim.a.xyz - ro) / denom;
+  let t = dot(nn, a.xyz - ro) / denom;
   if (t <= EPS) { return T_MAX; }
-  let w = ro + rd * t - prim.a.xyz;
-  let uu = dot(prim.b.xyz, prim.b.xyz); let vv = dot(prim.c.xyz, prim.c.xyz); let uv = dot(prim.b.xyz, prim.c.xyz);
+  let w = ro + rd * t - a.xyz;
+  let uu = dot(b.xyz, b.xyz); let vv = dot(c.xyz, c.xyz); let uv = dot(b.xyz, c.xyz);
   let det = uv * uv - uu * vv;
-  let s = (uv * dot(w, prim.c.xyz) - vv * dot(w, prim.b.xyz)) / det;
-  let r = (uv * dot(w, prim.b.xyz) - uu * dot(w, prim.c.xyz)) / det;
+  let s = (uv * dot(w, c.xyz) - vv * dot(w, b.xyz)) / det;
+  let r = (uv * dot(w, b.xyz) - uu * dot(w, c.xyz)) / det;
   if (s < 0.0 || s > 1.0 || r < 0.0 || r > 1.0) { return T_MAX; }
   return t;
 }
-fn t_box(ro: vec3f, rd: vec3f, prim: Prim) -> f32 {
-  let cs = prim.c.x; let sn = prim.c.y;
-  let o = rot_y_t(ro - prim.a.xyz, cs, sn); let d = rot_y_t(rd, cs, sn);
+fn t_box(ro: vec3f, rd: vec3f, a: vec4f, b: vec4f, c: vec4f) -> f32 {
+  let cs = c.x; let sn = c.y;
+  let o = rot_y_t(ro - a.xyz, cs, sn); let d = rot_y_t(rd, cs, sn);
   let inv = safe_inv(d);
-  let t0 = (-prim.b.xyz - o) * inv; let t1 = (prim.b.xyz - o) * inv;
+  let t0 = (-b.xyz - o) * inv; let t1 = (b.xyz - o) * inv;
   let tmin = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), min(t0.z, t1.z));
   let tmax = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), max(t0.z, t1.z));
   var t = tmin; if (tmin <= EPS) { t = tmax; }
   if (tmax < max(tmin, EPS) || t <= EPS) { return T_MAX; }
   return t;
 }
-fn t_cyl(ro: vec3f, rd: vec3f, prim: Prim) -> f32 {
-  let c = prim.a.xyz; let radius = prim.a.w; let hh = prim.b.w;
-  let o = ro - c; let a = rd.x * rd.x + rd.z * rd.z; let b = o.x * rd.x + o.z * rd.z;
+fn t_cyl(ro: vec3f, rd: vec3f, data: vec4f, b_data: vec4f) -> f32 {
+  let center = data.xyz; let radius = data.w; let hh = b_data.w;
+  let o = ro - center; let a = rd.x * rd.x + rd.z * rd.z; let b = o.x * rd.x + o.z * rd.z;
   let cc = o.x * o.x + o.z * o.z - radius * radius;
   var t = T_MAX;
   if (a > EPS) {
@@ -557,15 +563,15 @@ fn scan_prims(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool) -> Isect {
   var best = none(); best.t = tmax;
   var i = 0u;
   let s0 = trace.n_sphere;
-  while (i < s0) { if (keep(&best, t_sphere(ro, rd, load_prim(i)), i32(i), any_hit)) { return best; } i += 1u; }
+  while (i < s0) { if (keep(&best, t_sphere(ro, rd, load_prim_slot(i, 1u)), i32(i), any_hit)) { return best; } i += 1u; }
   let s1 = s0 + trace.n_plane;
-  while (i < s1) { if (keep(&best, t_plane(ro, rd, load_prim(i)), i32(i), any_hit)) { return best; } i += 1u; }
+  while (i < s1) { if (keep(&best, t_plane(ro, rd, load_prim_slot(i, 1u)), i32(i), any_hit)) { return best; } i += 1u; }
   let s2 = s1 + trace.n_quad;
-  while (i < s2) { if (keep(&best, t_quad(ro, rd, load_prim(i)), i32(i), any_hit)) { return best; } i += 1u; }
+  while (i < s2) { if (keep(&best, t_quad(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)), i32(i), any_hit)) { return best; } i += 1u; }
   let s3 = s2 + trace.n_box;
-  while (i < s3) { if (keep(&best, t_box(ro, rd, load_prim(i)), i32(i), any_hit)) { return best; } i += 1u; }
+  while (i < s3) { if (keep(&best, t_box(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)), i32(i), any_hit)) { return best; } i += 1u; }
   let s4 = s3 + trace.n_cyl;
-  while (i < s4) { if (keep(&best, t_cyl(ro, rd, load_prim(i)), i32(i), any_hit)) { return best; } i += 1u; }
+  while (i < s4) { if (keep(&best, t_cyl(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u)), i32(i), any_hit)) { return best; } i += 1u; }
   return best;
 }
 
@@ -683,17 +689,15 @@ fn intersect(ro: vec3f, rd: vec3f) -> Hit {
 `;
 
 const WGSL_LIGHT = /* wgsl */ `
-fn light_le(i: u32) -> vec3f {
-  let L = load_light(i);
+fn light_le(L: Light) -> vec3f {
   return vec3f(L.le_x, L.u.w, L.v.w);
 }
-fn light_power(i: u32) -> f32 {
-  let L = load_light(i);
-  return max(EPS, lum(light_le(i)) * L.area);
+fn light_power(L: Light) -> f32 {
+  return max(EPS, lum(light_le(L)) * L.area);
 }
 fn total_light_power() -> f32 { return max(trace.tot_power, EPS); }
 fn vis_range(dist: f32) -> f32 { return dist - max(EPS * 16.0, dist * 1e-3); }
-fn pick_light(rng: ptr<function, u32>, tot: f32) -> u32 {
+fn pick_light(rng: ptr<function, u32>) -> u32 {
   let n = trace.light_count;
   let x = pcg(rng) * f32(n);
   let i = min(u32(x), n - 1u);
@@ -701,7 +705,7 @@ fn pick_light(rng: ptr<function, u32>, tot: f32) -> u32 {
   if (fract(x) < L.pick.x) { return i; }
   return min(u32(L.pick.y), n - 1u);
 }
-fn pick_pdf(i: u32, tot: f32) -> f32 { return light_power(i) / tot; }
+fn pick_pdf(L: Light, tot: f32) -> f32 { return light_power(L) / tot; }
 
 fn sphere_pdf_w(p: vec3f, c: vec3f, r: f32) -> f32 {
   let d2 = dot(c - p, c - p);
@@ -734,9 +738,9 @@ fn reach(origin: vec3f, wi: vec3f, dist: f32) -> bool {
 fn next_event(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool, rng: ptr<function, u32>) -> vec3f {
   if (trace.light_count == 0u) { return vec3f(0.0); }
   let tot = total_light_power();
-  let i = pick_light(rng, tot);
+  let i = pick_light(rng);
   let L = load_light(i);
-  let p_pick = pick_pdf(i, tot);
+  let p_pick = pick_pdf(L, tot);
   var wi = vec3f(0.0, 1.0, 0.0);
   var pdf_w = 1.0;
   let origin = p + gn * (EPS * 8.0);
@@ -748,9 +752,7 @@ fn next_event(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, roughness
     wi = sample_cone(to_c / sqrt(d2), cos_max, rand2(rng));
     if (dot(n, wi) <= 0.0) { return vec3f(0.0); }
     pdf_w = p_pick * sphere_pdf_w(p, c, r);
-    var sph: Prim;
-    sph.a = vec4f(c, r);
-    let t = t_sphere(origin, wi, sph);
+    let t = t_sphere(origin, wi, vec4f(c, r));
     if (t >= T_MAX || occluded(origin, wi, vis_range(t))) { return vec3f(0.0); }
   } else {
     var sample_p = L.origin.xyz;
@@ -791,7 +793,7 @@ fn next_event(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, roughness
   }
   let ev = eval_bsdf(n, wo, wi, albedo, roughness, metallic, transmission, ior, enter);
   if (pdf_w <= EPS) { return vec3f(0.0); }
-  return ev.f * light_le(i) * max(dot(n, wi), 0.0) * mis2(pdf_w, ev.pdf) / pdf_w;
+  return ev.f * light_le(L) * max(dot(n, wi), 0.0) * mis2(pdf_w, ev.pdf) / pdf_w;
 }
 
 fn light_pdf_hit(hit: Hit, o: vec3f, d: vec3f) -> f32 {
@@ -801,7 +803,7 @@ fn light_pdf_hit(hit: Hit, o: vec3f, d: vec3f) -> f32 {
   let cos_l = max(0.0, -dot(hit.gn, d));
   for (var i = 0u; i < trace.light_count; i++) {
     let L = load_light(i);
-    let p_pick = pick_pdf(i, tot);
+    let p_pick = pick_pdf(L, tot);
     if (L.kind == LIGHT_SPHERE) {
       if (i32(L.prim) != hit.prim) { continue; }
       pdf_w += p_pick * sphere_pdf_w(o, L.origin.xyz, L.origin.w);
@@ -888,8 +890,10 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
       if (front) { radiance += beta * hit.emission * select(mis2(pdf, light_pdf_hit(hit, o, d)), 1.0, delta); }
       break;
     }
-    radiance += beta * next_event(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
-    radiance += beta * next_event_env(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
+    if (!is_delta(hit.roughness, hit.metallic, hit.transmission)) {
+      radiance += beta * next_event(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
+      radiance += beta * next_event_env(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
+    }
     if (trace.bounce >= 0 && bounce >= u32(trace.bounce)) { break; }
     let s = sample_guided_bsdf(hit.p, ns, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
     if (s.pdf <= 0.0 || max(s.weight.x, max(s.weight.y, s.weight.z)) <= 0.0) { break; }
