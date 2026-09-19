@@ -3,9 +3,10 @@ import {
   effect,
   frame,
   init,
-  pingPongStorage,
+  storage,
   surface,
   type Gpu,
+  type StorageBuffer,
   type Surface,
 } from "vgpu";
 
@@ -45,8 +46,6 @@ import { clampAxis, clampStickOrigin, stickAxes, stickRole, STICK_RADIUS } from 
 const WG = 8;
 const MAX_SPP = 8192000;
 
-type PingPong = ReturnType<typeof pingPongStorage>;
-
 export type Renderer = {
   ready: Promise<void>;
   dispose: () => void;
@@ -76,7 +75,7 @@ export function createRenderer(
   let disposed = false;
   let gpu: Gpu | undefined;
   let output: Surface | undefined;
-  let accum: PingPong | undefined;
+  let accum: StorageBuffer | undefined;
   let tracer: ReturnType<typeof compute> | undefined;
   let clearer: ReturnType<typeof compute> | undefined;
   let presenter: ReturnType<typeof effect> | undefined;
@@ -125,20 +124,17 @@ export function createRenderer(
     const count = size[0] * size[1];
     if (!accum || !clearer || count === 0) return;
     const groups = Math.ceil(count / 64);
-    clearer.set({ dst: accum.read });
-    clearer.dispatch(groups);
-    clearer.set({ dst: accum.write });
+    clearer.set({ dst: accum });
     clearer.dispatch(groups);
   };
 
   const rebuild = (next: readonly [number, number]) => {
     if (!gpu) return;
     if (gpu && accum) {
-      destroyStorage(accum.read);
-      destroyStorage(accum.write);
+      destroyStorage(accum);
     }
     size = next;
-    accum = pingPongStorage(gpu, next[0] * next[1] * 16);
+    accum = storage(gpu, next[0] * next[1] * 16);
     reset();
   };
 
@@ -252,15 +248,13 @@ export function createRenderer(
         }
         tracerNow.set({
           trace: uniforms(),
-          src: accumLive.read,
-          dst: accumLive.write,
+          accum: accumLive,
           env: envNow.data,
           world: worldLive.world,
           guide: guidingNow.read,
           guide_train: guidingNow.write,
         });
         tracerNow.dispatch(Math.ceil(size[0] / WG), Math.ceil(size[1] / WG));
-        accumLive.swap();
         spp += 1;
         guideSamples += 1;
         taken += 1;
@@ -268,7 +262,7 @@ export function createRenderer(
     }
     presenterNow.set({
       present: { size: [size[0], size[1]], exposure: params.exposure },
-      accum: accumLive.read,
+      accum: accumLive,
     });
     frame(gpuNow, (current) => current.pass(outputNow, presenterNow));
     const shownSpp = spp;

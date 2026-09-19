@@ -3,6 +3,7 @@ import { expect, test } from "vite-plus/test";
 import { WGSL_BSDF, WGSL_CORE } from "./shaders";
 
 const TEST_WGSL = `${WGSL_CORE}\n${WGSL_BSDF}
+@group(0) @binding(2) var<storage, read_write> dst: array<vec4f>;
 @compute @workgroup_size(1)
 fn main() {
   let mirror = sample_bsdf(vec3f(0.0, 0.0, 1.0), vec3f(0.0, 0.0, 1.0), vec3f(0.9, 0.8, 0.7), 0.0, 1.0, 0.0, 1.5, true, vec2f(0.3), 0.5, vec2f(0.5));

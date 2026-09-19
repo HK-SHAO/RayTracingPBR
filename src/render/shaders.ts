@@ -73,8 +73,7 @@ struct Node { bmin: vec4f, bmax: vec4f }
 struct Isect { t: f32, prim: i32, tri: u32, bu: f32, bv: f32 }
 
 @group(0) @binding(0) var<uniform> trace: Trace;
-@group(0) @binding(1) var<storage, read> src: array<vec4f>;
-@group(0) @binding(2) var<storage, read_write> dst: array<vec4f>;
+@group(0) @binding(1) var<storage, read_write> accum: array<vec4f>;
 @group(0) @binding(3) var<storage, read> env: array<vec4f>;
 @group(0) @binding(4) var<storage, read> world: array<vec4f>;
 @group(0) @binding(5) var<storage, read> guide: array<u32>;
@@ -939,8 +938,7 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
     rd = normalize(trace.origin + pinhole * max(trace.focus, EPS) - ro);
   }
   let L = trace_path(ro, rd, &rng);
-  let prev = src[i];
-  dst[i] = vec4f(prev.xyz + L, prev.w + 1.0);
+  accum[i] += vec4f(L, 1.0);
 }
 `;
 

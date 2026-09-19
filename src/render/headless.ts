@@ -1,4 +1,4 @@
-import { compute, init, pingPongStorage } from "vgpu/node";
+import { compute, init, storage } from "vgpu/node";
 import { packWorld } from "../scene/pack";
 import { uploadPacked, worldTrace } from "../scene/gpu";
 import { cornell } from "../scene/plugins/cornell";
@@ -23,9 +23,8 @@ export async function traceSamples(
   const gpu = await init();
   try {
     const pixels = width * height;
-    const accum = pingPongStorage(gpu, pixels * 16);
-    writeStorage(accum.read, new Float32Array(pixels * 4));
-    writeStorage(accum.write, new Float32Array(pixels * 4));
+    const accum = storage(gpu, pixels * 16);
+    writeStorage(accum, new Float32Array(pixels * 4));
     let env = uploadEnv(gpu, EMPTY_ENV);
     let useIbl = 0;
     if (plugin.ibl) {
@@ -68,17 +67,15 @@ export async function traceSamples(
           hide_ibl: plugin.hideIblDirect ? 1 : 0,
           ...worldTrace(world),
         },
-        src: accum.read,
-        dst: accum.write,
+        accum,
         env: env.data,
         world: world.world,
         guide: guiding.read,
         guide_train: guiding.write,
       });
       tracer.dispatch(Math.ceil(width / WG), Math.ceil(height / WG));
-      accum.swap();
     }
-    const bytes = new Float32Array(await accum.read.read());
+    const bytes = new Float32Array(await accum.read());
     const guideWeights = new Uint32Array(await guiding.read.read());
     return { gpu, bytes, guideWeights };
   } catch (error) {
