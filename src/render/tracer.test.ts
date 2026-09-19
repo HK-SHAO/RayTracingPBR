@@ -3,6 +3,7 @@ import { traceSamples } from "./headless";
 import { classic } from "../scene/plugins/classic";
 import { glass } from "../scene/plugins/glass";
 import { studio } from "../scene/plugins/studio";
+import { GUIDE_FIRST_EPOCH } from "./guiding";
 
 const skipGpu = process.env.VGPU_SKIP_GPU === "1";
 
@@ -57,7 +58,7 @@ test.skipIf(skipGpu)(
 test.skipIf(skipGpu)(
   "path guiding learns indirect directions",
   async () => {
-    const { gpu: context, guideWeights } = await traceSamples(24, 24, 8);
+    const { gpu: context, guideWeights } = await traceSamples(24, 24, GUIDE_FIRST_EPOCH + 1);
     try {
       expect(guideWeights.some((weight) => weight > 0)).toBe(true);
     } finally {

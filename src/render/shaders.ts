@@ -1,5 +1,11 @@
 import { RR_MAX_SURVIVAL, RR_MIN_SURVIVAL, RR_START_DEPTH } from "./roulette";
-import { GUIDE_CELL_COUNT, GUIDE_DIR_COUNT, GUIDE_PHI_BINS, GUIDE_Z_BINS } from "./guiding";
+import {
+  GUIDE_CELL_COUNT,
+  GUIDE_DIR_COUNT,
+  GUIDE_FIRST_EPOCH,
+  GUIDE_PHI_BINS,
+  GUIDE_Z_BINS,
+} from "./guiding";
 
 export const WGSL_CORE = /* wgsl */ `
 const PI = 3.141592653589793;
@@ -16,6 +22,7 @@ const GUIDE_Z = ${GUIDE_Z_BINS}u;
 const GUIDE_MIX = 0.5;
 const GUIDE_CELL_SIZE = 0.5;
 const GUIDE_MIN_WEIGHT = 64u;
+const GUIDE_FIRST = ${GUIDE_FIRST_EPOCH}u;
 const R2A = 0.7548776662466927;
 const R2B = 0.5698402909980532;
 const KIND_SPHERE = 0u;
@@ -466,7 +473,7 @@ fn sample_bsdf(f: Frame, wo_w: vec3f, b: Bsdf, u: vec2f, u_lobe: f32, u_sel: vec
 fn sample_guided_bsdf(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> Sampled {
   let eligible = guide_eligible(v.b);
   var total = 0u;
-  if (eligible) { total = guide_total(v.cell); }
+  if (eligible && trace.frame >= GUIDE_FIRST) { total = guide_total(v.cell); }
   let mix_weight = select(0.0, GUIDE_MIX, total >= GUIDE_MIN_WEIGHT);
   if (mix_weight > 0.0 && pcg(rng) < mix_weight) {
     let g = sample_guide(v.cell, v.f, total, vec3f(pcg(rng), pcg(rng), pcg(rng)));
