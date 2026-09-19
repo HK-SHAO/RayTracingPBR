@@ -9,7 +9,7 @@ test("defaults inherit scene optics and leave path depth unbounded", () => {
   expect(d.focus).toBe(mirror.camera.radius);
   expect(d.aperture).toBe(mirror.aperture);
   expect(d.exposure).toBe(mirror.exposure);
-  expect(d.bounce).toBe(0);
+  expect(d.bounce).toBe(-1);
 });
 
 test("tone curve does not reset accumulation", () => {

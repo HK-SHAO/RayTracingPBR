@@ -68,6 +68,19 @@ test.skipIf(skipGpu)(
 );
 
 test.skipIf(skipGpu)(
+  "zero bounces still evaluates camera-visible direct light",
+  async () => {
+    const { gpu: context, bytes } = await traceSamples(24, 24, 4, undefined, false, 0);
+    try {
+      expect(meanLum(bytes)).toBeGreaterThan(0.01);
+    } finally {
+      context.dispose();
+    }
+  },
+  120_000,
+);
+
+test.skipIf(skipGpu)(
   "classic mesh is visible",
   async () => {
     const { gpu: context, bytes } = await traceSamples(48, 48, 4, classic);

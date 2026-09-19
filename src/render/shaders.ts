@@ -39,7 +39,7 @@ struct Trace {
   forward: vec3f,
   size_x: u32,
   size_y: u32,
-  bounce: u32,
+  bounce: i32,
   prim_count: u32,
   light_count: u32,
   tri_count: u32,
@@ -871,7 +871,7 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
   var record_radiance: array<vec3f, 8>;
   var record_beta: array<vec3f, 8>;
   var record_count = 0u;
-  for (var bounce = 0u; trace.bounce == 0u || bounce < trace.bounce; bounce++) {
+  for (var bounce = 0u; ; bounce++) {
     let hit = intersect(o, d);
     if (!hit.ok) {
       if (bounce > 0u || trace.hide_ibl == 0u) {
@@ -890,6 +890,7 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
     }
     radiance += beta * next_event(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
     radiance += beta * next_event_env(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
+    if (trace.bounce >= 0 && bounce >= u32(trace.bounce)) { break; }
     let s = sample_guided_bsdf(hit.p, ns, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
     if (s.pdf <= 0.0 || max(s.weight.x, max(s.weight.y, s.weight.z)) <= 0.0) { break; }
     if (record_count < GUIDE_RECORDS && guide_eligible(hit.roughness, hit.metallic, hit.transmission)) {

@@ -18,6 +18,7 @@ export async function traceSamples(
   spp: number,
   plugin: ScenePlugin = cornell,
   guidingEnabled = true,
+  bounce = -1,
 ) {
   const gpu = await init();
   try {
@@ -57,7 +58,7 @@ export async function traceSamples(
           forward: view.forward,
           size_x: width,
           size_y: height,
-          bounce: 0,
+          bounce,
           use_ibl: useIbl,
           env_w: env.width,
           env_h: env.height,
