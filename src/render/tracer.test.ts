@@ -5,6 +5,7 @@ import { glass } from "../scene/plugins/glass";
 import { studio } from "../scene/plugins/studio";
 import { GUIDE_FIRST_EPOCH } from "./guiding";
 import { parseProbe } from "./probe";
+import { meanLum, mseLum } from "./metrics";
 
 const skipGpu = process.env.VGPU_SKIP_GPU === "1";
 
@@ -21,11 +22,6 @@ function meanRgb(bytes: Float32Array): [number, number, number] {
     n += 1;
   }
   return n ? [r / n, g / n, b / n] : [0, 0, 0];
-}
-
-function meanLum(bytes: Float32Array): number {
-  const [r, g, b] = meanRgb(bytes);
-  return r + g + b;
 }
 
 test.skipIf(skipGpu)(
@@ -161,6 +157,36 @@ test.skipIf(skipGpu)(
     }
   },
   120_000,
+);
+
+test.skipIf(skipGpu)(
+  "nested cornell averages move toward the high-spp limit",
+  async () => {
+    const w = 48;
+    const a8 = await traceSamples(w, w, 8, undefined, false);
+    try {
+      const a32 = await traceSamples(w, w, 32, undefined, false);
+      try {
+        const a256 = await traceSamples(w, w, 256, undefined, false);
+        try {
+          const e8 = mseLum(a8.bytes, a256.bytes);
+          const e32 = mseLum(a32.bytes, a256.bytes);
+          expect(e8).toBeGreaterThan(0);
+          expect(e32).toBeLessThan(e8 * 0.7);
+          expect(
+            Math.abs(meanLum(a256.bytes) - meanLum(a32.bytes)) / meanLum(a32.bytes),
+          ).toBeLessThan(0.08);
+        } finally {
+          a256.gpu.dispose();
+        }
+      } finally {
+        a32.gpu.dispose();
+      }
+    } finally {
+      a8.gpu.dispose();
+    }
+  },
+  180_000,
 );
 
 test.skipIf(skipGpu)(

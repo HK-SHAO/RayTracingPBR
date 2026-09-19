@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { buildAabbBvh, buildBvh } from "./bvh";
+import { buildBvh } from "./bvh";
 
 test("sah split keeps consecutive children and all triangles", () => {
   const n = 32;
@@ -38,16 +38,4 @@ test("sah split keeps consecutive children and all triangles", () => {
   expect(right).toBeTruthy();
   const leaves = nodes.filter((node) => node.count > 0);
   expect(leaves.reduce((s, node) => s + node.count, 0)).toBe(n);
-});
-
-test("aabb bvh stores original indices in leaves", () => {
-  const items = [0, 1, 2, 3].map((index) => ({
-    index,
-    centre: [index, 0, 0] as [number, number, number],
-    min: [index, 0, 0] as [number, number, number],
-    max: [index + 0.5, 0.5, 0.5] as [number, number, number],
-  }));
-  const nodes = buildAabbBvh(items);
-  const ids = nodes.filter((node) => node.count > 0).map((node) => node.start);
-  expect(ids.sort((a, b) => a - b)).toEqual([0, 1, 2, 3]);
 });

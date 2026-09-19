@@ -14,7 +14,6 @@ export type SceneGpu = {
   triOff: number;
   nodeOff: number;
   nrmOff: number;
-  primNodeOff: number;
   nSphere: number;
   nPlane: number;
   nQuad: number;
@@ -35,7 +34,6 @@ export function worldTrace(world: SceneGpu | undefined) {
     node_off: world?.nodeOff ?? 0,
     tot_power: world?.powerSum ?? 0,
     nrm_off: world?.nrmOff ?? 0,
-    prim_node_off: world?.primNodeOff ?? 0,
     n_sphere: world?.nSphere ?? 0,
     n_plane: world?.nPlane ?? 0,
     n_quad: world?.nQuad ?? 0,
@@ -57,7 +55,6 @@ function gpuFromPacked(world: StorageBuffer, packed: PackedScene, bytes: number)
     triOff: packed.triOff,
     nodeOff: packed.nodeOff,
     nrmOff: packed.nrmOff,
-    primNodeOff: packed.primNodeOff,
     nSphere: packed.nSphere,
     nPlane: packed.nPlane,
     nQuad: packed.nQuad,

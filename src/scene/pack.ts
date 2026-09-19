@@ -1,4 +1,4 @@
-import { buildAabbBvh, buildBvh, type BvhNode, type GpuTri } from "../mesh/bvh";
+import { buildBvh, type BvhNode, type GpuTri } from "../mesh/bvh";
 import { aliasTable } from "../render/alias";
 import { lum } from "../render/physics";
 import type { Vec3 } from "../math/vec";
@@ -40,7 +40,6 @@ export type PackedScene = {
   triOff: number;
   nodeOff: number;
   nrmOff: number;
-  primNodeOff: number;
   primCount: number;
   lightCount: number;
   triCount: number;
@@ -67,69 +66,6 @@ function rotY(v: Vec3, yaw: number): Vec3 {
   const c = Math.cos(yaw);
   const s = Math.sin(yaw);
   return [c * v[0] + s * v[2], v[1], -s * v[0] + c * v[2]];
-}
-
-function primAabb(
-  prim: Prim,
-  index: number,
-): {
-  centre: [number, number, number];
-  min: [number, number, number];
-  max: [number, number, number];
-  index: number;
-} | null {
-  if (prim.kind === KIND_PLANE) return null;
-  const pts: Vec3[] = [];
-  if (prim.kind === KIND_SPHERE) {
-    const r = prim.radius;
-    const c = prim.center;
-    const pad = 1e-3;
-    return {
-      centre: [c[0], c[1], c[2]],
-      min: [c[0] - r - pad, c[1] - r - pad, c[2] - r - pad],
-      max: [c[0] + r + pad, c[1] + r + pad, c[2] + r + pad],
-      index,
-    };
-  }
-  if (prim.kind === KIND_QUAD) {
-    pts.push(
-      prim.origin,
-      add(prim.origin, prim.u),
-      add(prim.origin, prim.v),
-      add(add(prim.origin, prim.u), prim.v),
-    );
-  } else if (prim.kind === KIND_BOX) {
-    const h = prim.half;
-    for (const sx of [-1, 1]) {
-      for (const sy of [-1, 1]) {
-        for (const sz of [-1, 1]) {
-          pts.push(add(prim.center, rotY([sx * h[0], sy * h[1], sz * h[2]], prim.yaw)));
-        }
-      }
-    }
-  } else if (prim.kind === KIND_CYLINDER) {
-    const c = prim.center;
-    const r = prim.radius;
-    const hh = prim.halfHeight;
-    pts.push([c[0] - r, c[1] - hh, c[2] - r], [c[0] + r, c[1] + hh, c[2] + r]);
-  } else return null;
-  const min: [number, number, number] = [Infinity, Infinity, Infinity];
-  const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-  for (const p of pts) {
-    min[0] = Math.min(min[0], p[0]);
-    min[1] = Math.min(min[1], p[1]);
-    min[2] = Math.min(min[2], p[2]);
-    max[0] = Math.max(max[0], p[0]);
-    max[1] = Math.max(max[1], p[1]);
-    max[2] = Math.max(max[2], p[2]);
-  }
-  const pad = 1e-3;
-  return {
-    centre: [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2],
-    min: [min[0] - pad, min[1] - pad, min[2] - pad],
-    max: [max[0] + pad, max[1] + pad, max[2] + pad],
-    index,
-  };
 }
 
 function packPrim(out: Float32Array, i: number, prim: Prim): void {
@@ -455,25 +391,6 @@ export function packWorld(world: SceneWorld, prev?: PackedScene): PackedScene {
     }
   }
 
-  const finite = [];
-  for (let i = 0; i < ordered.length; i++) {
-    const prim = ordered[i];
-    if (!prim) continue;
-    const item = primAabb(prim, i);
-    if (item) finite.push(item);
-  }
-  const primBvh = buildAabbBvh(finite);
-  const primNodeData = new Float32Array(Math.max(1, primBvh.length) * NODE_FLOATS);
-  for (let i = 0; i < primBvh.length; i++) {
-    const node = primBvh[i];
-    if (!node) continue;
-    const o = i * NODE_FLOATS;
-    writeVec3(primNodeData, o, node.min);
-    primNodeData[o + 3] = node.start;
-    writeVec3(primNodeData, o + 4, node.max);
-    primNodeData[o + 7] = node.count;
-  }
-
   const primOff = 0;
   const lightOff = prims.length / 4;
   const matOff = lightOff + lights.length / 4;
@@ -481,13 +398,7 @@ export function packWorld(world: SceneWorld, prev?: PackedScene): PackedScene {
   const nodeOff = triOff + triPos.length / 4;
   const nrmOff = nodeOff + nodeData.length / 4;
   const atlas = new Float32Array(
-    prims.length +
-      lights.length +
-      materials.length +
-      triPos.length +
-      nodeData.length +
-      triN.length +
-      primNodeData.length,
+    prims.length + lights.length + materials.length + triPos.length + nodeData.length + triN.length,
   );
   let at = 0;
   atlas.set(prims, at);
@@ -501,9 +412,6 @@ export function packWorld(world: SceneWorld, prev?: PackedScene): PackedScene {
   atlas.set(nodeData, at);
   at += nodeData.length;
   atlas.set(triN, at);
-  at += triN.length;
-  atlas.set(primNodeData, at);
-  const primNodeOff = nrmOff + triN.length / 4;
 
   let powerSum = 0;
   for (const light of sceneLights) {
@@ -524,7 +432,6 @@ export function packWorld(world: SceneWorld, prev?: PackedScene): PackedScene {
     triOff,
     nodeOff,
     nrmOff,
-    primNodeOff,
     primCount: world.prims.length,
     lightCount: sceneLights.length,
     triCount: gpuTris.length,

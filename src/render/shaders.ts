@@ -5,12 +5,9 @@ import {
   GUIDE_FIRST_EPOCH,
   GUIDE_INC_MAX,
   GUIDE_PHI_BINS,
-  GUIDE_PROBES,
-  GUIDE_STRIDE,
   GUIDE_Z_BINS,
 } from "./guiding";
 import { PROBE_MAX, PROBE_PATHS, PROBE_STRIDE } from "./probe";
-import { WGSL_SAMPLER } from "./sampler";
 
 const wgslCore = (probe: boolean) => /* wgsl */ `
 const PI = 3.141592653589793;
@@ -24,8 +21,6 @@ const RR_MIN = ${RR_MIN_SURVIVAL};
 const RR_MAX = ${RR_MAX_SURVIVAL};
 const GUIDE_CELLS = ${GUIDE_CELL_COUNT}u;
 const GUIDE_DIRS = ${GUIDE_DIR_COUNT}u;
-const GUIDE_STRIDE = ${GUIDE_STRIDE}u;
-const GUIDE_PROBES = ${GUIDE_PROBES}u;
 const GUIDE_INC_MAX = ${GUIDE_INC_MAX}u;
 const GUIDE_PHI = ${GUIDE_PHI_BINS}u;
 const GUIDE_Z = ${GUIDE_Z_BINS}u;
@@ -83,8 +78,7 @@ struct Trace {
   n_quad: u32,
   n_box: u32,
   n_cyl: u32,
-  hide_ibl: u32,
-  prim_node_off: u32,${
+  hide_ibl: u32,${
     probe
       ? `
   probe_x: u32,
@@ -196,7 +190,14 @@ fn pcg(state: ptr<function, u32>) -> f32 {
   word = (word >> 22u) ^ word;
   return f32(word) * 2.3283064365386963e-10;
 }
-${WGSL_SAMPLER}
+fn rand2(state: ptr<function, u32>) -> vec2f { return vec2f(pcg(state), pcg(state)); }
+fn mix_seed(pixel: u32, frame: u32) -> u32 {
+  var h = ((pixel + 1u) * 0x9e3779b9u) ^ (frame * 0x85ebca6bu);
+  h ^= h >> 16u;
+  h *= 0x7feb352du;
+  h ^= h >> 15u;
+  return h;
+}
 fn disk(u: vec2f) -> vec2f {
   let p = u * 2.0 - vec2f(1.0);
   if (abs(p.x) < MATH_EPS && abs(p.y) < MATH_EPS) { return vec2f(0.0); }
@@ -230,36 +231,12 @@ fn frame_n(n: vec3f) -> Frame {
 fn to_world(f: Frame, v: vec3f) -> vec3f { return f.t * v.x + f.b * v.y + f.n * v.z; }
 fn to_local(f: Frame, v: vec3f) -> vec3f { return vec3f(dot(f.t, v), dot(f.b, v), dot(f.n, v)); }
 
-fn spatial_key(p: vec3f) -> u32 {
+fn guide_cell(p: vec3f) -> u32 {
   let q = bitcast<vec3u>(vec3i(floor(p / GUIDE_CELL_SIZE)));
-  var h = (q.x * 0x8da6b343u) ^ (q.y * 0xd8163841u) ^ (q.z * 0xcb1ab31fu);
-  h ^= h >> 16u;
-  return max(h, 1u);
+  let h = (q.x * 0x8da6b343u) ^ (q.y * 0xd8163841u) ^ (q.z * 0xcb1ab31fu);
+  return h % GUIDE_CELLS;
 }
-fn guide_bin_at(slot: u32, bin: u32) -> u32 { return slot * GUIDE_STRIDE + 1u + bin; }
-fn guide_lookup(p: vec3f) -> u32 {
-  let key = spatial_key(p);
-  for (var i = 0u; i < GUIDE_PROBES; i++) {
-    let s = (key + i) % GUIDE_CELLS;
-    if (guide[s * GUIDE_STRIDE] == key) { return s; }
-  }
-  return GUIDE_CELLS;
-}
-fn claim_train(key: u32) -> u32 {
-  for (var i = 0u; i < GUIDE_PROBES; i++) {
-    let s = (key + i) % GUIDE_CELLS;
-    let ki = s * GUIDE_STRIDE;
-    loop {
-      let prev = atomicLoad(&guide_train[ki]);
-      if (prev == key) { return s; }
-      if (prev != 0u) { break; }
-      let r = atomicCompareExchangeWeak(&guide_train[ki], 0u, key);
-      if (r.exchanged || r.old_value == key) { return s; }
-      if (r.old_value != 0u) { break; }
-    }
-  }
-  return GUIDE_CELLS;
-}
+fn guide_bin_at(slot: u32, bin: u32) -> u32 { return slot * GUIDE_DIRS + bin; }
 fn guide_bin_local(wi: vec3f) -> u32 {
   let phi = atan2(wi.y, wi.x) + PI;
   let p = min(GUIDE_PHI - 1u, u32(phi * f32(GUIDE_PHI) / (2.0 * PI)));
@@ -311,7 +288,7 @@ fn make_vertex(hit: Hit, ns: vec3f, gs: vec3f, enter: bool) -> Vertex {
   v.b.transmission = hit.transmission;
   v.b.ior = hit.ior;
   v.b.enter = enter;
-  v.cell = guide_lookup(hit.p);
+  v.cell = guide_cell(hit.p);
   return v;
 }
 
@@ -548,13 +525,9 @@ fn continuation_pdf(v: Vertex, wi: vec3f, pb: f32, gs: GuideState) -> f32 {
   if (gs.mix <= 0.0) { return pb; }
   return mix(pb, guide_pdf(v.cell, v.f, wi, gs.total), gs.mix);
 }
-fn sample_guided_bsdf(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState) -> Sampled {
-  if (gs.mix > 0.0 && sample1d(pixel, bounce_dim(bounce, S_MIX)) < gs.mix) {
-    let g = sample_guide(v.cell, v.f, gs.total, vec3f(
-      sample1d(pixel, bounce_dim(bounce, S_GUIDE)),
-      sample1d(pixel, bounce_dim(bounce, S_GUIDE + 1u)),
-      sample1d(pixel, bounce_dim(bounce, S_GUIDE + 2u)),
-    ));
+fn sample_guided_bsdf(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState) -> Sampled {
+  if (gs.mix > 0.0 && pcg(rng) < gs.mix) {
+    let g = sample_guide(v.cell, v.f, gs.total, vec3f(pcg(rng), pcg(rng), pcg(rng)));
     let ev = eval_bsdf(v.f, wo, g.wi, v.b);
     var sampled: Sampled;
     sampled.wi = g.wi;
@@ -564,7 +537,7 @@ fn sample_guided_bsdf(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideSt
     sampled.delta = 0u;
     return sampled;
   }
-  var sampled = sample_bsdf(v.f, wo, v.b, sample2d(pixel, bounce_dim(bounce, S_BSDF)), sample1d(pixel, bounce_dim(bounce, S_LOBE)), sample2d(pixel, bounce_dim(bounce, S_SEL)));
+  var sampled = sample_bsdf(v.f, wo, v.b, rand2(rng), pcg(rng), rand2(rng));
   if (gs.mix > 0.0 && sampled.pdf > 0.0) {
     let ev = eval_bsdf(v.f, wo, sampled.wi, v.b);
     sampled.pdf = continuation_pdf(v, sampled.wi, ev.pdf, gs);
@@ -659,6 +632,7 @@ fn t_cyl(ro: vec3f, rd: vec3f, data: vec4f, b_data: vec4f) -> f32 {
 fn t_finite(ro: vec3f, rd: vec3f, i: u32) -> f32 {
   let kind = bitcast<u32>(load_prim_slot(i, 0u).x);
   if (kind == KIND_SPHERE) { return t_sphere(ro, rd, load_prim_slot(i, 1u)); }
+  if (kind == KIND_PLANE) { return t_plane(ro, rd, load_prim_slot(i, 1u)); }
   if (kind == KIND_QUAD) { return t_quad(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)); }
   if (kind == KIND_BOX) { return t_box(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)); }
   if (kind == KIND_CYL) { return t_cyl(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u)); }
@@ -667,35 +641,11 @@ fn t_finite(ro: vec3f, rd: vec3f, i: u32) -> f32 {
 
 fn scan_prims(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool, skip: i32) -> Isect {
   var best = none(); best.t = tmax;
-  var i = trace.n_sphere;
-  let planes = i + trace.n_plane;
-  while (i < planes) {
-    if (i32(i) != skip && keep(&best, t_plane(ro, rd, load_prim_slot(i, 1u)), i32(i), any_hit)) { return best; }
+  var i = 0u;
+  let n = trace.n_sphere + trace.n_plane + trace.n_quad + trace.n_box + trace.n_cyl;
+  while (i < n) {
+    if (i32(i) != skip && keep(&best, t_finite(ro, rd, i), i32(i), any_hit)) { return best; }
     i += 1u;
-  }
-  if (trace.n_sphere + trace.n_quad + trace.n_box + trace.n_cyl == 0u) { return best; }
-  var stack: array<u32, 32>;
-  var sp = 1; stack[0] = 0u;
-  let inv = safe_inv(rd);
-  while (sp > 0) {
-    sp = sp - 1; let ni = stack[sp];
-    let node = load_node_at(trace.prim_node_off, ni);
-    let count = i32(node.bmax.w);
-    if (count > 0) {
-      let prim = u32(node.bmin.w);
-      if (i32(prim) != skip && keep(&best, t_finite(ro, rd, prim), i32(prim), any_hit)) { return best; }
-    } else {
-      let c0 = u32(node.bmin.w);
-      let o = trace.prim_node_off + c0 * 2u;
-      let n0min = world[o]; let n0max = world[o + 1u];
-      let n1min = world[o + 2u]; let n1max = world[o + 3u];
-      let d0 = ray_aabb(ro, inv, n0min.xyz, n0max.xyz);
-      let d1 = ray_aabb(ro, inv, n1min.xyz, n1max.xyz);
-      let near = select(c0 + 1u, c0, d0 <= d1); let far = select(c0, c0 + 1u, d0 <= d1);
-      let dn = select(d1, d0, d0 <= d1); let df = select(d0, d1, d0 <= d1);
-      if (df < best.t) { stack[sp] = far; sp = sp + 1; }
-      if (dn < best.t) { stack[sp] = near; sp = sp + 1; }
-    }
   }
   return best;
 }
@@ -824,9 +774,9 @@ fn skip_light(L: Light) -> vec2i {
   if (L.kind == LIGHT_TRI) { return vec2i(-1, i32(L.prim)); }
   return vec2i(i32(L.prim), -1);
 }
-fn pick_light(pixel: u32, bounce: u32) -> u32 {
+fn pick_light(rng: ptr<function, u32>) -> u32 {
   let n = trace.light_count;
-  let x = sample1d(pixel, bounce_dim(bounce, S_LIGHT)) * f32(n);
+  let x = pcg(rng) * f32(n);
   let i = min(u32(x), n - 1u);
   let pick = world[trace.light_off + i * 5u + 4u];
   if (fract(x) < pick.x) { return i; }
@@ -858,10 +808,10 @@ fn area_pdf_w(p_pick: f32, area: f32, dist2: f32, cos_l: f32) -> f32 {
   return p_pick / max(area, MATH_EPS) * dist2 / cos_l;
 }
 
-fn next_event(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
+fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
   if (trace.light_count == 0u) { return vec3f(0.0); }
   let tot = max(trace.tot_power, MATH_EPS);
-  let i = pick_light(pixel, bounce);
+  let i = pick_light(rng);
   let L = load_light(i);
   let p_pick = pick_pdf(L, tot);
   var wi = vec3f(0.0, 1.0, 0.0);
@@ -874,7 +824,7 @@ fn next_event(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState${pro
     let to_c = c - v.p; let d2 = dot(to_c, to_c);
     if (d2 <= r * r) { return vec3f(0.0); }
     let cos_max = sqrt(max(0.0, 1.0 - (r * r) / d2));
-    wi = sample_cone(to_c / sqrt(d2), cos_max, sample2d(pixel, bounce_dim(bounce, S_LIGHT_U)));
+    wi = sample_cone(to_c / sqrt(d2), cos_max, rand2(rng));
     if (dot(n, wi) <= 0.0) { return vec3f(0.0); }
     pdf_w = p_pick * sphere_pdf_w(v.p, c, r);
     let t = t_sphere(origin, wi, vec4f(c, r));
@@ -887,25 +837,25 @@ fn next_event(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState${pro
       let c = L.origin.xyz; let radius = L.origin.w; let hh = L.u.x;
       let aside = 2.0 * PI * radius * (2.0 * hh);
       let acap = 2.0 * PI * radius * radius;
-      if (sample1d(pixel, bounce_dim(bounce, S_LIGHT_U)) * (aside + acap) < aside) {
-        let y = (sample1d(pixel, bounce_dim(bounce, S_LIGHT_U + 1u)) * 2.0 - 1.0) * hh;
-        let a = sample1d(pixel, bounce_dim(bounce, S_LIGHT_U + 2u)) * 2.0 * PI;
+      if (pcg(rng) * (aside + acap) < aside) {
+        let y = (pcg(rng) * 2.0 - 1.0) * hh;
+        let a = pcg(rng) * 2.0 * PI;
         let cs = cos(a); let sn = sin(a);
         sample_p = c + vec3f(radius * cs, y, radius * sn);
         ln = vec3f(cs, 0.0, sn);
       } else {
-        let cap = select(-1.0, 1.0, sample1d(pixel, bounce_dim(bounce, S_LIGHT_U + 1u)) < 0.5);
-        let dsk = disk(sample2d(pixel, bounce_dim(bounce, S_LIGHT_U + 2u))) * radius;
+        let cap = select(-1.0, 1.0, pcg(rng) < 0.5);
+        let dsk = disk(rand2(rng)) * radius;
         sample_p = c + vec3f(dsk.x, cap * hh, dsk.y);
         ln = vec3f(0.0, cap, 0.0);
       }
     } else if (L.kind == LIGHT_TRI) {
-      let r1 = sample1d(pixel, bounce_dim(bounce, S_LIGHT_U)); let r2 = sample1d(pixel, bounce_dim(bounce, S_LIGHT_U + 1u));
+      let r1 = pcg(rng); let r2 = pcg(rng);
       let su = 1.0 - sqrt(r1); let sv = r2 * sqrt(r1);
       sample_p = L.origin.xyz + L.u.xyz * su + L.v.xyz * sv;
       ln = normalize(cross(L.u.xyz, L.v.xyz));
     } else {
-      let uv = sample2d(pixel, bounce_dim(bounce, S_LIGHT_U));
+      let uv = rand2(rng);
       sample_p = L.origin.xyz + L.u.xyz * uv.x + L.v.xyz * uv.y;
       ln = normalize(cross(L.u.xyz, L.v.xyz));
     }
@@ -974,17 +924,17 @@ fn env_lookup(rd: vec3f) -> vec4f {
   let px = env_pixel(rd);
   return env[env_index(px.x, px.y)];
 }
-fn env_pick(pixel: u32, bounce: u32) -> vec2u {
+fn env_pick(rng: ptr<function, u32>) -> vec2u {
   let n = env_n();
-  let x = sample1d(pixel, bounce_dim(bounce, S_ENV)) * f32(n);
+  let x = pcg(rng) * f32(n);
   let i = min(u32(x), n - 1u);
   let j = select(i, min(u32(env_f32(n + i)), n - 1u), fract(x) >= env_f32(i));
   return vec2u(j % trace.env_w, j / trace.env_w);
 }
-fn next_event_env(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
+fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
   if (trace.use_ibl == 0u) { return vec3f(0.0); }
-  let px = env_pick(pixel, bounce);
-  let u0 = sample1d(pixel, bounce_dim(bounce, S_ENV + 1u)); let u1 = sample1d(pixel, bounce_dim(bounce, S_ENV + 2u));
+  let px = env_pick(rng);
+  let u0 = pcg(rng); let u1 = pcg(rng);
   let phi = ((f32(px.x) + u0) / f32(trace.env_w) - 0.5) * 2.0 * PI;
   let c0 = cos((f32(px.y) / f32(trace.env_h)) * PI);
   let c1 = cos((f32(px.y + 1u) / f32(trace.env_h)) * PI);
@@ -1004,11 +954,10 @@ fn next_event_env(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState$
 `;
 
 const wgslPath = (probe: boolean) => /* wgsl */ `
-fn trace_path(ro0: vec3f, rd0: vec3f, pixel: u32${probe ? ", rec: bool" : ""}) -> vec3f {
+fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>${probe ? ", rec: bool" : ""}) -> vec3f {
   var radiance = vec3f(0.0); var o = ro0; var d = rd0; var beta = vec3f(1.0); var eta_scale = 1.0; var pdf = 1.0; var delta = true;
   var sigma = vec3f(0.0);
-  var record_key = 0u;
-  var record_bin = 0u;
+  var record_index = 0u;
   var record_radiance = vec3f(0.0);
   var record_beta = vec3f(1.0);
   var record_count = 0u;
@@ -1041,17 +990,16 @@ fn trace_path(ro0: vec3f, rd0: vec3f, pixel: u32${probe ? ", rec: bool" : ""}) -
     let v = make_vertex(hit, ns, gs, front);
     let gstate = guide_state(v);
     if (!is_delta(v.b)) {
-      radiance += beta * next_event(v, wo, pixel, bounce, gstate${probe ? ", rec, &pn, beta" : ""});
-      radiance += beta * next_event_env(v, wo, pixel, bounce, gstate${probe ? ", rec, &pn, beta" : ""});
+      radiance += beta * next_event(v, wo, rng, gstate${probe ? ", rec, &pn, beta" : ""});
+      radiance += beta * next_event_env(v, wo, rng, gstate${probe ? ", rec, &pn, beta" : ""});
     }
     if (trace.bounce >= 0 && bounce >= u32(trace.bounce)) { break; }
-    let s = sample_guided_bsdf(v, wo, pixel, bounce, gstate);
+    let s = sample_guided_bsdf(v, wo, rng, gstate);
     if (s.pdf <= 0.0 || max(s.weight.x, max(s.weight.y, s.weight.z)) <= 0.0) { break; }
     if (guide_eligible(v.b)) {
       record_count++;
-      if (sample1d(pixel, bounce_dim(bounce, S_RESERVOIR)) * f32(record_count) < 1.0) {
-        record_key = spatial_key(v.p);
-        record_bin = guide_bin_local(to_local(v.f, s.wi));
+      if (pcg(rng) * f32(record_count) < 1.0) {
+        record_index = v.cell * GUIDE_DIRS + guide_bin_local(to_local(v.f, s.wi));
         record_radiance = radiance;
         record_beta = beta;
       }
@@ -1064,18 +1012,16 @@ fn trace_path(ro0: vec3f, rd0: vec3f, pixel: u32${probe ? ", rec: bool" : ""}) -
     o = hit.p + g_out * OFFSET_EPS; d = s.wi;
     if (bounce >= RR_START) {
       let q = clamp(max3(beta * eta_scale), RR_MIN, RR_MAX);
-      if (sample1d(pixel, bounce_dim(bounce, S_RR)) > q) { break; }
+      if (pcg(rng) > q) { break; }
       beta /= q;
     }
   }
   if (record_count > 0u) {
     let future = max((radiance - record_radiance) / max(record_beta, vec3f(MATH_EPS)), vec3f(0.0));
     let weight = min(u32(clamp(lum(future) * 64.0 * f32(record_count), 0.0, 4095.0)), GUIDE_INC_MAX);
-    let slot = claim_train(record_key);
-    if (weight > 0u && slot < GUIDE_CELLS) {
-      let i = guide_bin_at(slot, record_bin);
-      let old = atomicAdd(&guide_train[i], weight);
-      if (old > 0xffffffffu - weight) { atomicStore(&guide_train[i], 0xffffffffu); }
+    if (weight > 0u) {
+      let old = atomicAdd(&guide_train[record_index], weight);
+      if (old > 0xffffffffu - weight) { atomicStore(&guide_train[record_index], 0xffffffffu); }
     }
   }
   return radiance;
@@ -1085,19 +1031,19 @@ fn trace_path(ro0: vec3f, rd0: vec3f, pixel: u32${probe ? ", rec: bool" : ""}) -
 fn main(@builtin(global_invocation_id) id: vec3u) {
   if (id.x >= trace.size_x || id.y >= trace.size_y) { return; }
   let pixel = id.y * trace.size_x + id.x;
-  g_sample = trace.frame;
-  let jitter = sample2d(pixel, D_PIX);
+  var rng = mix_seed(pixel, trace.frame);
+  let jitter = rand2(&rng);
   let u = (f32(id.x) + jitter.x) / f32(trace.size_x);
   let v = (f32(id.y) + jitter.y) / f32(trace.size_y);
   let pinhole = normalize(trace.forward + trace.right * ((2.0 * u - 1.0) * trace.half_w) + trace.up * ((1.0 - 2.0 * v) * trace.half_h));
   var ro = trace.origin;
   var rd = pinhole;
   if (trace.aperture > 0.0) {
-    let lens = disk(sample2d(pixel, D_LENS)) * trace.aperture * 0.5;
+    let lens = disk(rand2(&rng)) * trace.aperture * 0.5;
     ro = trace.origin + trace.right * lens.x + trace.up * lens.y;
     rd = normalize(trace.origin + pinhole * max(trace.focus, MATH_EPS) - ro);
   }
-  let rgb = trace_path(ro, rd, pixel${probe ? ", id.x == trace.probe_x && id.y == trace.probe_y" : ""});
+  let rgb = trace_path(ro, rd, &rng${probe ? ", id.x == trace.probe_x && id.y == trace.probe_y" : ""});
   accum[pixel] += vec4f(rgb, 1.0);
 }
 `;
