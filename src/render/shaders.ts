@@ -720,9 +720,9 @@ fn pick_light(rng: ptr<function, u32>) -> u32 {
   let n = trace.light_count;
   let x = pcg(rng) * f32(n);
   let i = min(u32(x), n - 1u);
-  let L = load_light(i);
-  if (fract(x) < L.pick.x) { return i; }
-  return min(u32(L.pick.y), n - 1u);
+  let pick = world[trace.light_off + i * 5u + 4u];
+  if (fract(x) < pick.x) { return i; }
+  return min(u32(pick.y), n - 1u);
 }
 fn pick_pdf(L: Light, tot: f32) -> f32 { return light_power(L) / tot; }
 
