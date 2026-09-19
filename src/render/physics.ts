@@ -1,8 +1,7 @@
 export const EPS = 1e-6;
-export const OFFSET_EPS = 1e-3;
 
 export function visRange(dist: number): number {
-  return dist - OFFSET_EPS;
+  return dist;
 }
 
 export function lum(c: readonly [number, number, number]): number {

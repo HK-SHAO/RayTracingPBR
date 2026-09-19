@@ -128,11 +128,21 @@ test.skipIf(skipGpu)(
 );
 
 test.skipIf(skipGpu)(
-  "zero bounces still evaluates camera-visible direct light",
+  "cornell floor receives NEE at zero bounces",
   async () => {
-    const { gpu: context, bytes } = await traceSamples(24, 24, 4, undefined, false, 0);
+    const { gpu: context, bytes } = await traceSamples(48, 48, 12, undefined, false, 0);
     try {
-      expect(meanLum(bytes)).toBeGreaterThan(0.01);
+      let floor = 0;
+      let n = 0;
+      for (let y = 36; y < 46; y++) {
+        for (let x = 16; x < 32; x++) {
+          const i = (y * 48 + x) * 4;
+          const w = Math.max(bytes[i + 3] ?? 0, 1);
+          floor += (bytes[i] ?? 0) / w + (bytes[i + 1] ?? 0) / w + (bytes[i + 2] ?? 0) / w;
+          n += 1;
+        }
+      }
+      expect(floor / n).toBeGreaterThan(0.08);
     } finally {
       context.dispose();
     }
@@ -141,11 +151,11 @@ test.skipIf(skipGpu)(
 );
 
 test.skipIf(skipGpu)(
-  "classic mesh is visible",
+  "classic mesh is brighter than a missed-bounce blackout",
   async () => {
-    const { gpu: context, bytes } = await traceSamples(48, 48, 4, classic);
+    const { gpu: context, bytes } = await traceSamples(48, 48, 8, classic);
     try {
-      expect(meanLum(bytes)).toBeGreaterThan(0.005);
+      expect(meanLum(bytes)).toBeGreaterThan(0.04);
     } finally {
       context.dispose();
     }

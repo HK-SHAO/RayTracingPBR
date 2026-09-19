@@ -84,7 +84,6 @@ struct Trace {
   n_box: u32,
   n_cyl: u32,
   hide_ibl: u32,
-  spp_k: u32,
   prim_node_off: u32,${
     probe
       ? `
@@ -666,11 +665,14 @@ fn t_finite(ro: vec3f, rd: vec3f, i: u32) -> f32 {
   return T_MAX;
 }
 
-fn scan_prims(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool) -> Isect {
+fn scan_prims(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool, skip: i32) -> Isect {
   var best = none(); best.t = tmax;
   var i = trace.n_sphere;
   let planes = i + trace.n_plane;
-  while (i < planes) { if (keep(&best, t_plane(ro, rd, load_prim_slot(i, 1u)), i32(i), any_hit)) { return best; } i += 1u; }
+  while (i < planes) {
+    if (i32(i) != skip && keep(&best, t_plane(ro, rd, load_prim_slot(i, 1u)), i32(i), any_hit)) { return best; }
+    i += 1u;
+  }
   if (trace.n_sphere + trace.n_quad + trace.n_box + trace.n_cyl == 0u) { return best; }
   var stack: array<u32, 32>;
   var sp = 1; stack[0] = 0u;
@@ -681,7 +683,7 @@ fn scan_prims(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool) -> Isect {
     let count = i32(node.bmax.w);
     if (count > 0) {
       let prim = u32(node.bmin.w);
-      if (keep(&best, t_finite(ro, rd, prim), i32(prim), any_hit)) { return best; }
+      if (i32(prim) != skip && keep(&best, t_finite(ro, rd, prim), i32(prim), any_hit)) { return best; }
     } else {
       let c0 = u32(node.bmin.w);
       let o = trace.prim_node_off + c0 * 2u;
@@ -716,7 +718,7 @@ fn ray_aabb(ro: vec3f, inv: vec3f, bmin: vec3f, bmax: vec3f) -> f32 {
   return select(tmin, 0.0, tmin < 0.0);
 }
 
-fn walk_bvh(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool) -> Isect {
+fn walk_bvh(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool, skip_tri: i32) -> Isect {
   var best = none(); best.t = tmax;
   if (trace.tri_count == 0u) { return best; }
   var stack: array<u32, 32>;
@@ -729,6 +731,7 @@ fn walk_bvh(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool) -> Isect {
     if (count > 0) {
       let start = u32(node.bmin.w);
       for (var i = 0u; i < u32(count); i++) {
+        if (i32(start + i) == skip_tri) { continue; }
         let hit = hit_tri(ro, rd, load_tri_pos(start + i));
         if (hit.x < best.t) {
           best.t = hit.x; best.prim = -2; best.tri = start + i; best.bu = hit.y; best.bv = hit.z;
@@ -792,15 +795,15 @@ fn shade_tri(ro: vec3f, rd: vec3f, it: Isect) -> Hit {
 }
 
 fn closest(ro: vec3f, rd: vec3f) -> Isect {
-  var best = scan_prims(ro, rd, T_MAX, false);
-  let mesh = walk_bvh(ro, rd, best.t, false);
+  var best = scan_prims(ro, rd, T_MAX, false, -1);
+  let mesh = walk_bvh(ro, rd, best.t, false, -1);
   if (mesh.prim != -1 && mesh.t < best.t) { best = mesh; }
   return best;
 }
 
-fn occluded(ro: vec3f, rd: vec3f, tmax: f32) -> bool {
-  if (scan_prims(ro, rd, tmax, true).prim != -1) { return true; }
-  return walk_bvh(ro, rd, tmax, true).prim != -1;
+fn occluded(ro: vec3f, rd: vec3f, tmax: f32, skip_prim: i32, skip_tri: i32) -> bool {
+  if (scan_prims(ro, rd, tmax, true, skip_prim).prim != -1) { return true; }
+  return walk_bvh(ro, rd, tmax, true, skip_tri).prim != -1;
 }
 
 fn intersect(ro: vec3f, rd: vec3f) -> Hit {
@@ -816,7 +819,11 @@ fn light_le(L: Light) -> vec3f {
   return vec3f(L.le_x, L.u.w, L.v.w);
 }
 fn pick_pdf(L: Light, tot: f32) -> f32 { return max(MATH_EPS, lum(light_le(L)) * L.area) / tot; }
-fn vis_range(dist: f32) -> f32 { return dist - OFFSET_EPS; }
+fn vis_range(dist: f32) -> f32 { return dist; }
+fn skip_light(L: Light) -> vec2i {
+  if (L.kind == LIGHT_TRI) { return vec2i(-1, i32(L.prim)); }
+  return vec2i(i32(L.prim), -1);
+}
 fn pick_light(pixel: u32, bounce: u32) -> u32 {
   let n = trace.light_count;
   let x = sample1d(pixel, bounce_dim(bounce, S_LIGHT)) * f32(n);
@@ -871,7 +878,7 @@ fn next_event(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState${pro
     if (dot(n, wi) <= 0.0) { return vec3f(0.0); }
     pdf_w = p_pick * sphere_pdf_w(v.p, c, r);
     let t = t_sphere(origin, wi, vec4f(c, r));
-    if (t >= T_MAX || occluded(origin, wi, vis_range(t))) { return vec3f(0.0); }
+    if (t >= T_MAX || occluded(origin, wi, vis_range(t), i32(L.prim), -1)) { return vec3f(0.0); }
     ${probe ? "light_p = origin + wi * t;" : ""}
   } else {
     var sample_p = L.origin.xyz;
@@ -908,7 +915,8 @@ fn next_event(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState${pro
     let cos_l = -dot(ln, wi); let cos_p = dot(n, wi);
     if (cos_l <= 0.0 || cos_p <= 0.0) { return vec3f(0.0); }
     pdf_w = area_pdf_w(p_pick, L.area, dist2, cos_l);
-    if (occluded(origin, wi, vis_range(dist))) { return vec3f(0.0); }
+    let skip = skip_light(L);
+    if (occluded(origin, wi, vis_range(dist), skip.x, skip.y)) { return vec3f(0.0); }
     ${probe ? "light_p = sample_p;" : ""}
   }
   let ev = eval_bsdf(v.f, wo, wi, v.b);
@@ -986,7 +994,7 @@ fn next_event_env(v: Vertex, wo: vec3f, pixel: u32, bounce: u32, gs: GuideState$
   let pix = env[env_index(px.x, px.y)]; let pdf_e = pix.w; let le = pix.xyz * trace.env_gain;
   let cos_p = dot(v.f.n, wi);
   if (cos_p <= 0.0 || pdf_e <= 0.0) { return vec3f(0.0); }
-  if (occluded(v.p + v.gn * OFFSET_EPS, wi, T_MAX)) { return vec3f(0.0); }
+  if (occluded(v.p + v.gn * OFFSET_EPS, wi, T_MAX, -1, -1)) { return vec3f(0.0); }
   let ev = eval_bsdf(v.f, wo, wi, v.b);
   let q = continuation_pdf(v, wi, ev.pdf, gs);
   let contrib = ev.f * le * cos_p * mis2(pdf_e, q) / pdf_e;
@@ -1077,24 +1085,20 @@ fn trace_path(ro0: vec3f, rd0: vec3f, pixel: u32${probe ? ", rec: bool" : ""}) -
 fn main(@builtin(global_invocation_id) id: vec3u) {
   if (id.x >= trace.size_x || id.y >= trace.size_y) { return; }
   let pixel = id.y * trace.size_x + id.x;
-  let k = max(1u, trace.spp_k);
-  var sum = vec3f(0.0);
-  for (var s = 0u; s < k; s++) {
-    g_sample = trace.frame + s;
-    let jitter = sample2d(pixel, D_PIX);
-    let u = (f32(id.x) + jitter.x) / f32(trace.size_x);
-    let v = (f32(id.y) + jitter.y) / f32(trace.size_y);
-    let pinhole = normalize(trace.forward + trace.right * ((2.0 * u - 1.0) * trace.half_w) + trace.up * ((1.0 - 2.0 * v) * trace.half_h));
-    var ro = trace.origin;
-    var rd = pinhole;
-    if (trace.aperture > 0.0) {
-      let lens = disk(sample2d(pixel, D_LENS)) * trace.aperture * 0.5;
-      ro = trace.origin + trace.right * lens.x + trace.up * lens.y;
-      rd = normalize(trace.origin + pinhole * max(trace.focus, MATH_EPS) - ro);
-    }
-    sum += trace_path(ro, rd, pixel${probe ? ", id.x == trace.probe_x && id.y == trace.probe_y && s == 0u" : ""});
+  g_sample = trace.frame;
+  let jitter = sample2d(pixel, D_PIX);
+  let u = (f32(id.x) + jitter.x) / f32(trace.size_x);
+  let v = (f32(id.y) + jitter.y) / f32(trace.size_y);
+  let pinhole = normalize(trace.forward + trace.right * ((2.0 * u - 1.0) * trace.half_w) + trace.up * ((1.0 - 2.0 * v) * trace.half_h));
+  var ro = trace.origin;
+  var rd = pinhole;
+  if (trace.aperture > 0.0) {
+    let lens = disk(sample2d(pixel, D_LENS)) * trace.aperture * 0.5;
+    ro = trace.origin + trace.right * lens.x + trace.up * lens.y;
+    rd = normalize(trace.origin + pinhole * max(trace.focus, MATH_EPS) - ro);
   }
-  accum[pixel] += vec4f(sum, f32(k));
+  let rgb = trace_path(ro, rd, pixel${probe ? ", id.x == trace.probe_x && id.y == trace.probe_y" : ""});
+  accum[pixel] += vec4f(rgb, 1.0);
 }
 `;
 

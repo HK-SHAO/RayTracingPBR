@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { lightsFromEmissive, packWorld } from "./pack";
+import { lightsFromEmissive, NODE_FLOATS, packWorld } from "./pack";
 import {
   KIND_BOX,
   KIND_PLANE,
@@ -10,6 +10,7 @@ import {
   mat,
   type SceneWorld,
 } from "./types";
+import { cornell } from "./plugins/cornell";
 
 function world(emission: readonly [number, number, number] = [4, 4, 4]): SceneWorld {
   return {
@@ -54,6 +55,21 @@ test("packing groups primitive kinds and remaps light indices", () => {
   expect(packed.lightCount).toBe(8);
   expect(new Uint32Array(packed.lights.buffer, packed.lights.byteOffset, 4)[1]).toBe(0);
   expect(new Uint32Array(packed.prims.buffer, packed.prims.byteOffset, 4)[3]).toBe(1);
+});
+
+test("analytic primitive BVH pads zero-thickness quads", async () => {
+  const packed = packWorld(await cornell.build());
+  const base = packed.primNodeOff * 4;
+  let leaves = 0;
+  for (let o = base; o + 7 < packed.atlas.length; o += NODE_FLOATS) {
+    const count = packed.atlas[o + 7] ?? 0;
+    if (count <= 0) continue;
+    leaves += 1;
+    expect((packed.atlas[o + 4] ?? 0) - (packed.atlas[o] ?? 0)).toBeGreaterThan(0.001);
+    expect((packed.atlas[o + 5] ?? 0) - (packed.atlas[o + 1] ?? 0)).toBeGreaterThan(0.001);
+    expect((packed.atlas[o + 6] ?? 0) - (packed.atlas[o + 2] ?? 0)).toBeGreaterThan(0.001);
+  }
+  expect(leaves).toBe(packed.nSphere + packed.nQuad + packed.nBox + packed.nCyl);
 });
 
 test("packing reuses empty mesh acceleration storage", () => {

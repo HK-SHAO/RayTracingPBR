@@ -83,10 +83,11 @@ function primAabb(
   if (prim.kind === KIND_SPHERE) {
     const r = prim.radius;
     const c = prim.center;
+    const pad = 1e-3;
     return {
       centre: [c[0], c[1], c[2]],
-      min: [c[0] - r, c[1] - r, c[2] - r],
-      max: [c[0] + r, c[1] + r, c[2] + r],
+      min: [c[0] - r - pad, c[1] - r - pad, c[2] - r - pad],
+      max: [c[0] + r + pad, c[1] + r + pad, c[2] + r + pad],
       index,
     };
   }
@@ -122,10 +123,11 @@ function primAabb(
     max[1] = Math.max(max[1], p[1]);
     max[2] = Math.max(max[2], p[2]);
   }
+  const pad = 1e-3;
   return {
     centre: [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2],
-    min,
-    max,
+    min: [min[0] - pad, min[1] - pad, min[2] - pad],
+    max: [max[0] + pad, max[1] + pad, max[2] + pad],
     index,
   };
 }

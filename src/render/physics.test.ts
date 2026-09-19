@@ -10,9 +10,9 @@ import {
   visRange,
 } from "./physics";
 
-test("shadow vis range uses a fixed offset, not a relative gap", () => {
-  expect(100 - visRange(100)).toBeCloseTo(1e-3, 12);
-  expect(visRange(100)).toBeGreaterThan(99.99);
+test("shadow vis range does not open a distance-scaled gap", () => {
+  expect(visRange(100)).toBe(100);
+  expect(visRange(0.5)).toBe(0.5);
 });
 
 test("power heuristic is one-sided at zero", () => {

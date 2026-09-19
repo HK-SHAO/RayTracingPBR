@@ -70,7 +70,6 @@ export async function traceSamples(
           aperture: 0,
           env_gain: 1,
           hide_ibl: plugin.hideIblDirect ? 1 : 0,
-          spp_k: 1,
           ...(probePixel ? { probe_x: probePixel[0], probe_y: probePixel[1] } : {}),
           ...worldTrace(world),
         },
