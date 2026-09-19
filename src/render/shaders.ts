@@ -10,7 +10,9 @@ import { PROBE_MAX, PROBE_PATHS, PROBE_STRIDE } from "./probe";
 
 const wgslCore = (probe: boolean) => /* wgsl */ `
 const PI = 3.141592653589793;
-const EPS = 1e-4;
+const RAY_EPS = 1e-4;
+const OFFSET_EPS = 1e-3;
+const MATH_EPS = 1e-8;
 const T_MAX = 1e4;
 const MIN_ALPHA = 0.002;
 const RR_START = ${RR_START_DEPTH - 1}u;
@@ -189,7 +191,7 @@ fn pcg(state: ptr<function, u32>) -> f32 {
 fn rand2(state: ptr<function, u32>) -> vec2f { return vec2f(pcg(state), pcg(state)); }
 fn disk(u: vec2f) -> vec2f {
   let p = u * 2.0 - vec2f(1.0);
-  if (abs(p.x) < EPS && abs(p.y) < EPS) { return vec2f(0.0); }
+  if (abs(p.x) < MATH_EPS && abs(p.y) < MATH_EPS) { return vec2f(0.0); }
   var r = 0.0;
   var phi = 0.0;
   if (abs(p.x) > abs(p.y)) { r = p.x; phi = (PI * 0.25) * (p.y / p.x); }
@@ -294,7 +296,7 @@ fn ggx_d(nh: f32, alpha: f32) -> f32 {
   return a2 / (PI * d * d);
 }
 fn smith_g1(nz: f32, alpha: f32) -> f32 {
-  let n = max(nz, EPS); let a2 = alpha * alpha;
+  let n = max(nz, MATH_EPS); let a2 = alpha * alpha;
   return 2.0 * n / (n + sqrt(a2 + (1.0 - a2) * n * n));
 }
 fn sample_vndf(wo: vec3f, alpha: f32, u: vec2f) -> vec3f {
@@ -308,7 +310,7 @@ fn sample_vndf(wo: vec3f, alpha: f32, u: vec2f) -> vec3f {
   let s = 0.5 * (1.0 + vh.z);
   p2 = (1.0 - s) * sqrt(max(0.0, 1.0 - p1 * p1)) + s * p2;
   let nh = p1 * t1 + p2 * t2 + sqrt(max(0.0, 1.0 - p1 * p1 - p2 * p2)) * vh;
-  return normalize(vec3f(alpha * nh.x, alpha * nh.y, max(EPS, nh.z)));
+  return normalize(vec3f(alpha * nh.x, alpha * nh.y, max(MATH_EPS, nh.z)));
 }
 fn conductor_fg(wo: vec3f, wi: vec3f, f0: vec3f, alpha: f32) -> Evaluated {
   var out: Evaluated; out.f = vec3f(0.0); out.pdf = 0.0;
@@ -372,7 +374,7 @@ fn eval_opaque(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32, metallic: f32, i
 }
 fn eval_glass(wo: vec3f, wi: vec3f, alpha: f32, eta_i: f32, eta_t: f32) -> Evaluated {
   var out: Evaluated; out.f = vec3f(0.0); out.pdf = 0.0;
-  if (abs(wo.z) < EPS) { return out; }
+  if (abs(wo.z) < MATH_EPS) { return out; }
   let same = wo.z * wi.z > 0.0;
   var h: vec3f;
   if (same) {
@@ -381,13 +383,13 @@ fn eval_glass(wo: vec3f, wi: vec3f, alpha: f32, eta_i: f32, eta_t: f32) -> Evalu
   } else {
     h = eta_i * wo + eta_t * wi;
     let hl = length(h);
-    if (hl < EPS) { return out; }
+    if (hl < MATH_EPS) { return out; }
     h = h / hl;
   }
   if (h.z < 0.0) { h = -h; }
   let woh = abs(dot(wo, h));
   let wih = abs(dot(wi, h));
-  if (woh < EPS || wih < EPS) { return out; }
+  if (woh < MATH_EPS || wih < MATH_EPS) { return out; }
   let F = fresnel_dielectric(woh, eta_t / eta_i);
   let D = ggx_d(max(h.z, 0.0), alpha);
   let G = smith_g1(abs(wo.z), alpha) * smith_g1(abs(wi.z), alpha);
@@ -396,11 +398,11 @@ fn eval_glass(wo: vec3f, wi: vec3f, alpha: f32, eta_i: f32, eta_t: f32) -> Evalu
     out.pdf = smith_g1(wo.z, alpha) * D / (wo.z * 4.0) * F;
   } else {
     let denom = eta_i * woh + eta_t * wih;
-    let d2 = max(denom * denom, EPS);
+    let d2 = max(denom * denom, MATH_EPS);
     let eta = eta_i / eta_t;
     let btdf = D * G * (1.0 - F) * woh * wih / (abs(wo.z) * abs(wi.z) * d2) * (eta * eta);
     out.f = vec3f(max(btdf, 0.0));
-    let pdf_h = smith_g1(abs(wo.z), alpha) * D * woh / max(abs(wo.z), EPS);
+    let pdf_h = smith_g1(abs(wo.z), alpha) * D * woh / max(abs(wo.z), MATH_EPS);
     out.pdf = pdf_h * (eta_t * eta_t * wih) / d2 * (1.0 - F);
   }
   return out;
@@ -437,7 +439,7 @@ fn finish_local(f: Frame, wo: vec3f, local: vec3f, b: Bsdf) -> Sampled {
   }
   let ev = eval_local(wo, local, b);
   sampled.pdf = ev.pdf;
-  if (ev.pdf > EPS) { sampled.weight = ev.f * abs(local.z) / ev.pdf; }
+  if (ev.pdf > 0.0) { sampled.weight = ev.f * abs(local.z) / ev.pdf; }
   else { sampled.weight = vec3f(0.0); }
   return sampled;
 }
@@ -520,7 +522,7 @@ fn sample_guided_bsdf(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideSt
     var sampled: Sampled;
     sampled.wi = g.wi;
     sampled.pdf = continuation_pdf(v, g.wi, ev.pdf, gs);
-    sampled.weight = ev.f * max(0.0, dot(v.f.n, g.wi)) / max(sampled.pdf, EPS);
+    sampled.weight = select(vec3f(0.0), ev.f * max(0.0, dot(v.f.n, g.wi)) / sampled.pdf, sampled.pdf > 0.0);
     sampled.eta_scale = 1.0;
     sampled.delta = 0u;
     return sampled;
@@ -529,7 +531,7 @@ fn sample_guided_bsdf(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideSt
   if (gs.mix > 0.0 && sampled.pdf > 0.0) {
     let ev = eval_bsdf(v.f, wo, sampled.wi, v.b);
     sampled.pdf = continuation_pdf(v, sampled.wi, ev.pdf, gs);
-    sampled.weight = ev.f * abs(dot(v.f.n, sampled.wi)) / max(sampled.pdf, EPS);
+    sampled.weight = select(vec3f(0.0), ev.f * abs(dot(v.f.n, sampled.wi)) / sampled.pdf, sampled.pdf > 0.0);
   }
   return sampled;
 }
@@ -551,7 +553,7 @@ fn rot_y(p: vec3f, c: f32, s: f32) -> vec3f { return vec3f(c * p.x + s * p.z, p.
 fn rot_y_t(p: vec3f, c: f32, s: f32) -> vec3f { return vec3f(c * p.x - s * p.z, p.y, s * p.x + c * p.z); }
 fn none() -> Isect { var s: Isect; s.t = T_MAX; s.prim = -1; s.tri = 0u; s.bu = 0.0; s.bv = 0.0; return s; }
 fn keep(best: ptr<function, Isect>, t: f32, prim: i32, any_hit: bool) -> bool {
-  if (t >= (*best).t || t <= EPS) { return false; }
+  if (t >= (*best).t || t <= RAY_EPS) { return false; }
   (*best).t = t; (*best).prim = prim;
   return any_hit;
 }
@@ -559,23 +561,23 @@ fn keep(best: ptr<function, Isect>, t: f32, prim: i32, any_hit: bool) -> bool {
 fn t_sphere(ro: vec3f, rd: vec3f, a: vec4f) -> f32 {
   let oc = ro - a.xyz; let b = dot(oc, rd); let disc = b * b - dot(oc, oc) + a.w * a.w;
   if (disc < 0.0) { return T_MAX; }
-  let s = sqrt(disc); var t = -b - s; if (t <= EPS) { t = -b + s; }
-  if (t <= EPS) { return T_MAX; }
+  let s = sqrt(disc); var t = -b - s; if (t <= RAY_EPS) { t = -b + s; }
+  if (t <= RAY_EPS) { return T_MAX; }
   return t;
 }
 fn t_plane(ro: vec3f, rd: vec3f, a: vec4f) -> f32 {
-  if (abs(rd.y) < EPS) { return T_MAX; }
+  if (abs(rd.y) < MATH_EPS) { return T_MAX; }
   let t = (a.w - ro.y) / rd.y;
-  if (t <= EPS) { return T_MAX; }
+  if (t <= RAY_EPS) { return T_MAX; }
   return t;
 }
 fn t_quad(ro: vec3f, rd: vec3f, a: vec4f, b: vec4f, c: vec4f) -> f32 {
   let n = cross(b.xyz, c.xyz); let area = length(n);
-  if (area < EPS) { return T_MAX; }
+  if (area < MATH_EPS) { return T_MAX; }
   let nn = n / area; let denom = dot(nn, rd);
-  if (abs(denom) < EPS) { return T_MAX; }
+  if (abs(denom) < MATH_EPS) { return T_MAX; }
   let t = dot(nn, a.xyz - ro) / denom;
-  if (t <= EPS) { return T_MAX; }
+  if (t <= RAY_EPS) { return T_MAX; }
   let w = ro + rd * t - a.xyz;
   let uu = dot(b.xyz, b.xyz); let vv = dot(c.xyz, c.xyz); let uv = dot(b.xyz, c.xyz);
   let det = uv * uv - uu * vv;
@@ -591,8 +593,8 @@ fn t_box(ro: vec3f, rd: vec3f, a: vec4f, b: vec4f, c: vec4f) -> f32 {
   let t0 = (-b.xyz - o) * inv; let t1 = (b.xyz - o) * inv;
   let tmin = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), min(t0.z, t1.z));
   let tmax = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), max(t0.z, t1.z));
-  var t = tmin; if (tmin <= EPS) { t = tmax; }
-  if (tmax < max(tmin, EPS) || t <= EPS) { return T_MAX; }
+  var t = tmin; if (tmin <= RAY_EPS) { t = tmax; }
+  if (tmax < max(tmin, RAY_EPS) || t <= RAY_EPS) { return T_MAX; }
   return t;
 }
 fn t_cyl(ro: vec3f, rd: vec3f, data: vec4f, b_data: vec4f) -> f32 {
@@ -600,18 +602,18 @@ fn t_cyl(ro: vec3f, rd: vec3f, data: vec4f, b_data: vec4f) -> f32 {
   let o = ro - center; let a = rd.x * rd.x + rd.z * rd.z; let b = o.x * rd.x + o.z * rd.z;
   let cc = o.x * o.x + o.z * o.z - radius * radius;
   var t = T_MAX;
-  if (a > EPS) {
+  if (a > MATH_EPS) {
     let disc = b * b - a * cc;
     if (disc >= 0.0) {
-      var tc = (-b - sqrt(disc)) / a; if (tc <= EPS) { tc = (-b + sqrt(disc)) / a; }
-      if (tc > EPS && tc < T_MAX && abs(o.y + tc * rd.y) <= hh) { t = tc; }
+      var tc = (-b - sqrt(disc)) / a; if (tc <= RAY_EPS) { tc = (-b + sqrt(disc)) / a; }
+      if (tc > RAY_EPS && tc < T_MAX && abs(o.y + tc * rd.y) <= hh) { t = tc; }
     }
   }
-  if (abs(rd.y) > EPS) {
+  if (abs(rd.y) > MATH_EPS) {
     for (var cap = 0u; cap < 2u; cap++) {
       let cy = select(-hh, hh, cap == 0u);
       let tc = (cy - o.y) / rd.y; let q = o + rd * tc;
-      if (tc > EPS && tc < t && q.x * q.x + q.z * q.z <= radius * radius) { t = tc; }
+      if (tc > RAY_EPS && tc < t && q.x * q.x + q.z * q.z <= radius * radius) { t = tc; }
     }
   }
   return t;
@@ -639,7 +641,7 @@ fn hit_tri(ro: vec3f, rd: vec3f, tri: TriPos) -> vec3f {
   let det = -dot(rd, n); if (abs(det) < 1e-8) { return vec3f(T_MAX); }
   let inv = 1.0 / det; let t = dot(ao, n) * inv;
   let u = dot(e2, dao) * inv; let v = -dot(e1, dao) * inv;
-  if (t < EPS || u < 0.0 || v < 0.0 || u + v > 1.0) { return vec3f(T_MAX); }
+  if (t < RAY_EPS || u < 0.0 || v < 0.0 || u + v > 1.0) { return vec3f(T_MAX); }
   return vec3f(t, u, v);
 }
 
@@ -750,8 +752,8 @@ const wgslLight = (probe: boolean) => /* wgsl */ `
 fn light_le(L: Light) -> vec3f {
   return vec3f(L.le_x, L.u.w, L.v.w);
 }
-fn pick_pdf(L: Light, tot: f32) -> f32 { return max(EPS, lum(light_le(L)) * L.area) / tot; }
-fn vis_range(dist: f32) -> f32 { return dist - max(EPS * 16.0, dist * 1e-3); }
+fn pick_pdf(L: Light, tot: f32) -> f32 { return max(MATH_EPS, lum(light_le(L)) * L.area) / tot; }
+fn vis_range(dist: f32) -> f32 { return dist - OFFSET_EPS; }
 fn pick_light(rng: ptr<function, u32>) -> u32 {
   let n = trace.light_count;
   let x = pcg(rng) * f32(n);
@@ -763,9 +765,9 @@ fn pick_light(rng: ptr<function, u32>) -> u32 {
 
 fn sphere_pdf_w(p: vec3f, c: vec3f, r: f32) -> f32 {
   let d2 = dot(c - p, c - p);
-  if (d2 <= r * r) { return 1.0 / max(4.0 * PI * r * r, EPS); }
-  let cos_max = sqrt(max(0.0, 1.0 - (r * r) / max(d2, EPS)));
-  return 1.0 / max(2.0 * PI * (1.0 - cos_max), EPS);
+  if (d2 <= r * r) { return 1.0 / max(4.0 * PI * r * r, MATH_EPS); }
+  let cos_max = sqrt(max(0.0, 1.0 - (r * r) / max(d2, MATH_EPS)));
+  return 1.0 / max(2.0 * PI * (1.0 - cos_max), MATH_EPS);
 }
 fn sample_cone(dir: vec3f, cos_max: f32, u: vec2f) -> vec3f {
   let cos_t = mix(cos_max, 1.0, u.x);
@@ -777,18 +779,18 @@ fn on_quad(p: vec3f, L: Light) -> bool {
   let w = p - L.origin.xyz;
   let uu = dot(L.u.xyz, L.u.xyz); let vv = dot(L.v.xyz, L.v.xyz); let uv = dot(L.u.xyz, L.v.xyz);
   let det = uv * uv - uu * vv;
-  if (abs(det) < EPS) { return false; }
+  if (abs(det) < MATH_EPS) { return false; }
   let s = (uv * dot(w, L.v.xyz) - vv * dot(w, L.u.xyz)) / det;
   let r = (uv * dot(w, L.u.xyz) - uu * dot(w, L.v.xyz)) / det;
-  return s >= -EPS && s <= 1.0 + EPS && r >= -EPS && r <= 1.0 + EPS;
+  return s >= -MATH_EPS && s <= 1.0 + MATH_EPS && r >= -MATH_EPS && r <= 1.0 + MATH_EPS;
 }
 fn area_pdf_w(p_pick: f32, area: f32, dist2: f32, cos_l: f32) -> f32 {
-  return p_pick / max(area, EPS) * dist2 / max(cos_l, EPS);
+  return p_pick / max(area, MATH_EPS) * dist2 / cos_l;
 }
 
 fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
   if (trace.light_count == 0u) { return vec3f(0.0); }
-  let tot = max(trace.tot_power, EPS);
+  let tot = max(trace.tot_power, MATH_EPS);
   let i = pick_light(rng);
   let L = load_light(i);
   let p_pick = pick_pdf(L, tot);
@@ -796,7 +798,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${pro
   var pdf_w = 1.0;
   ${probe ? "var light_p = v.p;" : ""}
   let n = v.f.n;
-  let origin = v.p + v.gn * (EPS * 8.0);
+  let origin = v.p + v.gn * OFFSET_EPS;
   if (L.kind == LIGHT_SPHERE) {
     let c = L.origin.xyz; let r = L.origin.w;
     let to_c = c - v.p; let d2 = dot(to_c, to_c);
@@ -838,7 +840,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${pro
       ln = normalize(cross(L.u.xyz, L.v.xyz));
     }
     var to_l = sample_p - v.p; let dist2 = dot(to_l, to_l); let dist = sqrt(dist2);
-    if (dist < EPS) { return vec3f(0.0); }
+    if (dist < RAY_EPS) { return vec3f(0.0); }
     wi = to_l / dist;
     let cos_l = -dot(ln, wi); let cos_p = dot(n, wi);
     if (cos_l <= 0.0 || cos_p <= 0.0) { return vec3f(0.0); }
@@ -847,7 +849,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${pro
     ${probe ? "light_p = sample_p;" : ""}
   }
   let ev = eval_bsdf(v.f, wo, wi, v.b);
-  if (pdf_w <= EPS) { return vec3f(0.0); }
+  if (pdf_w <= 0.0) { return vec3f(0.0); }
   let q = continuation_pdf(v, wi, ev.pdf, gs);
   let contrib = ev.f * light_le(L) * max(dot(n, wi), 0.0) * mis2(pdf_w, q) / pdf_w;
   ${probe ? "if (max(contrib.x, max(contrib.y, contrib.z)) > 0.0) { probe_push(rec, pn, light_p, beta * contrib, 1.0); }" : ""}
@@ -855,7 +857,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${pro
 }
 
 fn light_pdf_hit(hit: Hit, o: vec3f, d: vec3f) -> f32 {
-  let tot = max(trace.tot_power, EPS);
+  let tot = max(trace.tot_power, MATH_EPS);
   var pdf_w = 0.0;
   let dist2 = dot(hit.p - o, hit.p - o);
   let cos_l = max(0.0, -dot(hit.gn, d));
@@ -914,8 +916,8 @@ fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState$
   let wi = vec3f(st * cos(phi), cy, st * sin(phi));
   let pix = env[env_index(px.x, px.y)]; let pdf_e = pix.w; let le = pix.xyz * trace.env_gain;
   let cos_p = dot(v.f.n, wi);
-  if (cos_p <= 0.0 || pdf_e <= EPS) { return vec3f(0.0); }
-  if (occluded(v.p + v.gn * (EPS * 8.0), wi, T_MAX)) { return vec3f(0.0); }
+  if (cos_p <= 0.0 || pdf_e <= 0.0) { return vec3f(0.0); }
+  if (occluded(v.p + v.gn * OFFSET_EPS, wi, T_MAX)) { return vec3f(0.0); }
   let ev = eval_bsdf(v.f, wo, wi, v.b);
   let q = continuation_pdf(v, wi, ev.pdf, gs);
   let contrib = ev.f * le * cos_p * mis2(pdf_e, q) / pdf_e;
@@ -977,10 +979,10 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>${probe ? ", rec: b
     }
     beta *= s.weight; eta_scale *= s.eta_scale; pdf = s.pdf; delta = s.delta == 1u;
     if (v.b.transmission > 0.0 && dot(v.f.n, wo) * dot(v.f.n, s.wi) < 0.0) {
-      sigma = select(vec3f(0.0), -log(max(v.b.albedo, vec3f(EPS))), v.b.enter);
+      sigma = select(vec3f(0.0), -log(max(v.b.albedo, vec3f(MATH_EPS))), v.b.enter);
     }
     let g_out = select(-hit.gn, hit.gn, dot(hit.gn, s.wi) >= 0.0);
-    o = hit.p + g_out * (EPS * 8.0); d = s.wi;
+    o = hit.p + g_out * OFFSET_EPS; d = s.wi;
     if (bounce >= RR_START) {
       let q = clamp(max3(beta * eta_scale), RR_MIN, RR_MAX);
       if (pcg(rng) > q) { break; }
@@ -988,7 +990,7 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>${probe ? ", rec: b
     }
   }
   if (record_count > 0u) {
-    let future = max((radiance - record_radiance) / max(record_beta, vec3f(EPS)), vec3f(0.0));
+    let future = max((radiance - record_radiance) / max(record_beta, vec3f(MATH_EPS)), vec3f(0.0));
     let weight = u32(clamp(lum(future) * 64.0 * f32(record_count), 0.0, 4095.0));
     if (weight > 0u) { atomicAdd(&guide_train[record_index], weight); }
   }
@@ -1010,7 +1012,7 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
   if (trace.aperture > 0.0) {
     let lens = disk(rand2(&rng)) * trace.aperture * 0.5;
     ro = trace.origin + trace.right * lens.x + trace.up * lens.y;
-    rd = normalize(trace.origin + pinhole * max(trace.focus, EPS) - ro);
+    rd = normalize(trace.origin + pinhole * max(trace.focus, MATH_EPS) - ro);
   }
   let L = trace_path(ro, rd, &rng${probe ? ", id.x == trace.probe_x && id.y == trace.probe_y" : ""});
   accum[i] += vec4f(L, 1.0);
