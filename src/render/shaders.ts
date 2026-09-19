@@ -84,7 +84,8 @@ struct Trace {
   n_box: u32,
   n_cyl: u32,
   hide_ibl: u32,
-  spp_k: u32,${
+  spp_k: u32,
+  prim_node_off: u32,${
     probe
       ? `
   probe_x: u32,
@@ -160,12 +161,13 @@ fn load_tri_n(i: u32) -> TriN {
   t.n0 = world[o]; t.n1 = world[o + 1u]; t.n2 = world[o + 2u];
   return t;
 }
-fn load_node(i: u32) -> Node {
+fn load_node_at(off: u32, i: u32) -> Node {
   var n: Node;
-  let o = trace.node_off + i * 2u;
+  let o = off + i * 2u;
   n.bmin = world[o]; n.bmax = world[o + 1u];
   return n;
 }
+fn load_node(i: u32) -> Node { return load_node_at(trace.node_off, i); }
 
 struct Hit {
   ok: bool,
@@ -655,19 +657,44 @@ fn t_cyl(ro: vec3f, rd: vec3f, data: vec4f, b_data: vec4f) -> f32 {
   return t;
 }
 
+fn t_finite(ro: vec3f, rd: vec3f, i: u32) -> f32 {
+  let kind = bitcast<u32>(load_prim_slot(i, 0u).x);
+  if (kind == KIND_SPHERE) { return t_sphere(ro, rd, load_prim_slot(i, 1u)); }
+  if (kind == KIND_QUAD) { return t_quad(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)); }
+  if (kind == KIND_BOX) { return t_box(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)); }
+  if (kind == KIND_CYL) { return t_cyl(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u)); }
+  return T_MAX;
+}
+
 fn scan_prims(ro: vec3f, rd: vec3f, tmax: f32, any_hit: bool) -> Isect {
   var best = none(); best.t = tmax;
-  var i = 0u;
-  let s0 = trace.n_sphere;
-  while (i < s0) { if (keep(&best, t_sphere(ro, rd, load_prim_slot(i, 1u)), i32(i), any_hit)) { return best; } i += 1u; }
-  let s1 = s0 + trace.n_plane;
-  while (i < s1) { if (keep(&best, t_plane(ro, rd, load_prim_slot(i, 1u)), i32(i), any_hit)) { return best; } i += 1u; }
-  let s2 = s1 + trace.n_quad;
-  while (i < s2) { if (keep(&best, t_quad(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)), i32(i), any_hit)) { return best; } i += 1u; }
-  let s3 = s2 + trace.n_box;
-  while (i < s3) { if (keep(&best, t_box(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u), load_prim_slot(i, 3u)), i32(i), any_hit)) { return best; } i += 1u; }
-  let s4 = s3 + trace.n_cyl;
-  while (i < s4) { if (keep(&best, t_cyl(ro, rd, load_prim_slot(i, 1u), load_prim_slot(i, 2u)), i32(i), any_hit)) { return best; } i += 1u; }
+  var i = trace.n_sphere;
+  let planes = i + trace.n_plane;
+  while (i < planes) { if (keep(&best, t_plane(ro, rd, load_prim_slot(i, 1u)), i32(i), any_hit)) { return best; } i += 1u; }
+  if (trace.n_sphere + trace.n_quad + trace.n_box + trace.n_cyl == 0u) { return best; }
+  var stack: array<u32, 32>;
+  var sp = 1; stack[0] = 0u;
+  let inv = safe_inv(rd);
+  while (sp > 0) {
+    sp = sp - 1; let ni = stack[sp];
+    let node = load_node_at(trace.prim_node_off, ni);
+    let count = i32(node.bmax.w);
+    if (count > 0) {
+      let prim = u32(node.bmin.w);
+      if (keep(&best, t_finite(ro, rd, prim), i32(prim), any_hit)) { return best; }
+    } else {
+      let c0 = u32(node.bmin.w);
+      let o = trace.prim_node_off + c0 * 2u;
+      let n0min = world[o]; let n0max = world[o + 1u];
+      let n1min = world[o + 2u]; let n1max = world[o + 3u];
+      let d0 = ray_aabb(ro, inv, n0min.xyz, n0max.xyz);
+      let d1 = ray_aabb(ro, inv, n1min.xyz, n1max.xyz);
+      let near = select(c0 + 1u, c0, d0 <= d1); let far = select(c0, c0 + 1u, d0 <= d1);
+      let dn = select(d1, d0, d0 <= d1); let df = select(d0, d1, d0 <= d1);
+      if (df < best.t) { stack[sp] = far; sp = sp + 1; }
+      if (dn < best.t) { stack[sp] = near; sp = sp + 1; }
+    }
+  }
   return best;
 }
 
