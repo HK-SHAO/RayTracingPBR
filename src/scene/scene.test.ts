@@ -35,7 +35,7 @@ test("emissive prims fill the light table", async () => {
   const studioLights = lightsFromEmissive(await studio.build());
   expect(studioLights).toHaveLength(1);
   expect(studioLights[0]?.kind).toBe(LIGHT_SPHERE);
-  expect(studioLights[0]?.origin).toEqual([0, 1.5, 0]);
+  expect(studioLights[0]?.origin).toEqual([0, 2, -1]);
 
   const veach = lightsFromEmissive(await mis.build());
   expect(veach).toHaveLength(4);

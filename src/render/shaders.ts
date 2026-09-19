@@ -1,9 +1,13 @@
+import { RR_MAX_SURVIVAL, RR_MIN_SURVIVAL, RR_START_DEPTH } from "./roulette";
+
 const WGSL_CORE = /* wgsl */ `
 const PI = 3.141592653589793;
 const EPS = 1e-4;
 const T_MAX = 1e4;
 const MIN_ALPHA = 0.002;
-const RR_START = 3u;
+const RR_START = ${RR_START_DEPTH - 1}u;
+const RR_MIN = ${RR_MIN_SURVIVAL};
+const RR_MAX = ${RR_MAX_SURVIVAL};
 const R2A = 0.7548776662466927;
 const R2B = 0.5698402909980532;
 const KIND_SPHERE = 0u;
@@ -122,7 +126,7 @@ struct Hit {
   tri: u32,
 }
 
-struct Sampled { wi: vec3f, weight: vec3f, pdf: f32, delta: u32 }
+struct Sampled { wi: vec3f, weight: vec3f, pdf: f32, eta_scale: f32, delta: u32 }
 struct Evaluated { f: vec3f, pdf: f32 }
 
 fn pcg(state: ptr<function, u32>) -> f32 {
@@ -143,6 +147,7 @@ fn disk(u: vec2f) -> vec2f {
 }
 fn mis2(a: f32, b: f32) -> f32 { let a2 = a * a; return a2 / (a2 + b * b); }
 fn lum(c: vec3f) -> f32 { return 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z; }
+fn max3(v: vec3f) -> f32 { return max(v.x, max(v.y, v.z)); }
 fn safe_inv(d: vec3f) -> vec3f {
   return vec3f(
     select(1e8, 1.0 / d.x, abs(d.x) > 1e-8),
@@ -306,6 +311,12 @@ fn finish_local(f: Frame, wo: vec3f, local: vec3f, albedo: vec3f, alpha: f32, me
   var sampled: Sampled;
   sampled.wi = to_world(f, local);
   sampled.delta = 0u;
+  sampled.eta_scale = 1.0;
+  if (wo.z * local.z < 0.0) {
+    let eta_i = select(ior, 1.0, enter);
+    let eta_t = select(1.0, ior, enter);
+    sampled.eta_scale = (eta_t * eta_t) / (eta_i * eta_i);
+  }
   let ev = eval_local(wo, local, albedo, alpha, metallic, transmission, ior, enter);
   sampled.pdf = ev.pdf;
   if (ev.pdf > EPS) { sampled.weight = ev.f * abs(local.z) / ev.pdf; }
@@ -313,7 +324,7 @@ fn finish_local(f: Frame, wo: vec3f, local: vec3f, albedo: vec3f, alpha: f32, me
   return sampled;
 }
 fn sample_bsdf(n: vec3f, wo_w: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool, u: vec2f, u_lobe: f32, u_sel: vec2f) -> Sampled {
-  var sampled: Sampled; sampled.wi = n; sampled.weight = vec3f(0.0); sampled.pdf = 0.0; sampled.delta = 0u;
+  var sampled: Sampled; sampled.wi = n; sampled.weight = vec3f(0.0); sampled.pdf = 0.0; sampled.eta_scale = 1.0; sampled.delta = 0u;
   let f = frame_n(n);
   let wo = to_local(f, wo_w);
   let alpha = max(MIN_ALPHA, roughness * roughness);
@@ -740,8 +751,8 @@ fn next_event_env(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, rough
 
 const WGSL_PATH = /* wgsl */ `
 fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
-  var radiance = vec3f(0.0); var o = ro0; var d = rd0; var beta = vec3f(1.0); var pdf = 1.0; var delta = true;
-  for (var bounce = 0u; bounce < trace.bounce; bounce++) {
+  var radiance = vec3f(0.0); var o = ro0; var d = rd0; var beta = vec3f(1.0); var eta_scale = 1.0; var pdf = 1.0; var delta = true;
+  for (var bounce = 0u; trace.bounce == 0u || bounce < trace.bounce; bounce++) {
     let hit = intersect(o, d);
     if (!hit.ok) {
       if (bounce > 0u || trace.hide_ibl == 0u) {
@@ -762,11 +773,11 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
     radiance += beta * next_event_env(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
     let s = sample_bsdf(ns, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rand2(rng), pcg(rng), rand2(rng));
     if (s.pdf <= 0.0 || max(s.weight.x, max(s.weight.y, s.weight.z)) <= 0.0) { break; }
-    beta *= s.weight; pdf = s.pdf; delta = s.delta == 1u;
+    beta *= s.weight; eta_scale *= s.eta_scale; pdf = s.pdf; delta = s.delta == 1u;
     let g_out = select(-hit.gn, hit.gn, dot(hit.gn, s.wi) >= 0.0);
     o = hit.p + g_out * (EPS * 8.0); d = s.wi;
     if (bounce >= RR_START) {
-      let q = min(0.95, max(lum(beta), EPS));
+      let q = clamp(max3(beta * eta_scale), RR_MIN, RR_MAX);
       if (pcg(rng) > q) { break; }
       beta /= q;
     }

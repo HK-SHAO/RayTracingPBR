@@ -40,6 +40,6 @@ test("roundtrip keeps non-default knobs and closed panel", () => {
 test("knobs clamp to range", () => {
   const session = decodeSession("?scene=glass&vfov=400&bounce=0.4&hideIbl=0.2");
   expect(session.params.vfov).toBe(80);
-  expect(session.params.bounce).toBe(1);
+  expect(session.params.bounce).toBe(0);
   expect(session.params.hideIbl).toBe(0);
 });

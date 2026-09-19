@@ -46,7 +46,7 @@ export async function traceSamples(
           forward: view.forward,
           size_x: width,
           size_y: height,
-          bounce: 5,
+          bounce: 0,
           use_ibl: useIbl,
           env_w: env.width,
           env_h: env.height,

@@ -10,7 +10,7 @@ test("scene defaults are in range and pinhole-sharp", () => {
   expect(d.focus).toBe(cornell.camera.radius);
   expect(d.aperture).toBe(0);
   expect(d.exposure).toBe(1);
-  expect(d.bounce).toBe(8);
+  expect(d.bounce).toBe(0);
   expect(d.env).toBe(1);
   expect(d.hideIbl).toBe(0);
 });
@@ -39,6 +39,7 @@ test("tone curve does not reset accumulation", () => {
 
 test("format matches knob precision", () => {
   expect(formatParam("bounce", 8)).toBe("8");
+  expect(formatParam("bounce", 0)).toBe("∞");
   expect(formatParam("aperture", 0.04)).toBe("0.040");
   expect(formatParam("vfov", 35)).toBe("35.0");
 });

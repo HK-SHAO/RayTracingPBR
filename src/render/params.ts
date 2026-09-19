@@ -23,7 +23,7 @@ export const DEV_KNOBS: readonly DevKnob[] = [
   { key: "focus", min: 0.3, max: 16, step: 0.05, reset: true },
   { key: "aperture", min: 0, max: 0.2, step: 0.002, reset: true },
   { key: "exposure", min: 0.1, max: 4, step: 0.05, reset: false },
-  { key: "bounce", min: 1, max: 12, step: 1, reset: true },
+  { key: "bounce", min: 0, max: 64, step: 1, reset: true },
   { key: "env", min: 0, max: 3, step: 0.05, reset: true },
 ];
 
@@ -45,7 +45,7 @@ export function defaultsFor(plugin: ScenePlugin): DevParams {
     focus: plugin.camera.radius,
     aperture: plugin.aperture ?? 0,
     exposure: plugin.exposure,
-    bounce: 8,
+    bounce: 0,
     env: 1,
     hideIbl: plugin.hideIblDirect ? 1 : 0,
   };
@@ -58,7 +58,8 @@ export function needsReset(prev: DevParams, next: DevParams): boolean {
 }
 
 export function formatParam(key: keyof DevParams, value: number): string {
-  if (key === "bounce" || key === "hideIbl") return String(value);
+  if (key === "bounce") return value === 0 ? "∞" : String(value);
+  if (key === "hideIbl") return String(value);
   if (key === "aperture") return value.toFixed(3);
   if (key === "vfov") return value.toFixed(1);
   return value.toFixed(2);
