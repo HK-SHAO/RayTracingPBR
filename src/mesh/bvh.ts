@@ -22,7 +22,7 @@ export type GpuTri = {
   material: number;
 };
 
-const LEAF = 8;
+const LEAF = 4;
 const MAX_DEPTH = 24;
 const BINS = 16;
 
