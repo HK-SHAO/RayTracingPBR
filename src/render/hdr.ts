@@ -137,14 +137,17 @@ export function fitEnvRgb(
   return { rgb: resizeRgb(rgb, width, height, nextW, nextH), width: nextW, height: nextH };
 }
 
+export function texelSolidAngle(y: number, width: number, height: number): number {
+  const dphi = (2 * Math.PI) / Math.max(width, 1);
+  const theta0 = (y / Math.max(height, 1)) * Math.PI;
+  const theta1 = ((y + 1) / Math.max(height, 1)) * Math.PI;
+  return dphi * Math.max(0, Math.cos(theta0) - Math.cos(theta1));
+}
+
 export function envPdfIntegral(env: EnvMap): number {
   let sum = 0;
   for (let y = 0; y < env.height; y++) {
-    const lat = (y + 0.5) / env.height;
-    const solid =
-      Math.max(Math.abs(Math.cos((lat - 0.5) * Math.PI)), 1e-6) *
-      ((2 * Math.PI) / env.width) *
-      (Math.PI / env.height);
+    const solid = texelSolidAngle(y, env.width, env.height);
     for (let x = 0; x < env.width; x++) {
       sum += (env.pdf[y * env.width + x] ?? 0) * solid;
     }
@@ -162,11 +165,7 @@ export function buildEnv(rgb: Float32Array, width: number, height: number, expos
   const row = new Float32Array(height);
   let total = 0;
   for (let y = 0; y < height; y++) {
-    const lat = (y + 0.5) / height;
-    const area =
-      Math.max(Math.abs(Math.cos((lat - 0.5) * Math.PI)), 1e-6) *
-      ((2 * Math.PI) / width) *
-      (Math.PI / height);
+    const area = texelSolidAngle(y, width, height);
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 3;
       const lum = Math.max(
@@ -208,11 +207,7 @@ export function packEnv(env: EnvMap): Float32Array {
   const out = new Float32Array((n + Math.ceil((2 * n) / 4)) * 4);
   const weights = new Float32Array(n);
   for (let y = 0; y < env.height; y++) {
-    const lat = (y + 0.5) / env.height;
-    const solid =
-      Math.max(Math.abs(Math.cos((lat - 0.5) * Math.PI)), 1e-6) *
-      ((2 * Math.PI) / env.width) *
-      (Math.PI / env.height);
+    const solid = texelSolidAngle(y, env.width, env.height);
     for (let x = 0; x < env.width; x++) {
       const i = y * env.width + x;
       out[i * 4] = env.rgb[i * 3] ?? 0;

@@ -905,11 +905,13 @@ fn env_pick(rng: ptr<function, u32>) -> vec2u {
 fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>, gs: GuideState${probe ? ", rec: bool, pn: ptr<function, u32>, beta: vec3f" : ""}) -> vec3f {
   if (trace.use_ibl == 0u) { return vec3f(0.0); }
   let px = env_pick(rng);
-  let uv = vec2f((f32(px.x) + pcg(rng)) / f32(trace.env_w), (f32(px.y) + pcg(rng)) / f32(trace.env_h));
-  let phi = (uv.x - 0.5) * 2.0 * PI;
-  let theta = uv.y * PI;
-  let st = sin(theta);
-  let wi = vec3f(st * cos(phi), cos(theta), st * sin(phi));
+  let u0 = pcg(rng); let u1 = pcg(rng);
+  let phi = ((f32(px.x) + u0) / f32(trace.env_w) - 0.5) * 2.0 * PI;
+  let c0 = cos((f32(px.y) / f32(trace.env_h)) * PI);
+  let c1 = cos((f32(px.y + 1u) / f32(trace.env_h)) * PI);
+  let cy = mix(c0, c1, u1);
+  let st = sqrt(max(0.0, 1.0 - cy * cy));
+  let wi = vec3f(st * cos(phi), cy, st * sin(phi));
   let pix = env[env_index(px.x, px.y)]; let pdf_e = pix.w; let le = pix.xyz * trace.env_gain;
   let cos_p = dot(v.f.n, wi);
   if (cos_p <= 0.0 || pdf_e <= EPS) { return vec3f(0.0); }
