@@ -329,14 +329,11 @@ fn eval_plastic(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32, ior: f32) -> Ev
   out.pdf = spec.pdf * p_spec + diff_pdf * (1.0 - p_spec);
   return out;
 }
-fn eval_conductor(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32) -> Evaluated {
-  return conductor_fg(wo, wi, albedo, alpha);
-}
 fn eval_opaque(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32, metallic: f32, ior: f32) -> Evaluated {
   if (metallic <= 0.0) { return eval_plastic(wo, wi, albedo, alpha, ior); }
-  if (metallic >= 1.0) { return eval_conductor(wo, wi, albedo, alpha); }
+  if (metallic >= 1.0) { return conductor_fg(wo, wi, albedo, alpha); }
   let d = eval_plastic(wo, wi, albedo, alpha, ior);
-  let c = eval_conductor(wo, wi, albedo, alpha);
+  let c = conductor_fg(wo, wi, albedo, alpha);
   var out: Evaluated;
   out.f = mix(d.f, c.f, metallic);
   out.pdf = mix(d.pdf, c.pdf, metallic);
@@ -711,10 +708,7 @@ const WGSL_LIGHT = /* wgsl */ `
 fn light_le(L: Light) -> vec3f {
   return vec3f(L.le_x, L.u.w, L.v.w);
 }
-fn light_power(L: Light) -> f32 {
-  return max(EPS, lum(light_le(L)) * L.area);
-}
-fn total_light_power() -> f32 { return max(trace.tot_power, EPS); }
+fn pick_pdf(L: Light, tot: f32) -> f32 { return max(EPS, lum(light_le(L)) * L.area) / tot; }
 fn vis_range(dist: f32) -> f32 { return dist - max(EPS * 16.0, dist * 1e-3); }
 fn pick_light(rng: ptr<function, u32>) -> u32 {
   let n = trace.light_count;
@@ -724,7 +718,6 @@ fn pick_light(rng: ptr<function, u32>) -> u32 {
   if (fract(x) < pick.x) { return i; }
   return min(u32(pick.y), n - 1u);
 }
-fn pick_pdf(L: Light, tot: f32) -> f32 { return light_power(L) / tot; }
 
 fn sphere_pdf_w(p: vec3f, c: vec3f, r: f32) -> f32 {
   let d2 = dot(c - p, c - p);
@@ -750,13 +743,10 @@ fn on_quad(p: vec3f, L: Light) -> bool {
 fn area_pdf_w(p_pick: f32, area: f32, dist2: f32, cos_l: f32) -> f32 {
   return p_pick / max(area, EPS) * dist2 / max(cos_l, EPS);
 }
-fn reach(origin: vec3f, wi: vec3f, dist: f32) -> bool {
-  return !occluded(origin, wi, vis_range(dist));
-}
 
 fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
   if (trace.light_count == 0u) { return vec3f(0.0); }
-  let tot = total_light_power();
+  let tot = max(trace.tot_power, EPS);
   let i = pick_light(rng);
   let L = load_light(i);
   let p_pick = pick_pdf(L, tot);
@@ -809,7 +799,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
     let cos_l = -dot(ln, wi); let cos_p = dot(n, wi);
     if (cos_l <= 0.0 || cos_p <= 0.0) { return vec3f(0.0); }
     pdf_w = area_pdf_w(p_pick, L.area, dist2, cos_l);
-    if (!reach(origin, wi, dist)) { return vec3f(0.0); }
+    if (occluded(origin, wi, vis_range(dist))) { return vec3f(0.0); }
   }
   let ev = eval_bsdf(v.f, wo, wi, v.b);
   if (pdf_w <= EPS) { return vec3f(0.0); }
@@ -817,7 +807,7 @@ fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
 }
 
 fn light_pdf_hit(hit: Hit, o: vec3f, d: vec3f) -> f32 {
-  let tot = total_light_power();
+  let tot = max(trace.tot_power, EPS);
   var pdf_w = 0.0;
   let dist2 = dot(hit.p - o, hit.p - o);
   let cos_l = max(0.0, -dot(hit.gn, d));
@@ -848,11 +838,8 @@ fn env_f32(i: u32) -> f32 {
   let k = i & 3u;
   return select(select(select(v.x, v.y, k == 1u), v.z, k == 2u), v.w, k == 3u);
 }
-fn env_dir_uv(rd: vec3f) -> vec2f {
-  return vec2f(atan2(rd.z, rd.x) * 0.5 / PI + 0.5, acos(clamp(rd.y, -1.0, 1.0)) / PI);
-}
 fn env_pixel(rd: vec3f) -> vec2u {
-  let uv = env_dir_uv(rd);
+  let uv = vec2f(atan2(rd.z, rd.x) * 0.5 / PI + 0.5, acos(clamp(rd.y, -1.0, 1.0)) / PI);
   return vec2u(min(u32(uv.x * f32(trace.env_w)), trace.env_w - 1u), min(u32(uv.y * f32(trace.env_h)), trace.env_h - 1u));
 }
 fn env_lookup(rd: vec3f) -> vec4f {
@@ -860,8 +847,6 @@ fn env_lookup(rd: vec3f) -> vec4f {
   let px = env_pixel(rd);
   return env[env_index(px.x, px.y)];
 }
-fn sky(rd: vec3f) -> vec3f { return env_lookup(rd).xyz * trace.env_gain; }
-fn env_pdf_dir(rd: vec3f) -> f32 { return env_lookup(rd).w; }
 fn env_pick(rng: ptr<function, u32>) -> vec2u {
   let n = env_n();
   let x = pcg(rng) * f32(n);

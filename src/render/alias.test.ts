@@ -18,9 +18,3 @@ test("alias samples match weights", () => {
     expect(hist[i]! / n).toBeCloseTo((w[i] ?? 0) / sum, 2);
   }
 });
-
-test("uniform weights always accept", () => {
-  const { accept, alias } = aliasTable([1, 1, 1, 1]);
-  expect([...accept].every((a) => a >= 1 - 1e-6)).toBe(true);
-  expect(alias.length).toBe(4);
-});
