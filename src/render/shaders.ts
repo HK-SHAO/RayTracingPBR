@@ -1,4 +1,5 @@
 import { RR_MAX_SURVIVAL, RR_MIN_SURVIVAL, RR_START_DEPTH } from "./roulette";
+import { GUIDE_CELL_COUNT, GUIDE_DIR_COUNT, GUIDE_PHI_BINS, GUIDE_Z_BINS } from "./guiding";
 
 const WGSL_CORE = /* wgsl */ `
 const PI = 3.141592653589793;
@@ -8,6 +9,14 @@ const MIN_ALPHA = 0.002;
 const RR_START = ${RR_START_DEPTH - 1}u;
 const RR_MIN = ${RR_MIN_SURVIVAL};
 const RR_MAX = ${RR_MAX_SURVIVAL};
+const GUIDE_CELLS = ${GUIDE_CELL_COUNT}u;
+const GUIDE_DIRS = ${GUIDE_DIR_COUNT}u;
+const GUIDE_PHI = ${GUIDE_PHI_BINS}u;
+const GUIDE_Z = ${GUIDE_Z_BINS}u;
+const GUIDE_MIX = 0.5;
+const GUIDE_CELL_SIZE = 0.5;
+const GUIDE_MIN_WEIGHT = 64u;
+const GUIDE_RECORDS = 8u;
 const R2A = 0.7548776662466927;
 const R2B = 0.5698402909980532;
 const KIND_SPHERE = 0u;
@@ -68,6 +77,8 @@ struct Isect { t: f32, prim: i32, tri: u32, bu: f32, bv: f32 }
 @group(0) @binding(2) var<storage, read_write> dst: array<vec4f>;
 @group(0) @binding(3) var<storage, read> env: array<vec4f>;
 @group(0) @binding(4) var<storage, read> world: array<vec4f>;
+@group(0) @binding(5) var<storage, read> guide: array<u32>;
+@group(0) @binding(6) var<storage, read_write> guide_train: array<atomic<u32>>;
 
 fn load_prim(i: u32) -> Prim {
   var p: Prim;
@@ -169,6 +180,53 @@ fn frame_n(n: vec3f) -> Frame {
 }
 fn to_world(f: Frame, v: vec3f) -> vec3f { return f.t * v.x + f.b * v.y + f.n * v.z; }
 fn to_local(f: Frame, v: vec3f) -> vec3f { return vec3f(dot(f.t, v), dot(f.b, v), dot(f.n, v)); }
+
+fn guide_cell(p: vec3f) -> u32 {
+  let q = bitcast<vec3u>(vec3i(floor(p / GUIDE_CELL_SIZE)));
+  var h = (q.x * 0x8da6b343u) ^ (q.y * 0xd8163841u) ^ (q.z * 0xcb1ab31fu);
+  h ^= h >> 16u;
+  return h % GUIDE_CELLS;
+}
+fn guide_bin_local(wi: vec3f) -> u32 {
+  let phi = atan2(wi.y, wi.x) + PI;
+  let p = min(GUIDE_PHI - 1u, u32(phi * f32(GUIDE_PHI) / (2.0 * PI)));
+  let z = min(GUIDE_Z - 1u, u32(clamp(wi.z, 0.0, 1.0) * f32(GUIDE_Z)));
+  return z * GUIDE_PHI + p;
+}
+fn guide_total(cell: u32) -> u32 {
+  var total = 0u;
+  for (var i = 0u; i < GUIDE_DIRS; i++) { total += guide[cell * GUIDE_DIRS + i]; }
+  return total;
+}
+fn guide_pdf(p: vec3f, n: vec3f, wi: vec3f, total: u32) -> f32 {
+  let local = to_local(frame_n(n), wi);
+  if (local.z <= 0.0 || total == 0u) { return 0.0; }
+  let weight = guide[guide_cell(p) * GUIDE_DIRS + guide_bin_local(local)];
+  return f32(weight) / f32(total) * f32(GUIDE_DIRS) / (2.0 * PI);
+}
+struct GuideSample { wi: vec3f, pdf: f32 }
+fn sample_guide(p: vec3f, n: vec3f, total: u32, u: vec3f) -> GuideSample {
+  let cell = guide_cell(p);
+  let pick = min(total - 1u, u32(u.x * f32(total)));
+  var sum = 0u;
+  var bin = 0u;
+  for (var i = 0u; i < GUIDE_DIRS; i++) {
+    sum += guide[cell * GUIDE_DIRS + i];
+    if (sum > pick) { bin = i; break; }
+  }
+  let pb = bin % GUIDE_PHI;
+  let zb = bin / GUIDE_PHI;
+  let phi = (f32(pb) + u.y) * (2.0 * PI / f32(GUIDE_PHI)) - PI;
+  let z = (f32(zb) + u.z) / f32(GUIDE_Z);
+  let r = sqrt(max(0.0, 1.0 - z * z));
+  var out: GuideSample;
+  out.wi = to_world(frame_n(n), vec3f(r * cos(phi), r * sin(phi), z));
+  out.pdf = guide_pdf(p, n, out.wi, total);
+  return out;
+}
+fn guide_eligible(roughness: f32, metallic: f32, transmission: f32) -> bool {
+  return roughness >= 0.15 && metallic < 0.5 && transmission < 0.1;
+}
 
 fn cosine_hemisphere(u: vec2f) -> vec3f {
   let r = sqrt(u.x);
@@ -353,6 +411,30 @@ fn sample_bsdf(n: vec3f, wo_w: vec3f, albedo: vec3f, roughness: f32, metallic: f
     else { local = cosine_hemisphere(u); }
   }
   return finish_local(f, wo, local, albedo, alpha, metallic, transmission, ior, enter);
+}
+fn sample_guided_bsdf(p: vec3f, n: vec3f, wo: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool, rng: ptr<function, u32>) -> Sampled {
+  let eligible = guide_eligible(roughness, metallic, transmission);
+  var total = 0u;
+  if (eligible) { total = guide_total(guide_cell(p)); }
+  let mix_weight = select(0.0, GUIDE_MIX, total >= GUIDE_MIN_WEIGHT);
+  if (mix_weight > 0.0 && pcg(rng) < mix_weight) {
+    let g = sample_guide(p, n, total, vec3f(pcg(rng), pcg(rng), pcg(rng)));
+    let ev = eval_bsdf(n, wo, g.wi, albedo, roughness, metallic, transmission, ior, enter);
+    var sampled: Sampled;
+    sampled.wi = g.wi;
+    sampled.pdf = mix(ev.pdf, g.pdf, mix_weight);
+    sampled.weight = ev.f * max(0.0, dot(n, g.wi)) / max(sampled.pdf, EPS);
+    sampled.eta_scale = 1.0;
+    sampled.delta = 0u;
+    return sampled;
+  }
+  var sampled = sample_bsdf(n, wo, albedo, roughness, metallic, transmission, ior, enter, rand2(rng), pcg(rng), rand2(rng));
+  if (mix_weight > 0.0 && sampled.pdf > 0.0) {
+    let ev = eval_bsdf(n, wo, sampled.wi, albedo, roughness, metallic, transmission, ior, enter);
+    sampled.pdf = mix(sampled.pdf, guide_pdf(p, n, sampled.wi, total), mix_weight);
+    sampled.weight = ev.f * abs(dot(n, sampled.wi)) / max(sampled.pdf, EPS);
+  }
+  return sampled;
 }
 `;
 
@@ -752,6 +834,10 @@ fn next_event_env(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, rough
 const WGSL_PATH = /* wgsl */ `
 fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
   var radiance = vec3f(0.0); var o = ro0; var d = rd0; var beta = vec3f(1.0); var eta_scale = 1.0; var pdf = 1.0; var delta = true;
+  var record_index: array<u32, 8>;
+  var record_radiance: array<vec3f, 8>;
+  var record_beta: array<vec3f, 8>;
+  var record_count = 0u;
   for (var bounce = 0u; trace.bounce == 0u || bounce < trace.bounce; bounce++) {
     let hit = intersect(o, d);
     if (!hit.ok) {
@@ -771,8 +857,15 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
     }
     radiance += beta * next_event(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
     radiance += beta * next_event_env(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
-    let s = sample_bsdf(ns, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rand2(rng), pcg(rng), rand2(rng));
+    let s = sample_guided_bsdf(hit.p, ns, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
     if (s.pdf <= 0.0 || max(s.weight.x, max(s.weight.y, s.weight.z)) <= 0.0) { break; }
+    if (record_count < GUIDE_RECORDS && guide_eligible(hit.roughness, hit.metallic, hit.transmission)) {
+      let local = to_local(frame_n(ns), s.wi);
+      record_index[record_count] = guide_cell(hit.p) * GUIDE_DIRS + guide_bin_local(local);
+      record_radiance[record_count] = radiance;
+      record_beta[record_count] = beta;
+      record_count++;
+    }
     beta *= s.weight; eta_scale *= s.eta_scale; pdf = s.pdf; delta = s.delta == 1u;
     let g_out = select(-hit.gn, hit.gn, dot(hit.gn, s.wi) >= 0.0);
     o = hit.p + g_out * (EPS * 8.0); d = s.wi;
@@ -781,6 +874,11 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
       if (pcg(rng) > q) { break; }
       beta /= q;
     }
+  }
+  for (var i = 0u; i < record_count; i++) {
+    let future = max((radiance - record_radiance[i]) / max(record_beta[i], vec3f(EPS)), vec3f(0.0));
+    let weight = u32(clamp(lum(future) * 64.0, 0.0, 4095.0));
+    if (weight > 0u) { atomicAdd(&guide_train[record_index[i]], weight); }
   }
   return radiance;
 }

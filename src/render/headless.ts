@@ -6,6 +6,7 @@ import type { ScenePlugin } from "../scene/types";
 import { cameraFrame } from "./camera";
 import { uploadEnv, writeStorage } from "./env";
 import { buildEnv, decodeRgbe, EMPTY_ENV, fitEnvRgb } from "./hdr";
+import { clearGuiding, createGuiding, GUIDE_FIRST_EPOCH, GUIDE_MAX_EPOCH } from "./guiding";
 import { readBytes } from "../media";
 import { TRACE_WGSL } from "./shaders";
 
@@ -16,6 +17,7 @@ export async function traceSamples(
   height: number,
   spp: number,
   plugin: ScenePlugin = cornell,
+  guidingEnabled = true,
 ) {
   const gpu = await init();
   try {
@@ -32,9 +34,18 @@ export async function traceSamples(
       useIbl = 1;
     }
     const world = uploadPacked(gpu, packWorld(await plugin.build()));
+    const guiding = createGuiding(gpu);
     const tracer = compute(gpu, TRACE_WGSL, { label: "trace" });
     const view = cameraFrame(plugin.camera, width / height);
+    let epochSize = GUIDE_FIRST_EPOCH;
+    let epochEnd = GUIDE_FIRST_EPOCH;
     for (let frame = 0; frame < spp; frame++) {
+      if (guidingEnabled && frame >= epochEnd) {
+        guiding.swap();
+        clearGuiding(guiding.write);
+        epochSize = Math.min(GUIDE_MAX_EPOCH, epochSize * 2);
+        epochEnd = frame + epochSize;
+      }
       tracer.set({
         trace: {
           origin: view.origin,
@@ -60,12 +71,15 @@ export async function traceSamples(
         dst: accum.write,
         env: env.data,
         world: world.world,
+        guide: guiding.read,
+        guide_train: guiding.write,
       });
       tracer.dispatch(Math.ceil(width / WG), Math.ceil(height / WG));
       accum.swap();
     }
     const bytes = new Float32Array(await accum.read.read());
-    return { gpu, bytes };
+    const guideWeights = new Uint32Array(await guiding.read.read());
+    return { gpu, bytes, guideWeights };
   } catch (error) {
     gpu.dispose();
     throw error;

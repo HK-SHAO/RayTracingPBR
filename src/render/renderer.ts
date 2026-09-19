@@ -30,6 +30,13 @@ import {
 } from "./camera";
 import { uploadEnv, type EnvGpu, destroyStorage } from "./env";
 import { buildEnv, decodeRgbe, EMPTY_ENV, fitEnvRgb } from "./hdr";
+import {
+  clearGuiding,
+  createGuiding,
+  GUIDE_FIRST_EPOCH,
+  GUIDE_MAX_EPOCH,
+  type GuidingGpu,
+} from "./guiding";
 import { defaultsFor, needsReset, type DevParams } from "./params";
 import { averageFps, MAX_BURST, mixMs, nextBurst, pushPresent, shouldDrain, waitMs } from "./pace";
 import { CLEAR_WGSL, PRESENT_WGSL, TRACE_WGSL } from "./shaders";
@@ -75,6 +82,7 @@ export function createRenderer(
   let presenter: ReturnType<typeof effect> | undefined;
   let env: EnvGpu | undefined;
   let world: SceneGpu | undefined;
+  let guiding: GuidingGpu | undefined;
   let plugin: ScenePlugin = plugins.find((item) => item.id === boot.scene) ?? plugins[0]!;
   let mode: CameraMode = boot.mode === "fps" ? "fps" : "orbit";
   let params: DevParams = boot.params ?? defaultsFor(plugin);
@@ -106,6 +114,9 @@ export function createRenderer(
   let packedCpu: PackedScene | undefined;
   let sceneToken = 0;
   let clock0 = 0;
+  let guideSamples = 0;
+  let guideEpochSize = GUIDE_FIRST_EPOCH;
+  let guideEpochEnd = GUIDE_FIRST_EPOCH;
   const held = new Set<string>();
   const envCache = new Map<string, EnvGpu>();
 
@@ -194,6 +205,7 @@ export function createRenderer(
     const presenterNow = presenter;
     const envNow = env;
     const worldNow = world;
+    const guidingNow = guiding;
     if (
       !gpuNow ||
       !outputNow ||
@@ -202,7 +214,8 @@ export function createRenderer(
       !clearer ||
       !presenterNow ||
       !envNow ||
-      !worldNow
+      !worldNow ||
+      !guidingNow
     ) {
       running = false;
       arm(start);
@@ -231,16 +244,25 @@ export function createRenderer(
     if (spp < MAX_SPP) {
       const n = Math.min(burst, MAX_SPP - spp, MAX_BURST);
       for (let i = 0; i < n; i++) {
+        if (guideSamples >= guideEpochEnd) {
+          guidingNow.swap();
+          clearGuiding(guidingNow.write);
+          guideEpochSize = Math.min(GUIDE_MAX_EPOCH, guideEpochSize * 2);
+          guideEpochEnd = guideSamples + guideEpochSize;
+        }
         tracerNow.set({
           trace: uniforms(),
           src: accumLive.read,
           dst: accumLive.write,
           env: envNow.data,
           world: worldLive.world,
+          guide: guidingNow.read,
+          guide_train: guidingNow.write,
         });
         tracerNow.dispatch(Math.ceil(size[0] / WG), Math.ceil(size[1] / WG));
         accumLive.swap();
         spp += 1;
+        guideSamples += 1;
         taken += 1;
       }
     }
@@ -448,6 +470,13 @@ export function createRenderer(
     if (disposed || token !== sceneToken) return;
     packedCpu = packed;
     world = writePacked(gpu, world, packed);
+    if (guiding) {
+      clearGuiding(guiding.read);
+      clearGuiding(guiding.write);
+      guideSamples = 0;
+      guideEpochSize = GUIDE_FIRST_EPOCH;
+      guideEpochEnd = GUIDE_FIRST_EPOCH;
+    }
     if (next.ibl) {
       const key = next.ibl.href;
       let uploaded = envCache.get(key);
@@ -499,6 +528,7 @@ export function createRenderer(
     envCache.set("", env);
     tracer = compute(gpu, TRACE_WGSL, { label: "trace" });
     clearer = compute(gpu, CLEAR_WGSL, { label: "clear" });
+    guiding = createGuiding(gpu);
     presenter = effect(gpu, PRESENT_WGSL, { label: "present" });
     rebuild([Math.max(1, output.size[0]), Math.max(1, output.size[1])]);
     await presenter.compile({ colors: [output.format] });

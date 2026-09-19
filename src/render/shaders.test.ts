@@ -18,6 +18,9 @@ test("path tracer has no firefly clamp", () => {
   expect(TRACE_WGSL).toContain("trace.bounce == 0u || bounce < trace.bounce");
   expect(TRACE_WGSL).toContain("max3(beta * eta_scale)");
   expect(TRACE_WGSL).toContain("sampled.eta_scale");
+  expect(TRACE_WGSL).toContain("fn sample_guided_bsdf");
+  expect(TRACE_WGSL).toContain("atomicAdd(&guide_train");
+  expect(TRACE_WGSL).toContain("mix(ev.pdf, g.pdf, mix_weight)");
 });
 
 test("present encodes aces for a linear unorm canvas", () => {

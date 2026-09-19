@@ -70,6 +70,19 @@ test.skipIf(skipGpu)(
 );
 
 test.skipIf(skipGpu)(
+  "path guiding learns indirect directions",
+  async () => {
+    const { gpu: context, guideWeights } = await traceSamples(24, 24, 8);
+    try {
+      expect(guideWeights.some((weight) => weight > 0)).toBe(true);
+    } finally {
+      context.dispose();
+    }
+  },
+  120_000,
+);
+
+test.skipIf(skipGpu)(
   "classic mesh is visible",
   async () => {
     const { gpu: context, bytes } = await traceSamples(48, 48, 4, classic);
