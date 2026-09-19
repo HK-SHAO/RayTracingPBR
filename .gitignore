@@ -41,3 +41,4 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 AGENTS.md
 dist.zip
 toy.zip
+bench-out.json
