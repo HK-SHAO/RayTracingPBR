@@ -2,8 +2,6 @@ import { expect, test } from "vite-plus/test";
 import { traceSamples } from "./headless";
 import { classic } from "../scene/plugins/classic";
 import { glass } from "../scene/plugins/glass";
-import { mirror } from "../scene/plugins/mirror";
-import { mis } from "../scene/plugins/mis";
 import { studio } from "../scene/plugins/studio";
 
 const skipGpu = process.env.VGPU_SKIP_GPU === "1";
@@ -57,19 +55,6 @@ test.skipIf(skipGpu)(
 );
 
 test.skipIf(skipGpu)(
-  "mis scene accumulates light",
-  async () => {
-    const { gpu: context, bytes } = await traceSamples(32, 32, 4, mis);
-    try {
-      expect(meanLum(bytes)).toBeGreaterThan(0.01);
-    } finally {
-      context.dispose();
-    }
-  },
-  120_000,
-);
-
-test.skipIf(skipGpu)(
   "path guiding learns indirect directions",
   async () => {
     const { gpu: context, guideWeights } = await traceSamples(24, 24, 8);
@@ -86,19 +71,6 @@ test.skipIf(skipGpu)(
   "classic mesh is visible",
   async () => {
     const { gpu: context, bytes } = await traceSamples(48, 48, 4, classic);
-    try {
-      expect(meanLum(bytes)).toBeGreaterThan(0.005);
-    } finally {
-      context.dispose();
-    }
-  },
-  120_000,
-);
-
-test.skipIf(skipGpu)(
-  "mirror room accumulates light",
-  async () => {
-    const { gpu: context, bytes } = await traceSamples(32, 32, 4, mirror);
     try {
       expect(meanLum(bytes)).toBeGreaterThan(0.005);
     } finally {

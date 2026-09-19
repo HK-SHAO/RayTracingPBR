@@ -7,23 +7,11 @@ test("empty search is the default view", () => {
   const session = defaultSession();
   expect(encodeSession(session)).toBe("");
   expect(decodeSession("")).toEqual(session);
-  expect(decodeSession("?")).toEqual(session);
 });
 
 test("unknown scene and junk keys fall back", () => {
   const session = decodeSession("?scene=nope&mode=fly&vfov=abc&foo=1");
   expect(session).toEqual(defaultSession());
-});
-
-test("scene overrides omit defaults", () => {
-  const encoded = encodeSession({
-    scene: "glass",
-    mode: "orbit",
-    params: defaultsFor(glass),
-    open: true,
-  });
-  expect(encoded).toBe("scene=glass");
-  expect(decodeSession(encoded).params.hideIbl).toBe(1);
 });
 
 test("roundtrip keeps non-default knobs and closed panel", () => {

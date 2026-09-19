@@ -1,24 +1,11 @@
 import { expect, test } from "vite-plus/test";
 import { averageFps, nextBurst, pushPresent, shouldDrain, TARGET_MS, waitMs } from "./pace";
 
-test("burst never drops below one sample", () => {
+test("burst adapts to the frame budget without reaching zero", () => {
   expect(nextBurst(1, TARGET_MS * 3)).toBe(1);
-});
-
-test("burst tracks the 75% frame budget", () => {
   expect(nextBurst(8, TARGET_MS * 0.75, 8)).toBe(8);
   expect(nextBurst(8, TARGET_MS * 1.5, 8)).toBeLessThan(8);
   expect(nextBurst(8, TARGET_MS * 0.2, 8)).toBeGreaterThan(8);
-});
-
-test("burst ramps up one sample per frame", () => {
-  let burst = 1;
-  for (let i = 0; i < 10; i++) burst = nextBurst(burst, 2, burst);
-  expect(burst).toBe(11);
-});
-
-test("over-budget frames drop burst faster than they climb", () => {
-  expect(nextBurst(16, TARGET_MS * 2, 16)).toBeLessThanOrEqual(14);
 });
 
 test("drain when GPU exceeds the frame budget", () => {

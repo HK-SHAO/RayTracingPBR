@@ -12,15 +12,15 @@ export const mirror: ScenePlugin = {
   camera: orbitCam(LAMP, 1.72, Math.PI / 4, 0.55, 72),
   limits: { pitch: 0.8, radiusMin: 0.65, radiusMax: 1.88 },
   exposure: 0.5,
-  aperture: 0.01,
+  aperture: 0,
   build() {
     const chrome = mat(vec3(0.9, 0.9, 0.9), vec3(0, 0, 0), 0, 1, 0, 1.5);
     return {
       materials: [
         chrome,
-        mat(vec3(1, 0.2, 0.2), vec3(0, 0, 0), 0.1, 0, 0, 1.46),
+        mat(vec3(1, 0.2, 0.2), vec3(0, 0, 0), 0, 0, 0, 1.46),
         mat(vec3(1, 1, 0.2), vec3(0, 0, 0), 1, 0, 0, 1.46),
-        mat(vec3(0.2, 0.2, 1), vec3(0, 0, 0), 0.2, 1, 0, 1.1),
+        mat(vec3(0.2, 0.2, 1), vec3(0, 0, 0), 0, 1, 0, 1.1),
         mat(vec3(0.9, 0.9, 0.9), vec3(0, 0, 0), 0, 0, 1, 1.5),
         mat(vec3(1, 1, 1), vec3(10, 10, 10), 0, 1, 0, 1),
       ],

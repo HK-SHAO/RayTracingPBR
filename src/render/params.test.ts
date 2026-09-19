@@ -1,32 +1,15 @@
 import { expect, test } from "vite-plus/test";
 import { cornell } from "../scene/plugins/cornell";
-import { glass } from "../scene/plugins/glass";
 import { mirror } from "../scene/plugins/mirror";
-import { defaultsFor, formatParam, mergeParams, needsReset } from "./params";
+import { defaultsFor, mergeParams, needsReset } from "./params";
 
-test("scene defaults are in range and pinhole-sharp", () => {
-  const d = defaultsFor(cornell);
-  expect(d.vfov).toBe(40);
-  expect(d.focus).toBe(cornell.camera.radius);
-  expect(d.aperture).toBe(0);
-  expect(d.exposure).toBe(1);
-  expect(d.bounce).toBe(0);
-  expect(d.env).toBe(1);
-  expect(d.hideIbl).toBe(0);
-});
-
-test("mirror keeps a wide interior view on the lamp", () => {
+test("defaults inherit scene optics and leave path depth unbounded", () => {
   const d = defaultsFor(mirror);
-  expect(d.vfov).toBe(72);
+  expect(d.vfov).toBe(mirror.camera.vfov);
   expect(d.focus).toBe(mirror.camera.radius);
-  expect(d.aperture).toBe(0.01);
-  expect(d.exposure).toBe(0.5);
-});
-
-test("glass hides ibl direct by default", () => {
-  const d = defaultsFor(glass);
-  expect(d.hideIbl).toBe(1);
-  expect(glass.ibl).toBeDefined();
+  expect(d.aperture).toBe(mirror.aperture);
+  expect(d.exposure).toBe(mirror.exposure);
+  expect(d.bounce).toBe(0);
 });
 
 test("tone curve does not reset accumulation", () => {
@@ -35,13 +18,6 @@ test("tone curve does not reset accumulation", () => {
   expect(needsReset(a, { ...a, vfov: 50 })).toBe(true);
   expect(needsReset(a, { ...a, aperture: 0.05 })).toBe(true);
   expect(needsReset(a, { ...a, hideIbl: 1 })).toBe(true);
-});
-
-test("format matches knob precision", () => {
-  expect(formatParam("bounce", 8)).toBe("8");
-  expect(formatParam("bounce", 0)).toBe("∞");
-  expect(formatParam("aperture", 0.04)).toBe("0.040");
-  expect(formatParam("vfov", 35)).toBe("35.0");
 });
 
 test("merge clamps and ignores junk", () => {

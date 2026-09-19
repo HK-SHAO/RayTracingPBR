@@ -1,7 +1,7 @@
 import { RR_MAX_SURVIVAL, RR_MIN_SURVIVAL, RR_START_DEPTH } from "./roulette";
 import { GUIDE_CELL_COUNT, GUIDE_DIR_COUNT, GUIDE_PHI_BINS, GUIDE_Z_BINS } from "./guiding";
 
-const WGSL_CORE = /* wgsl */ `
+export const WGSL_CORE = /* wgsl */ `
 const PI = 3.141592653589793;
 const EPS = 1e-4;
 const T_MAX = 1e4;
@@ -286,7 +286,7 @@ fn fresnel_dielectric(cos_i: f32, eta: f32) -> f32 {
 }
 `;
 
-const WGSL_BSDF = /* wgsl */ `
+export const WGSL_BSDF = /* wgsl */ `
 fn eval_plastic(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32, ior: f32) -> Evaluated {
   var out: Evaluated; out.f = vec3f(0.0); out.pdf = 0.0;
   let f0 = vec3f(ior_f0(ior));
@@ -362,6 +362,12 @@ fn eval_local(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32, metallic: f32, tr
   return out;
 }
 fn eval_bsdf(n: vec3f, wo_w: vec3f, wi_w: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool) -> Evaluated {
+  if (roughness <= 0.0 && ((metallic >= 1.0 && transmission <= 0.0) || transmission >= 1.0)) {
+    var delta: Evaluated;
+    delta.f = vec3f(0.0);
+    delta.pdf = 0.0;
+    return delta;
+  }
   let f = frame_n(n);
   return eval_local(to_local(f, wo_w), to_local(f, wi_w), albedo, max(MIN_ALPHA, roughness * roughness), metallic, transmission, ior, enter);
 }
@@ -385,6 +391,33 @@ fn sample_bsdf(n: vec3f, wo_w: vec3f, albedo: vec3f, roughness: f32, metallic: f
   var sampled: Sampled; sampled.wi = n; sampled.weight = vec3f(0.0); sampled.pdf = 0.0; sampled.eta_scale = 1.0; sampled.delta = 0u;
   let f = frame_n(n);
   let wo = to_local(f, wo_w);
+  if (roughness <= 0.0 && metallic >= 1.0 && transmission <= 0.0) {
+    sampled.wi = to_world(f, reflect(-wo, vec3f(0.0, 0.0, 1.0)));
+    sampled.weight = schlick(albedo, max(wo.z, 0.0));
+    sampled.pdf = 1.0;
+    sampled.delta = 1u;
+    return sampled;
+  }
+  if (roughness <= 0.0 && transmission >= 1.0) {
+    let eta_i = select(ior, 1.0, enter);
+    let eta_t = select(1.0, ior, enter);
+    let eta = eta_i / eta_t;
+    let Fr = fresnel_dielectric(wo.z, eta_t / eta_i);
+    var local = reflect(-wo, vec3f(0.0, 0.0, 1.0));
+    sampled.weight = vec3f(1.0);
+    if (u_lobe >= Fr) {
+      let sin2 = eta * eta * (1.0 - wo.z * wo.z);
+      if (sin2 < 1.0) {
+        local = vec3f(-eta * wo.x, -eta * wo.y, -sqrt(max(0.0, 1.0 - sin2)));
+        sampled.weight = vec3f(eta * eta);
+        sampled.eta_scale = (eta_t * eta_t) / (eta_i * eta_i);
+      }
+    }
+    sampled.wi = to_world(f, local);
+    sampled.pdf = 1.0;
+    sampled.delta = 1u;
+    return sampled;
+  }
   let alpha = max(MIN_ALPHA, roughness * roughness);
   var local = vec3f(0.0, 0.0, 1.0);
   if (u_sel.x < transmission) {
