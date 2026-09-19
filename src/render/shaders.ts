@@ -140,6 +140,9 @@ struct Hit {
 
 struct Sampled { wi: vec3f, weight: vec3f, pdf: f32, eta_scale: f32, delta: u32 }
 struct Evaluated { f: vec3f, pdf: f32 }
+struct Bsdf { albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool }
+struct Frame { t: vec3f, b: vec3f, n: vec3f }
+struct Vertex { p: vec3f, gn: vec3f, f: Frame, b: Bsdf, cell: u32 }
 
 fn pcg(state: ptr<function, u32>) -> f32 {
   *state = *state * 747796405u + 2891336453u;
@@ -168,7 +171,6 @@ fn safe_inv(d: vec3f) -> vec3f {
   );
 }
 
-struct Frame { t: vec3f, b: vec3f, n: vec3f }
 fn frame_n(n: vec3f) -> Frame {
   var f: Frame;
   f.n = n;
@@ -199,15 +201,14 @@ fn guide_total(cell: u32) -> u32 {
   for (var i = 0u; i < GUIDE_DIRS; i++) { total += guide[cell * GUIDE_DIRS + i]; }
   return total;
 }
-fn guide_pdf(p: vec3f, n: vec3f, wi: vec3f, total: u32) -> f32 {
-  let local = to_local(frame_n(n), wi);
+fn guide_pdf(cell: u32, f: Frame, wi: vec3f, total: u32) -> f32 {
+  let local = to_local(f, wi);
   if (local.z <= 0.0 || total == 0u) { return 0.0; }
-  let weight = guide[guide_cell(p) * GUIDE_DIRS + guide_bin_local(local)];
+  let weight = guide[cell * GUIDE_DIRS + guide_bin_local(local)];
   return f32(weight) / f32(total) * f32(GUIDE_DIRS) / (2.0 * PI);
 }
 struct GuideSample { wi: vec3f, pdf: f32 }
-fn sample_guide(p: vec3f, n: vec3f, total: u32, u: vec3f) -> GuideSample {
-  let cell = guide_cell(p);
+fn sample_guide(cell: u32, f: Frame, total: u32, u: vec3f) -> GuideSample {
   let pick = min(total - 1u, u32(u.x * f32(total)));
   var sum = 0u;
   var bin = 0u;
@@ -221,12 +222,26 @@ fn sample_guide(p: vec3f, n: vec3f, total: u32, u: vec3f) -> GuideSample {
   let z = (f32(zb) + u.z) / f32(GUIDE_Z);
   let r = sqrt(max(0.0, 1.0 - z * z));
   var out: GuideSample;
-  out.wi = to_world(frame_n(n), vec3f(r * cos(phi), r * sin(phi), z));
-  out.pdf = guide_pdf(p, n, out.wi, total);
+  out.wi = to_world(f, vec3f(r * cos(phi), r * sin(phi), z));
+  out.pdf = guide_pdf(cell, f, out.wi, total);
   return out;
 }
-fn guide_eligible(roughness: f32, metallic: f32, transmission: f32) -> bool {
-  return roughness >= 0.15 && metallic < 0.5 && transmission < 0.1;
+fn guide_eligible(b: Bsdf) -> bool {
+  return b.roughness >= 0.15 && b.metallic < 0.5 && b.transmission < 0.1;
+}
+fn make_vertex(hit: Hit, ns: vec3f, gs: vec3f, enter: bool) -> Vertex {
+  var v: Vertex;
+  v.p = hit.p;
+  v.gn = gs;
+  v.f = frame_n(ns);
+  v.b.albedo = hit.albedo;
+  v.b.roughness = hit.roughness;
+  v.b.metallic = hit.metallic;
+  v.b.transmission = hit.transmission;
+  v.b.ior = hit.ior;
+  v.b.enter = enter;
+  v.cell = guide_cell(hit.p);
+  return v;
 }
 
 fn cosine_hemisphere(u: vec2f) -> vec3f {
@@ -288,8 +303,8 @@ fn fresnel_dielectric(cos_i: f32, eta: f32) -> f32 {
 `;
 
 export const WGSL_BSDF = /* wgsl */ `
-fn is_delta(roughness: f32, metallic: f32, transmission: f32) -> bool {
-  return roughness <= 0.0 && ((metallic >= 1.0 && transmission <= 0.0) || transmission >= 1.0);
+fn is_delta(b: Bsdf) -> bool {
+  return b.roughness <= 0.0 && ((b.metallic >= 1.0 && b.transmission <= 0.0) || b.transmission >= 1.0);
 }
 fn eval_plastic(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32, ior: f32) -> Evaluated {
   var out: Evaluated; out.f = vec3f(0.0); out.pdf = 0.0;
@@ -355,56 +370,55 @@ fn eval_glass(wo: vec3f, wi: vec3f, alpha: f32, eta_i: f32, eta_t: f32) -> Evalu
   }
   return out;
 }
-fn eval_local(wo: vec3f, wi: vec3f, albedo: vec3f, alpha: f32, metallic: f32, transmission: f32, ior: f32, enter: bool) -> Evaluated {
+fn eval_local(wo: vec3f, wi: vec3f, b: Bsdf) -> Evaluated {
   var out: Evaluated; out.f = vec3f(0.0); out.pdf = 0.0;
-  let o = eval_opaque(wo, wi, albedo, alpha, metallic, ior);
-  if (transmission <= 0.0) { return o; }
-  let g = eval_glass(wo, wi, alpha, select(ior, 1.0, enter), select(1.0, ior, enter));
-  if (transmission >= 1.0) { return g; }
-  out.f = mix(o.f, g.f, transmission);
-  out.pdf = mix(o.pdf, g.pdf, transmission);
+  let alpha = max(MIN_ALPHA, b.roughness * b.roughness);
+  let o = eval_opaque(wo, wi, b.albedo, alpha, b.metallic, b.ior);
+  if (b.transmission <= 0.0) { return o; }
+  let g = eval_glass(wo, wi, alpha, select(b.ior, 1.0, b.enter), select(1.0, b.ior, b.enter));
+  if (b.transmission >= 1.0) { return g; }
+  out.f = mix(o.f, g.f, b.transmission);
+  out.pdf = mix(o.pdf, g.pdf, b.transmission);
   return out;
 }
-fn eval_bsdf(n: vec3f, wo_w: vec3f, wi_w: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool) -> Evaluated {
-  if (is_delta(roughness, metallic, transmission)) {
+fn eval_bsdf(f: Frame, wo_w: vec3f, wi_w: vec3f, b: Bsdf) -> Evaluated {
+  if (is_delta(b)) {
     var delta: Evaluated;
     delta.f = vec3f(0.0);
     delta.pdf = 0.0;
     return delta;
   }
-  let f = frame_n(n);
-  return eval_local(to_local(f, wo_w), to_local(f, wi_w), albedo, max(MIN_ALPHA, roughness * roughness), metallic, transmission, ior, enter);
+  return eval_local(to_local(f, wo_w), to_local(f, wi_w), b);
 }
-fn finish_local(f: Frame, wo: vec3f, local: vec3f, albedo: vec3f, alpha: f32, metallic: f32, transmission: f32, ior: f32, enter: bool) -> Sampled {
+fn finish_local(f: Frame, wo: vec3f, local: vec3f, b: Bsdf) -> Sampled {
   var sampled: Sampled;
   sampled.wi = to_world(f, local);
   sampled.delta = 0u;
   sampled.eta_scale = 1.0;
   if (wo.z * local.z < 0.0) {
-    let eta_i = select(ior, 1.0, enter);
-    let eta_t = select(1.0, ior, enter);
+    let eta_i = select(b.ior, 1.0, b.enter);
+    let eta_t = select(1.0, b.ior, b.enter);
     sampled.eta_scale = (eta_t * eta_t) / (eta_i * eta_i);
   }
-  let ev = eval_local(wo, local, albedo, alpha, metallic, transmission, ior, enter);
+  let ev = eval_local(wo, local, b);
   sampled.pdf = ev.pdf;
   if (ev.pdf > EPS) { sampled.weight = ev.f * abs(local.z) / ev.pdf; }
   else { sampled.weight = vec3f(0.0); }
   return sampled;
 }
-fn sample_bsdf(n: vec3f, wo_w: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool, u: vec2f, u_lobe: f32, u_sel: vec2f) -> Sampled {
-  var sampled: Sampled; sampled.wi = n; sampled.weight = vec3f(0.0); sampled.pdf = 0.0; sampled.eta_scale = 1.0; sampled.delta = 0u;
-  let f = frame_n(n);
+fn sample_bsdf(f: Frame, wo_w: vec3f, b: Bsdf, u: vec2f, u_lobe: f32, u_sel: vec2f) -> Sampled {
+  var sampled: Sampled; sampled.wi = f.n; sampled.weight = vec3f(0.0); sampled.pdf = 0.0; sampled.eta_scale = 1.0; sampled.delta = 0u;
   let wo = to_local(f, wo_w);
-  if (roughness <= 0.0 && metallic >= 1.0 && transmission <= 0.0) {
+  if (b.roughness <= 0.0 && b.metallic >= 1.0 && b.transmission <= 0.0) {
     sampled.wi = to_world(f, reflect(-wo, vec3f(0.0, 0.0, 1.0)));
-    sampled.weight = schlick(albedo, max(wo.z, 0.0));
+    sampled.weight = schlick(b.albedo, max(wo.z, 0.0));
     sampled.pdf = 1.0;
     sampled.delta = 1u;
     return sampled;
   }
-  if (roughness <= 0.0 && transmission >= 1.0) {
-    let eta_i = select(ior, 1.0, enter);
-    let eta_t = select(1.0, ior, enter);
+  if (b.roughness <= 0.0 && b.transmission >= 1.0) {
+    let eta_i = select(b.ior, 1.0, b.enter);
+    let eta_t = select(1.0, b.ior, b.enter);
     let eta = eta_i / eta_t;
     let Fr = fresnel_dielectric(wo.z, eta_t / eta_i);
     var local = reflect(-wo, vec3f(0.0, 0.0, 1.0));
@@ -422,11 +436,11 @@ fn sample_bsdf(n: vec3f, wo_w: vec3f, albedo: vec3f, roughness: f32, metallic: f
     sampled.delta = 1u;
     return sampled;
   }
-  let alpha = max(MIN_ALPHA, roughness * roughness);
+  let alpha = max(MIN_ALPHA, b.roughness * b.roughness);
   var local = vec3f(0.0, 0.0, 1.0);
-  if (u_sel.x < transmission) {
-    let eta_i = select(ior, 1.0, enter);
-    let eta_t = select(1.0, ior, enter);
+  if (u_sel.x < b.transmission) {
+    let eta_i = select(b.ior, 1.0, b.enter);
+    let eta_t = select(1.0, b.ior, b.enter);
     let h = sample_vndf(wo, alpha, u);
     let woh = max(dot(wo, h), 0.0);
     let Fr = fresnel_dielectric(woh, eta_t / eta_i);
@@ -440,36 +454,36 @@ fn sample_bsdf(n: vec3f, wo_w: vec3f, albedo: vec3f, roughness: f32, metallic: f
         local = normalize(eta * -wo + (eta * woh - ct) * h);
       }
     }
-  } else if (u_sel.y < metallic) {
+  } else if (u_sel.y < b.metallic) {
     local = reflect(-wo, sample_vndf(wo, alpha, u));
   } else {
-    let f0 = vec3f(ior_f0(ior)); let p_spec = spec_prob(wo, f0);
+    let f0 = vec3f(ior_f0(b.ior)); let p_spec = spec_prob(wo, f0);
     if (u_lobe < p_spec) { local = reflect(-wo, sample_vndf(wo, alpha, u)); }
     else { local = cosine_hemisphere(u); }
   }
-  return finish_local(f, wo, local, albedo, alpha, metallic, transmission, ior, enter);
+  return finish_local(f, wo, local, b);
 }
-fn sample_guided_bsdf(p: vec3f, n: vec3f, wo: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool, rng: ptr<function, u32>) -> Sampled {
-  let eligible = guide_eligible(roughness, metallic, transmission);
+fn sample_guided_bsdf(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> Sampled {
+  let eligible = guide_eligible(v.b);
   var total = 0u;
-  if (eligible) { total = guide_total(guide_cell(p)); }
+  if (eligible) { total = guide_total(v.cell); }
   let mix_weight = select(0.0, GUIDE_MIX, total >= GUIDE_MIN_WEIGHT);
   if (mix_weight > 0.0 && pcg(rng) < mix_weight) {
-    let g = sample_guide(p, n, total, vec3f(pcg(rng), pcg(rng), pcg(rng)));
-    let ev = eval_bsdf(n, wo, g.wi, albedo, roughness, metallic, transmission, ior, enter);
+    let g = sample_guide(v.cell, v.f, total, vec3f(pcg(rng), pcg(rng), pcg(rng)));
+    let ev = eval_bsdf(v.f, wo, g.wi, v.b);
     var sampled: Sampled;
     sampled.wi = g.wi;
     sampled.pdf = mix(ev.pdf, g.pdf, mix_weight);
-    sampled.weight = ev.f * max(0.0, dot(n, g.wi)) / max(sampled.pdf, EPS);
+    sampled.weight = ev.f * max(0.0, dot(v.f.n, g.wi)) / max(sampled.pdf, EPS);
     sampled.eta_scale = 1.0;
     sampled.delta = 0u;
     return sampled;
   }
-  var sampled = sample_bsdf(n, wo, albedo, roughness, metallic, transmission, ior, enter, rand2(rng), pcg(rng), rand2(rng));
+  var sampled = sample_bsdf(v.f, wo, v.b, rand2(rng), pcg(rng), rand2(rng));
   if (mix_weight > 0.0 && sampled.pdf > 0.0) {
-    let ev = eval_bsdf(n, wo, sampled.wi, albedo, roughness, metallic, transmission, ior, enter);
-    sampled.pdf = mix(sampled.pdf, guide_pdf(p, n, sampled.wi, total), mix_weight);
-    sampled.weight = ev.f * abs(dot(n, sampled.wi)) / max(sampled.pdf, EPS);
+    let ev = eval_bsdf(v.f, wo, sampled.wi, v.b);
+    sampled.pdf = mix(sampled.pdf, guide_pdf(v.cell, v.f, sampled.wi, total), mix_weight);
+    sampled.weight = ev.f * abs(dot(v.f.n, sampled.wi)) / max(sampled.pdf, EPS);
   }
   return sampled;
 }
@@ -733,7 +747,7 @@ fn reach(origin: vec3f, wi: vec3f, dist: f32) -> bool {
   return !occluded(origin, wi, vis_range(dist));
 }
 
-fn next_event(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool, rng: ptr<function, u32>) -> vec3f {
+fn next_event(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
   if (trace.light_count == 0u) { return vec3f(0.0); }
   let tot = total_light_power();
   let i = pick_light(rng);
@@ -741,15 +755,16 @@ fn next_event(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, roughness
   let p_pick = pick_pdf(L, tot);
   var wi = vec3f(0.0, 1.0, 0.0);
   var pdf_w = 1.0;
-  let origin = p + gn * (EPS * 8.0);
+  let n = v.f.n;
+  let origin = v.p + v.gn * (EPS * 8.0);
   if (L.kind == LIGHT_SPHERE) {
     let c = L.origin.xyz; let r = L.origin.w;
-    let to_c = c - p; let d2 = dot(to_c, to_c);
+    let to_c = c - v.p; let d2 = dot(to_c, to_c);
     if (d2 <= r * r) { return vec3f(0.0); }
     let cos_max = sqrt(max(0.0, 1.0 - (r * r) / d2));
     wi = sample_cone(to_c / sqrt(d2), cos_max, rand2(rng));
     if (dot(n, wi) <= 0.0) { return vec3f(0.0); }
-    pdf_w = p_pick * sphere_pdf_w(p, c, r);
+    pdf_w = p_pick * sphere_pdf_w(v.p, c, r);
     let t = t_sphere(origin, wi, vec4f(c, r));
     if (t >= T_MAX || occluded(origin, wi, vis_range(t))) { return vec3f(0.0); }
   } else {
@@ -781,7 +796,7 @@ fn next_event(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, roughness
       sample_p = L.origin.xyz + L.u.xyz * uv.x + L.v.xyz * uv.y;
       ln = normalize(cross(L.u.xyz, L.v.xyz));
     }
-    var to_l = sample_p - p; let dist2 = dot(to_l, to_l); let dist = sqrt(dist2);
+    var to_l = sample_p - v.p; let dist2 = dot(to_l, to_l); let dist = sqrt(dist2);
     if (dist < EPS) { return vec3f(0.0); }
     wi = to_l / dist;
     let cos_l = -dot(ln, wi); let cos_p = dot(n, wi);
@@ -789,7 +804,7 @@ fn next_event(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, roughness
     pdf_w = area_pdf_w(p_pick, L.area, dist2, cos_l);
     if (!reach(origin, wi, dist)) { return vec3f(0.0); }
   }
-  let ev = eval_bsdf(n, wo, wi, albedo, roughness, metallic, transmission, ior, enter);
+  let ev = eval_bsdf(v.f, wo, wi, v.b);
   if (pdf_w <= EPS) { return vec3f(0.0); }
   return ev.f * light_le(L) * max(dot(n, wi), 0.0) * mis2(pdf_w, ev.pdf) / pdf_w;
 }
@@ -847,7 +862,7 @@ fn env_pick(rng: ptr<function, u32>) -> vec2u {
   let j = select(i, min(u32(env_f32(n + i)), n - 1u), fract(x) >= env_f32(i));
   return vec2u(j % trace.env_w, j / trace.env_w);
 }
-fn next_event_env(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, roughness: f32, metallic: f32, transmission: f32, ior: f32, enter: bool, rng: ptr<function, u32>) -> vec3f {
+fn next_event_env(v: Vertex, wo: vec3f, rng: ptr<function, u32>) -> vec3f {
   if (trace.use_ibl == 0u) { return vec3f(0.0); }
   let px = env_pick(rng);
   let uv = vec2f((f32(px.x) + pcg(rng)) / f32(trace.env_w), (f32(px.y) + pcg(rng)) / f32(trace.env_h));
@@ -856,10 +871,10 @@ fn next_event_env(p: vec3f, n: vec3f, gn: vec3f, wo: vec3f, albedo: vec3f, rough
   let st = sin(theta);
   let wi = vec3f(st * cos(phi), cos(theta), st * sin(phi));
   let pix = env[env_index(px.x, px.y)]; let pdf_e = pix.w; let le = pix.xyz * trace.env_gain;
-  let cos_p = dot(n, wi);
+  let cos_p = dot(v.f.n, wi);
   if (cos_p <= 0.0 || pdf_e <= EPS) { return vec3f(0.0); }
-  if (occluded(p + gn * (EPS * 8.0), wi, T_MAX)) { return vec3f(0.0); }
-  let ev = eval_bsdf(n, wo, wi, albedo, roughness, metallic, transmission, ior, enter);
+  if (occluded(v.p + v.gn * (EPS * 8.0), wi, T_MAX)) { return vec3f(0.0); }
+  let ev = eval_bsdf(v.f, wo, wi, v.b);
   return ev.f * le * cos_p * mis2(pdf_e, ev.pdf) / pdf_e;
 }
 `;
@@ -888,18 +903,18 @@ fn trace_path(ro0: vec3f, rd0: vec3f, rng: ptr<function, u32>) -> vec3f {
       if (front) { radiance += beta * hit.emission * select(mis2(pdf, light_pdf_hit(hit, o, d)), 1.0, delta); }
       break;
     }
-    if (!is_delta(hit.roughness, hit.metallic, hit.transmission)) {
-      radiance += beta * next_event(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
-      radiance += beta * next_event_env(hit.p, ns, gs, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
+    let v = make_vertex(hit, ns, gs, front);
+    if (!is_delta(v.b)) {
+      radiance += beta * next_event(v, wo, rng);
+      radiance += beta * next_event_env(v, wo, rng);
     }
     if (trace.bounce >= 0 && bounce >= u32(trace.bounce)) { break; }
-    let s = sample_guided_bsdf(hit.p, ns, wo, hit.albedo, hit.roughness, hit.metallic, hit.transmission, hit.ior, front, rng);
+    let s = sample_guided_bsdf(v, wo, rng);
     if (s.pdf <= 0.0 || max(s.weight.x, max(s.weight.y, s.weight.z)) <= 0.0) { break; }
-    if (guide_eligible(hit.roughness, hit.metallic, hit.transmission)) {
+    if (guide_eligible(v.b)) {
       record_count++;
       if (pcg(rng) * f32(record_count) < 1.0) {
-        let local = to_local(frame_n(ns), s.wi);
-        record_index = guide_cell(hit.p) * GUIDE_DIRS + guide_bin_local(local);
+        record_index = v.cell * GUIDE_DIRS + guide_bin_local(to_local(v.f, s.wi));
         record_radiance = radiance;
         record_beta = beta;
       }

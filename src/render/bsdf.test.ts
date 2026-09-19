@@ -6,10 +6,13 @@ const TEST_WGSL = `${WGSL_CORE}\n${WGSL_BSDF}
 @group(0) @binding(2) var<storage, read_write> dst: array<vec4f>;
 @compute @workgroup_size(1)
 fn main() {
-  let mirror = sample_bsdf(vec3f(0.0, 0.0, 1.0), vec3f(0.0, 0.0, 1.0), vec3f(0.9, 0.8, 0.7), 0.0, 1.0, 0.0, 1.5, true, vec2f(0.3), 0.5, vec2f(0.5));
+  let f = frame_n(vec3f(0.0, 0.0, 1.0));
+  var mirror_b: Bsdf; mirror_b.albedo = vec3f(0.9, 0.8, 0.7); mirror_b.roughness = 0.0; mirror_b.metallic = 1.0; mirror_b.transmission = 0.0; mirror_b.ior = 1.5; mirror_b.enter = true;
+  let mirror = sample_bsdf(f, vec3f(0.0, 0.0, 1.0), mirror_b, vec2f(0.3), 0.5, vec2f(0.5));
   dst[0] = vec4f(mirror.wi, f32(mirror.delta));
   dst[1] = vec4f(mirror.weight, mirror.eta_scale);
-  let glass = sample_bsdf(vec3f(0.0, 0.0, 1.0), vec3f(0.0, 0.0, 1.0), vec3f(1.0), 0.0, 0.0, 1.0, 1.5, true, vec2f(0.3), 0.5, vec2f(0.5));
+  var glass_b: Bsdf; glass_b.albedo = vec3f(1.0); glass_b.roughness = 0.0; glass_b.metallic = 0.0; glass_b.transmission = 1.0; glass_b.ior = 1.5; glass_b.enter = true;
+  let glass = sample_bsdf(f, vec3f(0.0, 0.0, 1.0), glass_b, vec2f(0.3), 0.5, vec2f(0.5));
   dst[2] = vec4f(glass.wi, f32(glass.delta));
   dst[3] = vec4f(glass.weight, glass.eta_scale);
 }`;
