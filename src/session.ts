@@ -21,7 +21,7 @@ function pluginOf(id: string | null): (typeof plugins)[number] {
 
 export function defaultSession(): Session {
   const plugin = plugins[0]!;
-  return { scene: plugin.id, mode: "orbit", params: defaultsFor(plugin), open: true };
+  return { scene: plugin.id, mode: "orbit", params: defaultsFor(plugin), open: false };
 }
 
 export function decodeSession(search: string): Session {
@@ -38,7 +38,7 @@ export function decodeSession(search: string): Session {
     scene: plugin.id,
     mode: q.get("mode") === "fps" ? "fps" : "orbit",
     params: mergeParams(defaultsFor(plugin), patch),
-    open: q.get("panel") !== "0",
+    open: q.get("panel") === "1",
   };
 }
 
@@ -52,7 +52,7 @@ export function encodeSession(session: Session): string {
     if (session.params[key] === base[key]) continue;
     q.set(key, formatParam(key, session.params[key]));
   }
-  if (!session.open) q.set("panel", "0");
+  if (session.open) q.set("panel", "1");
   return q.toString();
 }
 

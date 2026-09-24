@@ -14,12 +14,12 @@ test("unknown scene and junk keys fall back", () => {
   expect(session).toEqual(defaultSession());
 });
 
-test("roundtrip keeps non-default knobs and closed panel", () => {
+test("roundtrip keeps non-default knobs and open panel", () => {
   const session = {
     scene: "glass",
     mode: "fps" as const,
     params: { ...defaultsFor(glass), vfov: 50, bounce: 4, hideIbl: 0 },
-    open: false,
+    open: true,
   };
   const again = decodeSession(`?${encodeSession(session)}`);
   expect(again).toEqual(session);

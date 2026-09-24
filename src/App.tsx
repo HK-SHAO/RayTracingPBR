@@ -80,6 +80,12 @@ export function App() {
     <>
       <canvas ref={canvasRef} className={probeArmed ? "probe-on" : undefined} />
       {probeArmed ? <ProbeOverlay frame={probe} /> : null}
+      <footer className="credit">
+        © 2026 烧风
+        <a href="https://github.com/HK-SHAO/RayTracingPBR" rel="noreferrer">
+          github.com/HK-SHAO/RayTracingPBR
+        </a>
+      </footer>
       {mode === "fps" ? (
         <FpsPad onPad={(key, down) => rendererRef.current?.setPad(key, down)} />
       ) : null}

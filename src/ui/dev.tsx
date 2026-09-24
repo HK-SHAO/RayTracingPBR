@@ -1,4 +1,4 @@
-import type { PointerEvent } from "react";
+import type { CSSProperties, PointerEvent } from "react";
 import { DEV_KNOBS, formatParam, type DevParams } from "../render/params";
 import { TARGET_FPS } from "../render/pace";
 import { plugins } from "../scene";
@@ -97,47 +97,48 @@ export function DevPanel({
       {open ? (
         <div className="dev-body">
           <section className="dev-block">
-            <h2>{t("scene")}</h2>
-            <div className="dev-row">
-              {plugins.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-pressed={scene === item.id}
-                  onClick={() => onScene(item.id)}
-                >
-                  {item.name}
-                </button>
-              ))}
+            <div className="dev-toggle">
+              <label htmlFor="dev-scene">{t("scene")}</label>
+              <select id="dev-scene" value={scene} onChange={(e) => onScene(e.target.value)}>
+                {plugins.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
             </div>
-          </section>
-          <section className="dev-block">
-            <h2>{t("camera")}</h2>
-            <div className="dev-row">
-              <button type="button" aria-pressed={mode === "orbit"} onClick={() => onMode("orbit")}>
-                {t("orbit")}
-              </button>
-              <button type="button" aria-pressed={mode === "fps"} onClick={() => onMode("fps")}>
-                {t("fpsMode")}
+            <div className="dev-toggle">
+              <span>{t("camera")}</span>
+              <button type="button" onClick={() => onMode(mode === "orbit" ? "fps" : "orbit")}>
+                {mode === "orbit" ? t("orbit") : t("fpsMode")}
               </button>
             </div>
-            <p className="dev-hint">{mode === "fps" ? t("hintFps") : t("hintOrbit")}</p>
-          </section>
-          <section className="dev-block">
-            <h2>{t("path")}</h2>
-            <div className="dev-row">
-              <button type="button" aria-pressed={!probeArmed} onClick={() => onProbeArmed(false)}>
-                {t("off")}
-              </button>
-              <button type="button" aria-pressed={probeArmed} onClick={() => onProbeArmed(true)}>
-                {t("on")}
+            <div className="dev-toggle">
+              <span>{t("path")}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={probeArmed}
+                onClick={() => onProbeArmed(!probeArmed)}
+              >
+                {probeArmed ? t("on") : t("off")}
               </button>
             </div>
-            <p className="dev-hint">{probeArmed ? t("hintPathOn") : t("hintPathOff")}</p>
+            <p className="dev-hint">
+              {probeArmed ? t("hintPathOn") : mode === "fps" ? t("hintFps") : t("hintOrbit")}
+            </p>
           </section>
           <section className="dev-block">
             {DEV_KNOBS.map((knob) => (
-              <label key={knob.key} className="dev-knob">
+              <label
+                key={knob.key}
+                className="dev-knob"
+                style={
+                  {
+                    "--knob": `${((params[knob.key] - knob.min) / (knob.max - knob.min)) * 100}%`,
+                  } as CSSProperties
+                }
+              >
                 <span>{t(knob.key)}</span>
                 <output>{formatParam(knob.key, params[knob.key])}</output>
                 <input
@@ -150,22 +151,16 @@ export function DevPanel({
                 />
               </label>
             ))}
-            <label className="dev-knob">
+            <div className="dev-pair">
               <span>{t("spp")}</span>
               <output>{error ?? spp}</output>
-            </label>
+            </div>
             <label className="dev-fps">
               <span>{t("fps")}</span>
               <FpsPlot values={fpsHist} />
               <output>{fps.toFixed(0)}</output>
             </label>
           </section>
-          <footer className="dev-foot">
-            <a href="https://github.com/HK-SHAO/RayTracingPBR" rel="noreferrer">
-              github.com/HK-SHAO/RayTracingPBR
-            </a>
-            <span>RayTracingPBR © 2026 烧风 HK-SHAO</span>
-          </footer>
         </div>
       ) : null}
     </aside>

@@ -63,25 +63,24 @@ canvas.probe-on:active {
   z-index: 1;
 }
 
-.probe line {
-  fill: none;
-  stroke-width: 1;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
+.credit {
+  position: fixed;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: max(1rem, env(safe-area-inset-left));
+  z-index: 2;
+  display: flex;
+  gap: 0.5em;
+  color: #fff;
+  user-select: none;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
-.probe .nee {
-  stroke-dasharray: 4 3;
-}
-
-.probe .env {
-  stroke-dasharray: 1.5 3;
-}
-
-.probe .mark {
-  stroke: #fff;
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
+.credit a {
+  color: inherit;
+  text-decoration: none;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .dev {
@@ -101,7 +100,7 @@ canvas.probe-on:active {
   z-index: 2;
   display: flex;
   flex-direction: column;
-  width: min(19rem, calc(100svw - var(--edge-l) - var(--edge-r) - 2px));
+  width: min(20rem, calc(100svw - var(--edge-l) - var(--edge-r) - 2px));
   max-height: calc(100svh - var(--edge) - var(--edge-b) - 2px);
   background: rgba(10, 10, 10, 0.88);
   border: 1px solid var(--line);
@@ -131,9 +130,11 @@ canvas.probe-on:active {
 }
 
 .dev-title,
-.dev-block h2,
+.dev-toggle span,
+.dev-toggle label,
 .dev-knob span,
-.dev-fps span {
+.dev-fps span,
+.dev-pair span {
   margin: 0;
   font: inherit;
   font-weight: 600;
@@ -144,11 +145,13 @@ canvas.probe-on:active {
   color: var(--hi);
 }
 
-.dev-block h2,
+.dev-title,
+.dev-toggle span,
+.dev-toggle label,
 .dev-knob span,
-.dev-fps span {
+.dev-fps span,
+.dev-pair span {
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .dev-body {
@@ -163,12 +166,13 @@ canvas.probe-on:active {
   scrollbar-color: var(--line) transparent;
 }
 
-.dev-row,
+.dev-toggle,
+.dev-pair,
 .dev-knob {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr auto;
   gap: 0.5rem;
-  align-items: baseline;
+  align-items: center;
 }
 
 .dev-hint {
@@ -176,28 +180,9 @@ canvas.probe-on:active {
   color: var(--lo);
 }
 
-.dev-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.7rem 0.75rem 0.8rem;
-  color: var(--lo);
-  font-size: 0.7rem;
-  letter-spacing: 0.01em;
-  overflow-wrap: anywhere;
-}
-
-.dev-foot a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.dev-foot a:hover {
-  color: var(--hi);
-}
-
 .dev-knob output,
-.dev-fps output {
+.dev-fps output,
+.dev-pair output {
   font-variant-numeric: tabular-nums;
   text-align: right;
   color: var(--hi);
@@ -205,9 +190,45 @@ canvas.probe-on:active {
 
 .dev-knob input {
   grid-column: 1 / -1;
+  appearance: none;
   width: 100%;
+  height: 1.1rem;
   margin: 0;
-  accent-color: currentColor;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dev-knob input::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(to right, var(--hi) var(--knob), var(--line) var(--knob));
+}
+
+.dev-knob input::-webkit-slider-thumb {
+  appearance: none;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-top: -0.29rem;
+  border-radius: 50%;
+  background: var(--hi);
+}
+
+.dev-knob input::-moz-range-track {
+  height: 2px;
+  background: var(--line);
+}
+
+.dev-knob input::-moz-range-progress {
+  height: 2px;
+  background: var(--hi);
+}
+
+.dev-knob input::-moz-range-thumb {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 0;
+  border-radius: 50%;
+  background: var(--hi);
 }
 
 .dev-fps {
@@ -244,6 +265,15 @@ canvas.probe-on:active {
   border-radius: 0.5rem;
   corner-shape: squircle;
   padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.dev select {
+  max-width: 12rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--fill);
   cursor: pointer;
 }
 
